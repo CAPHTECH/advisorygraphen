@@ -245,6 +245,24 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
     ]);
     assert_success(&import);
 
+    let accept = run_cli([
+        "completions",
+        "accept",
+        "--store",
+        path_str(&store),
+        "--candidate-id",
+        flow.expected_candidate_text,
+        "--from-report",
+        path_str(&completions),
+        "--reviewer",
+        "reviewer:dogfood-agent",
+        "--reason",
+        "Accepted during dogfood case resume.",
+        "--format",
+        "json",
+    ]);
+    assert_success(&accept);
+
     let reason = run_cli([
         "case",
         "reason",
@@ -260,6 +278,7 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
     assert_output_contains(&reason, r#""blocking_threshold": "medium""#);
     assert_output_contains(&reason, "candidate_review_state");
     assert_output_contains(&reason, flow.expected_candidate_text);
+    assert_output_contains(&reason, r#""review_status": "accepted""#);
     assert_output_contains(&reason, "projection:ai-agent");
     for obstruction_id in flow.expected_obstructions {
         assert_output_contains(&reason, obstruction_id);

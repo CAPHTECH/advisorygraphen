@@ -85,7 +85,7 @@ If cache and log disagree, log replay wins.
 | `frontier_items` | ready items with no completed downstream work |
 | `waiting_items` | blocked only by external wait or missing owner |
 | `close_status` | close invariants satisfied and medium-or-higher obstructions resolved |
-| `candidate_review_state` | deterministic completion candidates derived from current blockers |
+| `candidate_review_state` | deterministic completion candidates derived from current blockers, overlaid with review events |
 | `ai_agent projection` | resume contract combining blockers, candidates, close status, and projection loss |
 | `evolution_report` | differences between revisions |
 

@@ -12,9 +12,11 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+mod case_review;
 mod dogfood;
 mod projection_report;
 mod review;
+use case_review::apply_candidate_reviews;
 pub use dogfood::{dogfood_repo_snapshot_workflow, DogfoodRepoSnapshotOptions};
 use projection_report::{attach_completion_report, read_projection_report};
 use review::higher_graphen_completion_review;
@@ -24,7 +26,6 @@ pub struct ValidateOptions {
     pub input: PathBuf,
     pub schema: Option<String>,
 }
-
 #[derive(Debug, Clone)]
 pub struct LiftOptions {
     pub input: PathBuf,
@@ -32,7 +33,6 @@ pub struct LiftOptions {
     pub output: Option<PathBuf>,
     pub command: Option<String>,
 }
-
 #[derive(Debug, Clone)]
 pub struct CheckOptions {
     pub space: PathBuf,
@@ -41,7 +41,6 @@ pub struct CheckOptions {
     pub fail_on: Option<Severity>,
     pub command: Option<String>,
 }
-
 #[derive(Debug, Clone)]
 pub struct CompletionProposeOptions {
     pub space: PathBuf,
@@ -49,7 +48,6 @@ pub struct CompletionProposeOptions {
     pub output: Option<PathBuf>,
     pub command: Option<String>,
 }
-
 #[derive(Debug, Clone)]
 pub struct ReviewOptions {
     pub store: PathBuf,
@@ -240,23 +238,25 @@ pub fn case_import_workflow(options: &CaseImportOptions) -> AdvisoryResult<Value
 pub fn case_reason_workflow(options: &CaseReasonOptions) -> AdvisoryResult<Value> {
     let space = read_materialized_space(&options.store, &options.space_id)?;
     let check = check_space(&space, "technical_advisory_mvp", None, None)?;
-    let completions = propose_completions(&space, &check, "case_reason", None)?;
-    let agent_report = attach_completion_report(
-        serde_json::to_value(&check)?,
-        serde_json::to_value(&completions)?,
-    )?;
+    let mut completions = propose_completions(&space, &check, "case_reason", None)?;
     let blockers = check
         .result
         .get("obstructions")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    let candidates = completions
+    let mut candidates = completions
         .result
         .get("completion_candidates")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
+    apply_candidate_reviews(&options.store, &options.space_id, &mut candidates)?;
+    completions.result["completion_candidates"] = json!(candidates.clone());
+    let agent_report = attach_completion_report(
+        serde_json::to_value(&check)?,
+        serde_json::to_value(&completions)?,
+    )?;
     Ok(json!({
         "schema": "advisorygraphen.report.v1",
         "report_type": "case_reason",
