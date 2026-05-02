@@ -1,0 +1,8 @@
+.advisorygraphen/
+*.local.json
+*.customer.json
+*.secret.json
+reports/private/
+customer-workspaces/
+.env
+.env.*

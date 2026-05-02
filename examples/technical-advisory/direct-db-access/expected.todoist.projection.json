@@ -1,0 +1,23 @@
+{
+  "schema": "advisorygraphen.todoist.projection.v1",
+  "projection_id": "projection:todoist:technical-advisory-direct-db-access",
+  "space_id": "space:advisory:technical-advisory-direct-db-access",
+  "tasks": [],
+  "blocked_tasks": [
+    {
+      "source_id": "candidate:replace-order-service-db-read",
+      "reason": "Completion candidate is unreviewed. Todoist export requires accepted action or draft export policy.",
+      "export_status": "blocked_missing_review"
+    }
+  ],
+  "projection_loss": [
+    {
+      "loss_type": "omitted_source_text",
+      "description": "Synthetic fixture source note is summarized as task metadata only.",
+      "omitted_ids": [
+        "source:architecture-note"
+      ],
+      "severity": "low"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/advisorygraphen/advisory.report.schema.json",
+  "title": "AdvisoryGraphen Report Envelope v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "report_type",
+    "report_version",
+    "tool",
+    "input",
+    "result",
+    "projection",
+    "warnings"
+  ],
+  "properties": {
+    "schema": {
+      "const": "advisorygraphen.report.v1"
+    },
+    "report_type": {
+      "type": "string"
+    },
+    "report_version": {
+      "const": 1
+    },
+    "tool": {
+      "type": "object",
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "const": "advisorygraphen"
+        },
+        "version": {
+          "type": "string"
+        },
+        "command": {
+          "type": "string"
+        },
+        "git_revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "input": {
+      "type": "object"
+    },
+    "result": {
+      "type": "object"
+    },
+    "projection": {
+      "type": "object"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  },
+  "additionalProperties": false
+}

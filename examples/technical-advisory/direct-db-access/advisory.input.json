@@ -1,0 +1,177 @@
+{
+  "schema": "advisorygraphen.engagement.snapshot.v1",
+  "snapshot_id": "snapshot:technical-advisory-direct-db-access",
+  "engagement_id": "engagement:acme-technical-advisory",
+  "captured_at": "2026-05-02T00:00:00Z",
+  "source_boundary": {
+    "included_source_ids": [
+      "source:architecture-note"
+    ],
+    "excluded_summary": [
+      "No source code was parsed in this synthetic fixture."
+    ],
+    "extraction_loss": [
+      "The architecture note is represented as structured records, not full prose."
+    ],
+    "trust_notes": [
+      "Synthetic fixture for deterministic MVP testing."
+    ],
+    "adapter_version": "json_snapshot:0.1.0"
+  },
+  "sources": [
+    {
+      "id": "source:architecture-note",
+      "source_type": "architecture_note",
+      "title": "Synthetic direct database access architecture note",
+      "uri": null,
+      "captured_at": "2026-05-02T00:00:00Z",
+      "classification": "public",
+      "metadata": {}
+    }
+  ],
+  "records": [
+    {
+      "id": "record:order-service",
+      "record_type": "component",
+      "title": "Order Service",
+      "summary": "Order management service.",
+      "source_ids": [
+        "source:architecture-note"
+      ],
+      "context_hints": [
+        "orders"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "component_type": "service"
+      }
+    },
+    {
+      "id": "record:billing-service",
+      "record_type": "component",
+      "title": "Billing Service",
+      "summary": "Billing management service.",
+      "source_ids": [
+        "source:architecture-note"
+      ],
+      "context_hints": [
+        "billing"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "component_type": "service"
+      }
+    },
+    {
+      "id": "record:billing-db",
+      "record_type": "data_store",
+      "title": "Billing DB",
+      "summary": "Database owned by Billing Service.",
+      "source_ids": [
+        "source:architecture-note"
+      ],
+      "context_hints": [
+        "billing"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "store_type": "database"
+      }
+    },
+    {
+      "id": "record:billing-service-owns-billing-db",
+      "record_type": "ownership_relation",
+      "title": "Billing Service owns Billing DB",
+      "summary": "Billing DB is owned by Billing Service.",
+      "source_ids": [
+        "source:architecture-note"
+      ],
+      "context_hints": [
+        "billing"
+      ],
+      "relation": {
+        "relation_type": "owns",
+        "from_record_id": "record:billing-service",
+        "to_record_id": "record:billing-db"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:order-service-accesses-billing-db",
+      "record_type": "access_relation",
+      "title": "Order Service reads Billing DB directly",
+      "summary": "Order Service reads Billing DB to check billing status.",
+      "source_ids": [
+        "source:architecture-note"
+      ],
+      "context_hints": [
+        "orders",
+        "billing"
+      ],
+      "relation": {
+        "relation_type": "accesses",
+        "from_record_id": "record:order-service",
+        "to_record_id": "record:billing-db"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "access_type": "direct_database_read"
+      }
+    },
+    {
+      "id": "record:billing-status-requirement",
+      "record_type": "requirement",
+      "title": "Order confirmation needs billing status",
+      "summary": "Order Service must check billing status before confirming an order.",
+      "source_ids": [
+        "source:architecture-note"
+      ],
+      "context_hints": [
+        "orders",
+        "billing"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "high"
+      }
+    }
+  ],
+  "metadata": {
+    "fixture": true
+  }
+}

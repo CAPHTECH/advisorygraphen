@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/advisorygraphen/review.event.schema.json",
+  "title": "AdvisoryGraphen Review Event v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "review_event_id",
+    "engagement_id",
+    "target_ids",
+    "outcome",
+    "reviewer_id",
+    "reviewed_at",
+    "reason",
+    "evidence_ids",
+    "metadata"
+  ],
+  "properties": {
+    "schema": {
+      "const": "advisorygraphen.review.event.v1"
+    },
+    "review_event_id": {
+      "type": "string",
+      "pattern": "^review:"
+    },
+    "engagement_id": {
+      "type": "string",
+      "pattern": "^engagement:"
+    },
+    "target_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "accepted",
+        "rejected",
+        "waived",
+        "superseded",
+        "reopened"
+      ]
+    },
+    "reviewer_id": {
+      "type": "string"
+    },
+    "reviewed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "base_revision_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}

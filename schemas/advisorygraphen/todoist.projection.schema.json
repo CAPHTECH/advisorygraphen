@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/advisorygraphen/todoist.projection.schema.json",
+  "title": "AdvisoryGraphen Todoist Projection v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "projection_id",
+    "space_id",
+    "tasks",
+    "blocked_tasks",
+    "projection_loss"
+  ],
+  "properties": {
+    "schema": {
+      "const": "advisorygraphen.todoist.projection.v1"
+    },
+    "projection_id": {
+      "type": "string",
+      "pattern": "^projection:"
+    },
+    "space_id": {
+      "type": "string",
+      "pattern": "^space:"
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "external_key",
+          "content",
+          "description",
+          "labels",
+          "priority",
+          "source_ids",
+          "review_status",
+          "export_status"
+        ],
+        "properties": {
+          "external_key": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "due_string": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "review_status": {
+            "type": "string"
+          },
+          "export_status": {
+            "type": "string",
+            "enum": [
+              "exportable",
+              "draft_only",
+              "blocked_missing_review",
+              "blocked_missing_owner",
+              "blocked_policy"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "blocked_tasks": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "projection_loss": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  },
+  "additionalProperties": false
+}

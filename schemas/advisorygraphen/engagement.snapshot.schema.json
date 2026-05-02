@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/advisorygraphen/engagement.snapshot.schema.json",
+  "title": "AdvisoryGraphen Engagement Snapshot v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "snapshot_id",
+    "engagement_id",
+    "captured_at",
+    "source_boundary",
+    "sources",
+    "records",
+    "metadata"
+  ],
+  "properties": {
+    "schema": {
+      "const": "advisorygraphen.engagement.snapshot.v1"
+    },
+    "snapshot_id": {
+      "type": "string",
+      "pattern": "^snapshot:"
+    },
+    "engagement_id": {
+      "type": "string",
+      "pattern": "^engagement:"
+    },
+    "captured_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_boundary": {
+      "type": "object",
+      "required": [
+        "included_source_ids",
+        "excluded_summary",
+        "extraction_loss"
+      ],
+      "properties": {
+        "included_source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "excluded_summary": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "extraction_loss": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "trust_notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "adapter_version": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "source_type",
+          "title"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^source:"
+          },
+          "source_type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "uri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "captured_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "public",
+              "internal",
+              "customer_confidential",
+              "regulated",
+              "secret"
+            ]
+          },
+          "metadata": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "record_type",
+          "title",
+          "source_ids",
+          "provenance"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "record_type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "context_hints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "relation": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "relation_type": {
+                "type": "string"
+              },
+              "from_record_id": {
+                "type": "string"
+              },
+              "to_record_id": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          },
+          "provenance": {
+            "type": "object",
+            "required": [
+              "origin",
+              "actor",
+              "review_status"
+            ],
+            "properties": {
+              "origin": {
+                "type": "string",
+                "enum": [
+                  "source_backed",
+                  "inferred",
+                  "review_promoted",
+                  "rejected",
+                  "contradicting"
+                ]
+              },
+              "actor": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 1
+              },
+              "review_status": {
+                "type": "string",
+                "enum": [
+                  "unreviewed",
+                  "needs_review",
+                  "accepted",
+                  "rejected",
+                  "waived",
+                  "superseded",
+                  "reopened"
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          "metadata": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}

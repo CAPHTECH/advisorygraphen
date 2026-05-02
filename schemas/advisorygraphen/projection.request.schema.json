@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/advisorygraphen/projection.request.schema.json",
+  "title": "AdvisoryGraphen Projection Request v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "projection_id",
+    "space_id",
+    "audience",
+    "purpose",
+    "include_ids",
+    "exclude_ids",
+    "policy_ids",
+    "metadata"
+  ],
+  "properties": {
+    "schema": {
+      "const": "advisorygraphen.projection.request.v1"
+    },
+    "projection_id": {
+      "type": "string",
+      "pattern": "^projection:"
+    },
+    "space_id": {
+      "type": "string",
+      "pattern": "^space:"
+    },
+    "audience": {
+      "type": "string",
+      "enum": [
+        "executive",
+        "developer_action",
+        "audit_trace",
+        "ai_agent",
+        "todoist_task_export",
+        "client_review",
+        "cli"
+      ]
+    },
+    "purpose": {
+      "type": "string"
+    },
+    "include_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "exclude_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "policy_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}

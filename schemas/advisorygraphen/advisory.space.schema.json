@@ -1,0 +1,341 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/advisorygraphen/advisory.space.schema.json",
+  "title": "AdvisoryGraphen Space v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "space_id",
+    "engagement_id",
+    "snapshot_id",
+    "package_id",
+    "cells",
+    "contexts",
+    "incidences",
+    "morphisms",
+    "invariants",
+    "policies",
+    "metadata"
+  ],
+  "properties": {
+    "schema": {
+      "const": "advisorygraphen.space.v1"
+    },
+    "space_id": {
+      "type": "string",
+      "pattern": "^space:"
+    },
+    "engagement_id": {
+      "type": "string",
+      "pattern": "^engagement:"
+    },
+    "snapshot_id": {
+      "type": "string",
+      "pattern": "^snapshot:"
+    },
+    "package_id": {
+      "type": "string",
+      "pattern": "^package:"
+    },
+    "cells": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "cell_type",
+          "title",
+          "context_ids",
+          "source_ids",
+          "provenance",
+          "metadata"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^cell:"
+          },
+          "cell_type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "context_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "structure_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "provenance": {
+            "type": "object",
+            "required": [
+              "origin",
+              "actor",
+              "review_status"
+            ],
+            "properties": {
+              "origin": {
+                "type": "string",
+                "enum": [
+                  "source_backed",
+                  "inferred",
+                  "review_promoted",
+                  "rejected",
+                  "contradicting"
+                ]
+              },
+              "actor": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 1
+              },
+              "review_status": {
+                "type": "string",
+                "enum": [
+                  "unreviewed",
+                  "needs_review",
+                  "accepted",
+                  "rejected",
+                  "waived",
+                  "superseded",
+                  "reopened"
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          "metadata": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "contexts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "context_type",
+          "title",
+          "provenance",
+          "metadata"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^context:"
+          },
+          "context_type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provenance": {
+            "type": "object",
+            "required": [
+              "origin",
+              "actor",
+              "review_status"
+            ],
+            "properties": {
+              "origin": {
+                "type": "string",
+                "enum": [
+                  "source_backed",
+                  "inferred",
+                  "review_promoted",
+                  "rejected",
+                  "contradicting"
+                ]
+              },
+              "actor": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 1
+              },
+              "review_status": {
+                "type": "string",
+                "enum": [
+                  "unreviewed",
+                  "needs_review",
+                  "accepted",
+                  "rejected",
+                  "waived",
+                  "superseded",
+                  "reopened"
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          "metadata": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "incidences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "relation_type",
+          "from_id",
+          "to_id",
+          "context_ids",
+          "evidence_ids",
+          "strength",
+          "provenance",
+          "metadata"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^incidence:"
+          },
+          "relation_type": {
+            "type": "string"
+          },
+          "from_id": {
+            "type": "string"
+          },
+          "to_id": {
+            "type": "string"
+          },
+          "context_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evidence_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "strength": {
+            "type": "string",
+            "enum": [
+              "hard",
+              "soft",
+              "diagnostic"
+            ]
+          },
+          "provenance": {
+            "type": "object",
+            "required": [
+              "origin",
+              "actor",
+              "review_status"
+            ],
+            "properties": {
+              "origin": {
+                "type": "string",
+                "enum": [
+                  "source_backed",
+                  "inferred",
+                  "review_promoted",
+                  "rejected",
+                  "contradicting"
+                ]
+              },
+              "actor": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 1
+              },
+              "review_status": {
+                "type": "string",
+                "enum": [
+                  "unreviewed",
+                  "needs_review",
+                  "accepted",
+                  "rejected",
+                  "waived",
+                  "superseded",
+                  "reopened"
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          "metadata": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "morphisms": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "invariants": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "policies": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}

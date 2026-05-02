@@ -1,0 +1,57 @@
+{
+  "schema": "advisorygraphen.report.v1",
+  "report_type": "check",
+  "report_version": 1,
+  "tool": {
+    "name": "advisorygraphen",
+    "version": "0.1.0",
+    "command": "advisorygraphen check --space advisory.space.json --ruleset technical_advisory_mvp --format json",
+    "git_revision": null
+  },
+  "input": {
+    "space_id": "space:advisory:technical-advisory-direct-db-access",
+    "ruleset": "technical_advisory_mvp"
+  },
+  "result": {
+    "invariant_results": [
+      {
+        "invariant_id": "invariant:architecture_no_cross_context_direct_database_access",
+        "status": "violated",
+        "severity": "high",
+        "witness_ids": [
+          "cell:order-service",
+          "cell:billing-db",
+          "incidence:order-service-accesses-billing-db"
+        ],
+        "obstruction_ids": [
+          "obstruction:order-service-direct-billing-db-access"
+        ],
+        "message": "Order Service accesses Billing DB owned by Billing context."
+      }
+    ],
+    "obstructions": [
+      {
+        "id": "obstruction:order-service-direct-billing-db-access",
+        "obstruction_type": "boundary_violation",
+        "severity": "high",
+        "blocked_ids": [
+          "decision:approve-current-architecture"
+        ],
+        "witness_ids": [
+          "incidence:order-service-accesses-billing-db"
+        ],
+        "evidence_ids": [
+          "cell:evidence-architecture-note"
+        ],
+        "recommended_completion_types": [
+          "proposed_interface",
+          "proposed_refactor_action"
+        ],
+        "review_status": "unreviewed",
+        "message": "Order Service directly reads Billing DB across ownership boundary."
+      }
+    ]
+  },
+  "projection": {},
+  "warnings": []
+}
