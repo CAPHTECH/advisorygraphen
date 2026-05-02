@@ -90,6 +90,30 @@ fn rejected_candidate_survives_case_replay() {
         "json",
     ]));
 
+    let unknown_candidate_reject = run_cli([
+        "completions",
+        "reject",
+        "--store",
+        path_str(&store),
+        "--candidate-id",
+        "candidate:unknown-review-target",
+        "--from-report",
+        path_str(&completions),
+        "--reviewer",
+        "reviewer:dogfood-agent",
+        "--reason",
+        "Reject unknown candidate should fail.",
+        "--base-revision",
+        REVISION_ID,
+        "--format",
+        "json",
+    ]);
+    assert_failure_code(&unknown_candidate_reject, 1);
+    assert_output_contains(
+        &unknown_candidate_reject,
+        "candidate candidate:unknown-review-target not found in from-report",
+    );
+
     let missing_report_reject = run_cli([
         "completions",
         "reject",
