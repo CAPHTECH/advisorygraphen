@@ -107,6 +107,35 @@ advisorygraphen project \
   --output /tmp/audit-trace.json
 ```
 
+## Dogfood example
+
+AdvisoryGraphen 自身の HigherGraphen 統合判断を、同じ `technical_advisory`
+パイプラインで検査する例を含めている。
+
+```sh
+advisorygraphen lift \
+  --input examples/dogfood/higher-graphen-integration/advisory.input.json \
+  --package technical_advisory \
+  --output /tmp/advisorygraphen-dogfood.space.json
+
+advisorygraphen check \
+  --space /tmp/advisorygraphen-dogfood.space.json \
+  --ruleset technical_advisory_mvp \
+  --format json \
+  --output /tmp/advisorygraphen-dogfood.check.json
+
+advisorygraphen project \
+  --space /tmp/advisorygraphen-dogfood.space.json \
+  --report /tmp/advisorygraphen-dogfood.check.json \
+  --audience audit_trace \
+  --format json \
+  --output /tmp/advisorygraphen-dogfood.audit.json
+```
+
+この例は、HG境界出力が受け入れテストで検証されていることと、
+`higher-graphen-runtime` 採用判断が post-MVP の未検証 follow-up であることを
+同じ構造モデル上で分離して扱う。
+
 ## 採用する原則
 
 - 観測された入力は完全な真実ではない。

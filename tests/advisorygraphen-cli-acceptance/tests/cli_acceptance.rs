@@ -5,6 +5,7 @@ use std::process::{Command, Output};
 const PACKAGE: &str = "advisorygraphen-cli";
 const BINARY: &str = "advisorygraphen";
 const FIXTURE: &str = "examples/technical-advisory/direct-db-access/advisory.input.json";
+const DOGFOOD_FIXTURE: &str = "examples/dogfood/higher-graphen-integration/advisory.input.json";
 const PACKAGE_NAME: &str = "technical_advisory";
 const RULESET: &str = "technical_advisory_mvp";
 const SPACE_ID: &str = "space:advisory:technical-advisory-direct-db-access";
@@ -27,6 +28,66 @@ fn validate_accepts_direct_db_access_fixture() {
     let output = run_cli(["validate", "--input", FIXTURE, "--format", "json"]);
     assert_success(&output);
     assert_output_contains(&output, "advisorygraphen");
+}
+
+#[test]
+fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
+    let dir = clean_case_dir("dogfood-higher-graphen");
+    let space = dir.join("advisory.space.json");
+    let check = dir.join("advisory.check.report.json");
+    let audit = dir.join("audit-trace.json");
+
+    let validate = run_cli(["validate", "--input", DOGFOOD_FIXTURE, "--format", "json"]);
+    assert_success(&validate);
+
+    let lift = run_cli([
+        "lift",
+        "--input",
+        DOGFOOD_FIXTURE,
+        "--package",
+        PACKAGE_NAME,
+        "--output",
+        path_str(&space),
+        "--format",
+        "json",
+    ]);
+    assert_success(&lift);
+    assert_file_contains(&space, "space:advisory:dogfood-higher-graphen-integration");
+    assert_file_contains(&space, "higher_graphen_interpretation");
+    assert_file_contains(&space, "morphism:source-to-advisory-space");
+
+    check_space(&space, &check);
+    assert_file_contains(&check, "higher_graphen");
+    assert_file_contains(&check, "obstruction:runtime-adoption-action-missing-owner");
+    assert_file_contains(
+        &check,
+        "obstruction:runtime-adoption-requirement-missing-verification",
+    );
+    assert_file_not_contains(
+        &check,
+        "obstruction:hg-boundary-requirement-missing-verification",
+    );
+
+    let project = run_cli([
+        "project",
+        "--space",
+        path_str(&space),
+        "--report",
+        path_str(&check),
+        "--audience",
+        "audit_trace",
+        "--format",
+        "json",
+        "--output",
+        path_str(&audit),
+    ]);
+    assert_success(&project);
+    assert_file_contains(&audit, "projection:higher:audit_trace");
+    assert_file_contains(&audit, "Evaluate higher-graphen-runtime adoption");
+    assert_file_contains(
+        &audit,
+        "No repository history, issue tracker, or pull request review comments were ingested.",
+    );
 }
 
 #[test]
@@ -268,6 +329,18 @@ fn assert_file_contains(path: &Path, needle: &str) {
     if !contents.contains(needle) {
         panic!(
             "expected {} to contain {needle:?}\ncontents:\n{contents}",
+            path.display()
+        );
+    }
+}
+
+fn assert_file_not_contains(path: &Path, needle: &str) {
+    let contents = fs::read_to_string(path).unwrap_or_else(|error| {
+        panic!("failed to read {}: {error}", path.display());
+    });
+    if contents.contains(needle) {
+        panic!(
+            "expected {} not to contain {needle:?}\ncontents:\n{contents}",
             path.display()
         );
     }

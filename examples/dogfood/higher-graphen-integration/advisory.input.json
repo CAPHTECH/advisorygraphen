@@ -1,0 +1,270 @@
+{
+  "schema": "advisorygraphen.engagement.snapshot.v1",
+  "snapshot_id": "snapshot:dogfood-higher-graphen-integration",
+  "engagement_id": "engagement:advisorygraphen-self-review",
+  "captured_at": "2026-05-02T00:00:00Z",
+  "source_boundary": {
+    "included_source_ids": [
+      "source:source-alignment",
+      "source:testing-acceptance"
+    ],
+    "excluded_summary": [
+      "No repository history, issue tracker, or pull request review comments were ingested.",
+      "The HigherGraphen workspace implementation is represented only through AdvisoryGraphen integration notes."
+    ],
+    "extraction_loss": [
+      "The repository's design documents are represented as structured review records, not full prose.",
+      "Code-level details are summarized as advisory claims for deterministic dogfood coverage."
+    ],
+    "trust_notes": [
+      "Dogfood fixture for AdvisoryGraphen reviewing its own HigherGraphen integration posture.",
+      "All records are synthetic summaries derived from public repository documentation."
+    ],
+    "adapter_version": "json_snapshot:0.1.0"
+  },
+  "sources": [
+    {
+      "id": "source:source-alignment",
+      "source_type": "repository_documentation",
+      "title": "docs/99-source-alignment.md",
+      "uri": "docs/99-source-alignment.md",
+      "captured_at": "2026-05-02T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "repository": "CAPHTECH/advisorygraphen"
+      }
+    },
+    {
+      "id": "source:testing-acceptance",
+      "source_type": "repository_documentation",
+      "title": "docs/13-testing-acceptance.md",
+      "uri": "docs/13-testing-acceptance.md",
+      "captured_at": "2026-05-02T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "repository": "CAPHTECH/advisorygraphen"
+      }
+    }
+  ],
+  "records": [
+    {
+      "id": "record:advisorygraphen-runtime",
+      "record_type": "component",
+      "title": "AdvisoryGraphen Runtime",
+      "summary": "Product-specific CLI workflow orchestration for lift, check, completions, project, and case commands.",
+      "source_ids": [
+        "source:source-alignment"
+      ],
+      "context_hints": [
+        "advisorygraphen",
+        "runtime"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "component_type": "runtime"
+      }
+    },
+    {
+      "id": "record:higher-graphen-primitives",
+      "record_type": "component",
+      "title": "HigherGraphen Primitives",
+      "summary": "HigherGraphen core, structure, interpretation, reasoning, evidence, and projection crates used at AdvisoryGraphen domain boundaries.",
+      "source_ids": [
+        "source:source-alignment"
+      ],
+      "context_hints": [
+        "higher-graphen",
+        "architecture"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "component_type": "library_boundary"
+      }
+    },
+    {
+      "id": "record:higher-graphen-runtime",
+      "record_type": "component",
+      "title": "HigherGraphen Runtime",
+      "summary": "Upstream workflow orchestration crate that remains outside the AdvisoryGraphen MVP runtime path.",
+      "source_ids": [
+        "source:source-alignment"
+      ],
+      "context_hints": [
+        "higher-graphen",
+        "runtime"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "component_type": "runtime"
+      }
+    },
+    {
+      "id": "record:cli-acceptance-suite",
+      "record_type": "test",
+      "title": "CLI Acceptance Suite",
+      "summary": "End-to-end CLI coverage for lift, check, completions, projection, and case close-check flows.",
+      "source_ids": [
+        "source:testing-acceptance"
+      ],
+      "context_hints": [
+        "advisorygraphen",
+        "testing"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "test_type": "acceptance"
+      }
+    },
+    {
+      "id": "record:hg-boundary-requirement",
+      "record_type": "requirement",
+      "title": "HG boundary outputs must be observable",
+      "summary": "Lift, check, and projection outputs should expose HigherGraphen-derived metadata so integration is visible to reviewers.",
+      "source_ids": [
+        "source:source-alignment",
+        "source:testing-acceptance"
+      ],
+      "context_hints": [
+        "higher-graphen",
+        "testing"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "high",
+        "require_verification": true
+      }
+    },
+    {
+      "id": "record:runtime-adoption-requirement",
+      "record_type": "requirement",
+      "title": "HG runtime adoption decision needs explicit verification",
+      "summary": "The decision to keep AdvisoryGraphen runtime orchestration product-specific should have a post-MVP verification path before replacing it with higher-graphen-runtime.",
+      "source_ids": [
+        "source:source-alignment"
+      ],
+      "context_hints": [
+        "higher-graphen",
+        "runtime"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "medium",
+        "require_verification": true
+      }
+    },
+    {
+      "id": "record:runtime-adoption-action",
+      "record_type": "action",
+      "title": "Evaluate higher-graphen-runtime adoption",
+      "summary": "Decide whether post-MVP case workflows should call higher-graphen-runtime directly or keep the current AdvisoryGraphen runtime facade.",
+      "source_ids": [
+        "source:source-alignment"
+      ],
+      "context_hints": [
+        "higher-graphen",
+        "runtime"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.9,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "priority": "post_mvp"
+      }
+    },
+    {
+      "id": "record:hg-boundary-requirement-verified-by-cli-acceptance",
+      "record_type": "verification_relation",
+      "title": "CLI acceptance verifies HG boundary outputs",
+      "summary": "CLI acceptance checks that check and projection outputs include HigherGraphen-derived fields.",
+      "source_ids": [
+        "source:testing-acceptance"
+      ],
+      "context_hints": [
+        "higher-graphen",
+        "testing"
+      ],
+      "relation": {
+        "relation_type": "verifies",
+        "from_record_id": "record:cli-acceptance-suite",
+        "to_record_id": "record:hg-boundary-requirement"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:advisorygraphen-runtime-uses-hg-primitives",
+      "record_type": "dependency_relation",
+      "title": "AdvisoryGraphen runtime uses HigherGraphen primitives",
+      "summary": "AdvisoryGraphen runtime keeps workflow orchestration local while lower-level crates consume HigherGraphen primitives.",
+      "source_ids": [
+        "source:source-alignment"
+      ],
+      "context_hints": [
+        "advisorygraphen",
+        "higher-graphen"
+      ],
+      "relation": {
+        "relation_type": "uses",
+        "from_record_id": "record:advisorygraphen-runtime",
+        "to_record_id": "record:higher-graphen-primitives"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    }
+  ],
+  "metadata": {
+    "fixture": true,
+    "dogfood": true,
+    "purpose": "Review AdvisoryGraphen's own HigherGraphen integration and expose post-MVP runtime adoption gaps."
+  }
+}
