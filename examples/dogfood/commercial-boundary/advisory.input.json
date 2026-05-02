@@ -1,0 +1,350 @@
+{
+  "schema": "advisorygraphen.engagement.snapshot.v1",
+  "snapshot_id": "snapshot:dogfood-commercial-boundary",
+  "engagement_id": "engagement:advisorygraphen-self-review",
+  "captured_at": "2026-05-02T00:00:00Z",
+  "source_boundary": {
+    "included_source_ids": [
+      "source:commercial-boundary",
+      "source:security-governance",
+      "source:readme",
+      "source:testing-acceptance"
+    ],
+    "excluded_summary": [
+      "No customer data, private interpretation package, pricing model, or non-public evaluation corpus was ingested.",
+      "Commercial implementation details are represented only as public boundary requirements."
+    ],
+    "extraction_loss": [
+      "Commercial policy detail is reduced to publishability, packaging, and review obligations.",
+      "Public repository documentation is treated as source-backed but not as a full legal policy."
+    ],
+    "trust_notes": [
+      "Synthetic public fixture for dogfooding AdvisoryGraphen commercial boundary review.",
+      "The fixture exercises source classification and post-MVP commercial review follow-ups without exposing private material."
+    ],
+    "adapter_version": "json_snapshot:0.1.0"
+  },
+  "sources": [
+    {
+      "id": "source:commercial-boundary",
+      "source_type": "repository_documentation",
+      "title": "docs/15-commercial-boundary.md",
+      "uri": "docs/15-commercial-boundary.md",
+      "captured_at": "2026-05-02T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "repository": "CAPHTECH/advisorygraphen"
+      }
+    },
+    {
+      "id": "source:security-governance",
+      "source_type": "repository_documentation",
+      "title": "docs/11-security-governance.md",
+      "uri": "docs/11-security-governance.md",
+      "captured_at": "2026-05-02T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "repository": "CAPHTECH/advisorygraphen"
+      }
+    },
+    {
+      "id": "source:readme",
+      "source_type": "repository_documentation",
+      "title": "README.md",
+      "uri": "README.md",
+      "captured_at": "2026-05-02T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "repository": "CAPHTECH/advisorygraphen"
+      }
+    },
+    {
+      "id": "source:testing-acceptance",
+      "source_type": "repository_documentation",
+      "title": "docs/13-testing-acceptance.md",
+      "uri": "docs/13-testing-acceptance.md",
+      "captured_at": "2026-05-02T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "repository": "CAPHTECH/advisorygraphen"
+      }
+    }
+  ],
+  "records": [
+    {
+      "id": "record:public-oss-core",
+      "record_type": "component",
+      "title": "Public OSS Core",
+      "summary": "Public Rust workspace and CLI that can contain generic advisory workflow capabilities.",
+      "source_ids": [
+        "source:readme",
+        "source:commercial-boundary"
+      ],
+      "context_hints": [
+        "commercial-boundary",
+        "oss-core"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "component_type": "public_core"
+      }
+    },
+    {
+      "id": "record:commercial-rules-package",
+      "record_type": "component",
+      "title": "Commercial Rules Package",
+      "summary": "Private package boundary for customer-specific interpretation rules and proprietary playbooks.",
+      "source_ids": [
+        "source:commercial-boundary"
+      ],
+      "context_hints": [
+        "commercial-boundary",
+        "commercial"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.9,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "component_type": "private_package"
+      }
+    },
+    {
+      "id": "record:customer-case-store",
+      "record_type": "data_store",
+      "title": "Customer Case Store",
+      "summary": "Private storage boundary for customer case history and confidential source materials.",
+      "source_ids": [
+        "source:security-governance",
+        "source:commercial-boundary"
+      ],
+      "context_hints": [
+        "commercial-boundary",
+        "customer-data"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.95,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "classification": "customer_confidential"
+      }
+    },
+    {
+      "id": "record:security-reviewer",
+      "record_type": "owner",
+      "title": "Security Reviewer",
+      "summary": "Reviewer accountable for public fixture scrub checks and source boundary enforcement.",
+      "source_ids": [
+        "source:security-governance"
+      ],
+      "context_hints": [
+        "commercial-boundary",
+        "security"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.95,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "role": "security"
+      }
+    },
+    {
+      "id": "record:public-examples-no-customer-data",
+      "record_type": "requirement",
+      "title": "Public examples must contain no customer data",
+      "summary": "Checked-in examples and dogfood fixtures must remain synthetic or public-source-backed.",
+      "source_ids": [
+        "source:commercial-boundary",
+        "source:security-governance"
+      ],
+      "context_hints": [
+        "commercial-boundary",
+        "security"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "high",
+        "require_verification": true
+      }
+    },
+    {
+      "id": "record:commercial-rules-export-policy-check",
+      "record_type": "requirement",
+      "title": "Commercial rules export needs policy check",
+      "summary": "Any export path for commercial rules must define an explicit review policy before release.",
+      "source_ids": [
+        "source:commercial-boundary",
+        "source:security-governance"
+      ],
+      "context_hints": [
+        "commercial-boundary",
+        "commercial",
+        "security"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.9,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "medium",
+        "require_verification": true
+      }
+    },
+    {
+      "id": "record:fixture-scrub-validation",
+      "record_type": "verification",
+      "title": "Fixture Scrub Validation",
+      "summary": "Validation step that checks public fixtures are source-bounded and synthetic.",
+      "source_ids": [
+        "source:testing-acceptance",
+        "source:security-governance"
+      ],
+      "context_hints": [
+        "commercial-boundary",
+        "testing",
+        "security"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "test_type": "fixture_validation"
+      }
+    },
+    {
+      "id": "record:publication-scrub-checklist-action",
+      "record_type": "action",
+      "title": "Define publication scrub checklist",
+      "summary": "Document public fixture and report scrub checks before publishing examples.",
+      "source_ids": [
+        "source:commercial-boundary",
+        "source:security-governance"
+      ],
+      "context_hints": [
+        "commercial-boundary",
+        "security"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.95,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "priority": "mvp"
+      }
+    },
+    {
+      "id": "record:commercial-packaging-review-board-action",
+      "record_type": "action",
+      "title": "Create commercial packaging review board",
+      "summary": "Assign accountability for reviewing private package exports and commercial rule distribution.",
+      "source_ids": [
+        "source:commercial-boundary"
+      ],
+      "context_hints": [
+        "commercial-boundary",
+        "commercial"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.85,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "priority": "post_mvp"
+      }
+    },
+    {
+      "id": "record:public-examples-verified-by-fixture-scrub",
+      "record_type": "verification_relation",
+      "title": "Fixture scrub verifies public example boundary",
+      "summary": "Fixture scrub validation verifies that public examples contain no customer data.",
+      "source_ids": [
+        "source:testing-acceptance",
+        "source:security-governance"
+      ],
+      "context_hints": [
+        "commercial-boundary",
+        "testing",
+        "security"
+      ],
+      "relation": {
+        "relation_type": "verifies",
+        "from_record_id": "record:fixture-scrub-validation",
+        "to_record_id": "record:public-examples-no-customer-data"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:security-reviewer-owns-publication-scrub",
+      "record_type": "ownership_relation",
+      "title": "Security reviewer owns publication scrub checklist",
+      "summary": "Security reviewer is accountable for the publication scrub checklist.",
+      "source_ids": [
+        "source:security-governance"
+      ],
+      "context_hints": [
+        "commercial-boundary",
+        "security"
+      ],
+      "relation": {
+        "relation_type": "owns",
+        "from_record_id": "record:security-reviewer",
+        "to_record_id": "record:publication-scrub-checklist-action"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    }
+  ],
+  "metadata": {
+    "fixture": true,
+    "dogfood": true,
+    "domain": "commercial-boundary",
+    "purpose": "Dogfood public/private commercial boundary review without storing customer or proprietary content."
+  }
+}

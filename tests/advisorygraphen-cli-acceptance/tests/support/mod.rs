@@ -111,3 +111,183 @@ pub fn repo_root() -> PathBuf {
 pub fn path_str(path: &Path) -> &str {
     path.to_str().expect("test paths should be valid UTF-8")
 }
+
+pub struct AdvisoryFixtureFlow<'a> {
+    pub case_name: &'a str,
+    pub fixture: &'a str,
+    pub package: &'a str,
+    pub ruleset: &'a str,
+    pub space_id: &'a str,
+    pub revision_id: &'a str,
+    pub expected_obstructions: &'a [&'a str],
+    pub unexpected_obstructions: &'a [&'a str],
+    pub expected_audit_text: &'a str,
+}
+
+pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
+    let dir = clean_case_dir(flow.case_name);
+    let space = dir.join("advisory.space.json");
+    let check = dir.join("advisory.check.report.json");
+    let completions = dir.join("advisory.completions.report.json");
+    let audit = dir.join("audit-trace.json");
+    let store = dir.join("store");
+
+    let validate = run_cli(["validate", "--input", flow.fixture, "--format", "json"]);
+    assert_success(&validate);
+
+    let lift = run_cli([
+        "lift",
+        "--input",
+        flow.fixture,
+        "--package",
+        flow.package,
+        "--output",
+        path_str(&space),
+        "--format",
+        "json",
+    ]);
+    assert_success(&lift);
+    assert_file_contains(&space, flow.space_id);
+    assert_file_contains(&space, "higher_graphen_interpretation");
+    assert_file_contains(&space, "morphism:source-to-advisory-space");
+
+    let check_output = run_cli([
+        "check",
+        "--space",
+        path_str(&space),
+        "--ruleset",
+        flow.ruleset,
+        "--output",
+        path_str(&check),
+        "--format",
+        "json",
+    ]);
+    assert_success(&check_output);
+    assert_file_contains(&check, "higher_graphen");
+    for obstruction_id in flow.expected_obstructions {
+        assert_file_contains(&check, obstruction_id);
+    }
+    for obstruction_id in flow.unexpected_obstructions {
+        assert_file_not_contains(&check, obstruction_id);
+    }
+
+    let propose = run_cli([
+        "completions",
+        "propose",
+        "--space",
+        path_str(&space),
+        "--from-report",
+        path_str(&check),
+        "--output",
+        path_str(&completions),
+        "--format",
+        "json",
+    ]);
+    assert_success(&propose);
+    assert_file_contains(&completions, "higher_graphen");
+    assert_file_contains(&completions, "\"missing_type\": \"cell\"");
+
+    let project = run_cli([
+        "project",
+        "--space",
+        path_str(&space),
+        "--report",
+        path_str(&check),
+        "--audience",
+        "audit_trace",
+        "--format",
+        "json",
+        "--output",
+        path_str(&audit),
+    ]);
+    assert_success(&project);
+    assert_file_contains(&audit, "projection:higher:audit_trace");
+    assert_file_contains(&audit, flow.expected_audit_text);
+
+    let import = run_cli([
+        "case",
+        "import",
+        "--store",
+        path_str(&store),
+        "--space",
+        path_str(&space),
+        "--revision-id",
+        flow.revision_id,
+        "--format",
+        "json",
+    ]);
+    assert_success(&import);
+
+    let reason = run_cli([
+        "case",
+        "reason",
+        "--store",
+        path_str(&store),
+        "--space-id",
+        flow.space_id,
+        "--format",
+        "json",
+    ]);
+    assert_success(&reason);
+    assert_output_contains_any(&reason, &[r#""closeable": false"#, r#""closeable":false"#]);
+    assert_output_contains(&reason, r#""blocking_threshold": "medium""#);
+    for obstruction_id in flow.expected_obstructions {
+        assert_output_contains(&reason, obstruction_id);
+    }
+}
+
+pub fn assert_advanced_dogfood_fixture_flows(package: &str, ruleset: &str) {
+    assert_advisory_fixture_flow(AdvisoryFixtureFlow {
+        case_name: "dogfood-product-governance",
+        fixture: "examples/dogfood/product-governance/advisory.input.json",
+        package,
+        ruleset,
+        space_id: "space:advisory:dogfood-product-governance",
+        revision_id: "revision:dogfood-product-governance-1",
+        expected_obstructions: &[
+            "obstruction:enterprise-packaging-action-missing-owner",
+            "obstruction:hosted-rollout-requirement-missing-verification",
+        ],
+        unexpected_obstructions: &[
+            "obstruction:mvp-release-gate-missing-verification",
+            "obstruction:private-boundary-checklist-action-missing-owner",
+        ],
+        expected_audit_text: "Define enterprise packaging owner and launch gate",
+    });
+
+    assert_advisory_fixture_flow(AdvisoryFixtureFlow {
+        case_name: "dogfood-agent-operations",
+        fixture: "examples/dogfood/agent-operations/advisory.input.json",
+        package,
+        ruleset,
+        space_id: "space:advisory:dogfood-agent-operations",
+        revision_id: "revision:dogfood-agent-operations-1",
+        expected_obstructions: &[
+            "obstruction:agent-recovery-runbook-action-missing-owner",
+            "obstruction:memory-feedback-audit-requirement-missing-verification",
+        ],
+        unexpected_obstructions: &[
+            "obstruction:handoff-preserves-review-state-missing-verification",
+            "obstruction:prompt-injection-boundary-action-missing-owner",
+        ],
+        expected_audit_text: "Create agent recovery runbook",
+    });
+
+    assert_advisory_fixture_flow(AdvisoryFixtureFlow {
+        case_name: "dogfood-commercial-boundary",
+        fixture: "examples/dogfood/commercial-boundary/advisory.input.json",
+        package,
+        ruleset,
+        space_id: "space:advisory:dogfood-commercial-boundary",
+        revision_id: "revision:dogfood-commercial-boundary-1",
+        expected_obstructions: &[
+            "obstruction:commercial-packaging-review-board-action-missing-owner",
+            "obstruction:commercial-rules-export-policy-check-missing-verification",
+        ],
+        unexpected_obstructions: &[
+            "obstruction:publication-scrub-checklist-action-missing-owner",
+            "obstruction:public-examples-no-customer-data-missing-verification",
+        ],
+        expected_audit_text: "Create commercial packaging review board",
+    });
+}

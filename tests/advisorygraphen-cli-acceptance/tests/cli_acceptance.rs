@@ -145,6 +145,11 @@ fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
 }
 
 #[test]
+fn advanced_dogfood_fixtures_cover_multiple_self_review_domains() {
+    assert_advanced_dogfood_fixture_flows(PACKAGE_NAME, RULESET);
+}
+
+#[test]
 fn direct_fixture_lift_check_completions_and_executive_projection() {
     let dir = clean_case_dir("direct-flow");
     let space = dir.join("advisory.space.json");

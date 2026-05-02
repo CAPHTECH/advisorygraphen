@@ -1,0 +1,345 @@
+{
+  "schema": "advisorygraphen.engagement.snapshot.v1",
+  "snapshot_id": "snapshot:dogfood-agent-operations",
+  "engagement_id": "engagement:advisorygraphen-self-review",
+  "captured_at": "2026-05-02T00:00:00Z",
+  "source_boundary": {
+    "included_source_ids": [
+      "source:agent-integration",
+      "source:case-log",
+      "source:security-governance",
+      "source:testing-acceptance"
+    ],
+    "excluded_summary": [
+      "No private prompt logs, secrets, or mailbox/task connector content was ingested.",
+      "PCE memory state is represented only through public operating rules, not stored memory contents."
+    ],
+    "extraction_loss": [
+      "Agent handoff procedures are summarized as requirements and actions.",
+      "Security posture is represented as boundary claims without private policy details."
+    ],
+    "trust_notes": [
+      "Synthetic public fixture for dogfooding AdvisoryGraphen agent operations.",
+      "Records intentionally include both closed and open operational follow-ups."
+    ],
+    "adapter_version": "json_snapshot:0.1.0"
+  },
+  "sources": [
+    {
+      "id": "source:agent-integration",
+      "source_type": "repository_documentation",
+      "title": "docs/09-agent-integration-and-skill.md",
+      "uri": "docs/09-agent-integration-and-skill.md",
+      "captured_at": "2026-05-02T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "repository": "CAPHTECH/advisorygraphen"
+      }
+    },
+    {
+      "id": "source:case-log",
+      "source_type": "repository_documentation",
+      "title": "docs/10-storage-case-log.md",
+      "uri": "docs/10-storage-case-log.md",
+      "captured_at": "2026-05-02T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "repository": "CAPHTECH/advisorygraphen"
+      }
+    },
+    {
+      "id": "source:security-governance",
+      "source_type": "repository_documentation",
+      "title": "docs/11-security-governance.md",
+      "uri": "docs/11-security-governance.md",
+      "captured_at": "2026-05-02T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "repository": "CAPHTECH/advisorygraphen"
+      }
+    },
+    {
+      "id": "source:testing-acceptance",
+      "source_type": "repository_documentation",
+      "title": "docs/13-testing-acceptance.md",
+      "uri": "docs/13-testing-acceptance.md",
+      "captured_at": "2026-05-02T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "repository": "CAPHTECH/advisorygraphen"
+      }
+    }
+  ],
+  "records": [
+    {
+      "id": "record:codex-agent",
+      "record_type": "component",
+      "title": "Codex Agent",
+      "summary": "Agent workflow that consumes structured audit and case projections during development.",
+      "source_ids": [
+        "source:agent-integration"
+      ],
+      "context_hints": [
+        "agent-operations",
+        "codex"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "component_type": "agent"
+      }
+    },
+    {
+      "id": "record:pce-memory",
+      "record_type": "component",
+      "title": "PCE Memory",
+      "summary": "Durable memory pipeline used for reusable decisions, contracts, and runbooks.",
+      "source_ids": [
+        "source:agent-integration"
+      ],
+      "context_hints": [
+        "agent-operations",
+        "memory"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.9,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "component_type": "memory"
+      }
+    },
+    {
+      "id": "record:case-log",
+      "record_type": "data_store",
+      "title": "Case Log",
+      "summary": "Append-only case store for revisions, obstructions, completion reviews, and close status.",
+      "source_ids": [
+        "source:case-log"
+      ],
+      "context_hints": [
+        "agent-operations",
+        "case-log"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "store_type": "append_only"
+      }
+    },
+    {
+      "id": "record:agent-ops-maintainer",
+      "record_type": "owner",
+      "title": "Agent Ops Maintainer",
+      "summary": "Reviewer accountable for agent handoff and prompt boundary operations.",
+      "source_ids": [
+        "source:agent-integration",
+        "source:security-governance"
+      ],
+      "context_hints": [
+        "agent-operations"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.95,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "role": "operations"
+      }
+    },
+    {
+      "id": "record:handoff-preserves-review-state",
+      "record_type": "requirement",
+      "title": "Agent handoff must preserve review state",
+      "summary": "Agent handoffs must retain accepted, unreviewed, waived, and unresolved review states without flattening them.",
+      "source_ids": [
+        "source:agent-integration",
+        "source:case-log"
+      ],
+      "context_hints": [
+        "agent-operations",
+        "case-log"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "high",
+        "require_verification": true
+      }
+    },
+    {
+      "id": "record:memory-feedback-audit-requirement",
+      "record_type": "requirement",
+      "title": "Memory feedback must be audited",
+      "summary": "Durable memory feedback should be observable so reused claims can be reviewed and corrected.",
+      "source_ids": [
+        "source:agent-integration"
+      ],
+      "context_hints": [
+        "agent-operations",
+        "memory"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.88,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "medium",
+        "require_verification": true
+      }
+    },
+    {
+      "id": "record:handoff-acceptance-test",
+      "record_type": "test",
+      "title": "Case Reason Handoff Acceptance",
+      "summary": "Acceptance coverage checks that case reasoning reports expose unresolved obstruction and closeability state.",
+      "source_ids": [
+        "source:testing-acceptance"
+      ],
+      "context_hints": [
+        "agent-operations",
+        "testing"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "test_type": "acceptance"
+      }
+    },
+    {
+      "id": "record:agent-recovery-runbook-action",
+      "record_type": "action",
+      "title": "Create agent recovery runbook",
+      "summary": "Document recovery steps for resuming a partially completed agent task from case and audit projections.",
+      "source_ids": [
+        "source:agent-integration",
+        "source:case-log"
+      ],
+      "context_hints": [
+        "agent-operations",
+        "runbook"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.9,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "priority": "near_term"
+      }
+    },
+    {
+      "id": "record:prompt-injection-boundary-action",
+      "record_type": "action",
+      "title": "Keep prompt injection boundary visible",
+      "summary": "Ensure projections and handoffs preserve source boundary and trust notes for agent review.",
+      "source_ids": [
+        "source:security-governance",
+        "source:agent-integration"
+      ],
+      "context_hints": [
+        "agent-operations",
+        "security"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.95,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "priority": "mvp"
+      }
+    },
+    {
+      "id": "record:handoff-state-verified-by-case-reason",
+      "record_type": "verification_relation",
+      "title": "Case reason verifies handoff review state",
+      "summary": "Case reason output is used to verify that obstruction and closeability state survives import and reasoning.",
+      "source_ids": [
+        "source:testing-acceptance",
+        "source:case-log"
+      ],
+      "context_hints": [
+        "agent-operations",
+        "case-log"
+      ],
+      "relation": {
+        "relation_type": "verifies",
+        "from_record_id": "record:handoff-acceptance-test",
+        "to_record_id": "record:handoff-preserves-review-state"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:maintainer-owns-prompt-boundary",
+      "record_type": "ownership_relation",
+      "title": "Agent ops maintainer owns prompt boundary action",
+      "summary": "Agent operations maintainer is accountable for keeping prompt boundary visibility in agent handoffs.",
+      "source_ids": [
+        "source:agent-integration",
+        "source:security-governance"
+      ],
+      "context_hints": [
+        "agent-operations",
+        "security"
+      ],
+      "relation": {
+        "relation_type": "owns",
+        "from_record_id": "record:agent-ops-maintainer",
+        "to_record_id": "record:prompt-injection-boundary-action"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    }
+  ],
+  "metadata": {
+    "fixture": true,
+    "dogfood": true,
+    "domain": "agent-operations",
+    "purpose": "Dogfood agent handoff, memory auditability, prompt boundary, and case reasoning workflows."
+  }
+}

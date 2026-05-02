@@ -153,6 +153,20 @@ advisorygraphen case reason \
 固定fixtureとして保持している。`dogfood repo-snapshot` は実repoファイルから
 bounded snapshotを再生成する。
 
+追加の高度なdogfood fixtureとして、次の自己レビュー領域も同じCLIパイプラインで
+検査する。
+
+- `examples/dogfood/product-governance/advisory.input.json`: MVPリリース、
+  hosted service、商用パッケージ境界の要求、検証、owner gapを扱う。
+- `examples/dogfood/agent-operations/advisory.input.json`: エージェント引き継ぎ、
+  case log、memory audit、prompt boundaryの運用不足を扱う。
+- `examples/dogfood/commercial-boundary/advisory.input.json`: OSS公開範囲、
+  customer data非混入、commercial rules exportのレビュー不足を扱う。
+
+これらは `validate -> lift -> check -> completions propose -> project audit_trace
+-> case import/reason` まで受け入れテストで通し、HG由来の解釈、morphism、
+obstruction、completion candidate、projection、closeabilityが残ることを確認する。
+
 ## 採用する原則
 
 - 観測された入力は完全な真実ではない。

@@ -1,0 +1,322 @@
+{
+  "schema": "advisorygraphen.engagement.snapshot.v1",
+  "snapshot_id": "snapshot:dogfood-product-governance",
+  "engagement_id": "engagement:advisorygraphen-self-review",
+  "captured_at": "2026-05-02T00:00:00Z",
+  "source_boundary": {
+    "included_source_ids": [
+      "source:product-charter",
+      "source:implementation-roadmap",
+      "source:testing-acceptance",
+      "source:commercial-boundary"
+    ],
+    "excluded_summary": [
+      "No private customer roadmap, sales pipeline, or hosted service telemetry was ingested.",
+      "Repository history and issue tracker discussions are excluded from this fixture."
+    ],
+    "extraction_loss": [
+      "Roadmap prose is compressed into requirements, actions, owners, and verification records.",
+      "Commercial packaging concerns are represented as public boundary summaries only."
+    ],
+    "trust_notes": [
+      "Synthetic public fixture for dogfooding AdvisoryGraphen product governance.",
+      "The fixture is intended to exercise HigherGraphen lift, invariant checks, completion proposals, projection, and case reasoning."
+    ],
+    "adapter_version": "json_snapshot:0.1.0"
+  },
+  "sources": [
+    {
+      "id": "source:product-charter",
+      "source_type": "repository_documentation",
+      "title": "docs/00-product-charter.md",
+      "uri": "docs/00-product-charter.md",
+      "captured_at": "2026-05-02T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "repository": "CAPHTECH/advisorygraphen"
+      }
+    },
+    {
+      "id": "source:implementation-roadmap",
+      "source_type": "repository_documentation",
+      "title": "docs/12-implementation-roadmap.md",
+      "uri": "docs/12-implementation-roadmap.md",
+      "captured_at": "2026-05-02T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "repository": "CAPHTECH/advisorygraphen"
+      }
+    },
+    {
+      "id": "source:testing-acceptance",
+      "source_type": "repository_documentation",
+      "title": "docs/13-testing-acceptance.md",
+      "uri": "docs/13-testing-acceptance.md",
+      "captured_at": "2026-05-02T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "repository": "CAPHTECH/advisorygraphen"
+      }
+    },
+    {
+      "id": "source:commercial-boundary",
+      "source_type": "repository_documentation",
+      "title": "docs/15-commercial-boundary.md",
+      "uri": "docs/15-commercial-boundary.md",
+      "captured_at": "2026-05-02T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "repository": "CAPHTECH/advisorygraphen"
+      }
+    }
+  ],
+  "records": [
+    {
+      "id": "record:advisorygraphen-cli",
+      "record_type": "component",
+      "title": "AdvisoryGraphen CLI",
+      "summary": "File-based MVP interface for lift, check, completions, projection, and case workflows.",
+      "source_ids": [
+        "source:product-charter"
+      ],
+      "context_hints": [
+        "product-governance",
+        "mvp"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "component_type": "cli"
+      }
+    },
+    {
+      "id": "record:hosted-advisory-service",
+      "record_type": "component",
+      "title": "Hosted Advisory Service",
+      "summary": "Post-MVP hosted workflow surface that needs operational verification before launch.",
+      "source_ids": [
+        "source:implementation-roadmap"
+      ],
+      "context_hints": [
+        "product-governance",
+        "hosted-service"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.9,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "component_type": "service",
+        "maturity": "post_mvp"
+      }
+    },
+    {
+      "id": "record:product-lead",
+      "record_type": "owner",
+      "title": "Product Lead",
+      "summary": "Accountable reviewer for public repository product governance boundaries.",
+      "source_ids": [
+        "source:product-charter"
+      ],
+      "context_hints": [
+        "product-governance"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "role": "product"
+      }
+    },
+    {
+      "id": "record:cli-acceptance-suite",
+      "record_type": "test",
+      "title": "CLI Acceptance Suite",
+      "summary": "End-to-end CLI acceptance checks for structural outputs and review workflows.",
+      "source_ids": [
+        "source:testing-acceptance"
+      ],
+      "context_hints": [
+        "product-governance",
+        "testing"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "test_type": "acceptance"
+      }
+    },
+    {
+      "id": "record:mvp-release-gate",
+      "record_type": "requirement",
+      "title": "MVP release gate must preserve HG evidence",
+      "summary": "The MVP is releasable only when HigherGraphen metadata remains visible in CLI outputs.",
+      "source_ids": [
+        "source:product-charter",
+        "source:testing-acceptance"
+      ],
+      "context_hints": [
+        "product-governance",
+        "higher-graphen",
+        "testing"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "high",
+        "require_verification": true
+      }
+    },
+    {
+      "id": "record:hosted-rollout-requirement",
+      "record_type": "requirement",
+      "title": "Hosted rollout needs operations verification",
+      "summary": "Hosted service launch should have a defined operations verification path before being treated as ready.",
+      "source_ids": [
+        "source:implementation-roadmap"
+      ],
+      "context_hints": [
+        "product-governance",
+        "hosted-service",
+        "operations"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.9,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "medium",
+        "require_verification": true
+      }
+    },
+    {
+      "id": "record:enterprise-packaging-action",
+      "record_type": "action",
+      "title": "Define enterprise packaging owner and launch gate",
+      "summary": "Clarify ownership for packaging private interpretation rules and release criteria.",
+      "source_ids": [
+        "source:commercial-boundary",
+        "source:implementation-roadmap"
+      ],
+      "context_hints": [
+        "product-governance",
+        "commercial"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.88,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "priority": "post_mvp"
+      }
+    },
+    {
+      "id": "record:private-boundary-checklist-action",
+      "record_type": "action",
+      "title": "Publish private repository boundary checklist",
+      "summary": "Document how public examples avoid private customer data and commercial rules.",
+      "source_ids": [
+        "source:commercial-boundary"
+      ],
+      "context_hints": [
+        "product-governance",
+        "commercial"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.95,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "priority": "mvp"
+      }
+    },
+    {
+      "id": "record:mvp-release-gate-verified-by-cli",
+      "record_type": "verification_relation",
+      "title": "CLI acceptance verifies MVP release gate",
+      "summary": "Acceptance coverage confirms HG metadata is observable in check and projection outputs.",
+      "source_ids": [
+        "source:testing-acceptance"
+      ],
+      "context_hints": [
+        "product-governance",
+        "testing"
+      ],
+      "relation": {
+        "relation_type": "verifies",
+        "from_record_id": "record:cli-acceptance-suite",
+        "to_record_id": "record:mvp-release-gate"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:product-lead-owns-private-boundary-checklist",
+      "record_type": "ownership_relation",
+      "title": "Product lead owns private boundary checklist",
+      "summary": "The product lead is accountable for keeping the private/public boundary checklist current.",
+      "source_ids": [
+        "source:product-charter",
+        "source:commercial-boundary"
+      ],
+      "context_hints": [
+        "product-governance",
+        "commercial"
+      ],
+      "relation": {
+        "relation_type": "owns",
+        "from_record_id": "record:product-lead",
+        "to_record_id": "record:private-boundary-checklist-action"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    }
+  ],
+  "metadata": {
+    "fixture": true,
+    "dogfood": true,
+    "domain": "product-governance",
+    "purpose": "Dogfood AdvisoryGraphen product governance with mixed verified requirements and owner gaps."
+  }
+}
