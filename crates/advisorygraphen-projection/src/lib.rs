@@ -189,13 +189,19 @@ fn ai_agent_projection(
                 "read close_status",
                 "inspect open_obstructions",
                 "inspect candidate_review_state",
+                "inspect blocker_resolution_state.application_requirements when present",
                 "propose missing owner or verification structure",
                 "generate audit_trace before reporting final state"
             ]
         },
         "open_obstructions": obstructions(report),
         "candidate_review_state": completion_candidates(report),
-        "next_safe_operations": ["review_obstructions", "propose_or_review_candidates", "generate_audit_projection"],
+        "next_safe_operations": [
+            "review_obstructions",
+            "inspect_application_requirements",
+            "propose_or_review_candidates",
+            "generate_audit_projection"
+        ],
         "close_status": close_status(space, &serde_json::from_value(report.clone()).unwrap_or_else(|_| advisorygraphen_core::ReportEnvelope::new("check", None, json!({}), json!({})))),
         "projection_loss": projection_loss(space),
         "higher_graphen": higher_graphen

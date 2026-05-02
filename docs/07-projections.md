@@ -165,6 +165,7 @@ Minimum operation model:
       "read close_status",
       "inspect open_obstructions",
       "inspect candidate_review_state",
+      "inspect blocker_resolution_state.application_requirements when present",
       "propose missing owner or verification structure",
       "generate audit_trace before reporting final state"
     ]
