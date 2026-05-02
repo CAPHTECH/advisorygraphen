@@ -55,5 +55,6 @@ advisorygraphen completions reject --store STORE --candidate-id CANDIDATE --from
 - `blocker_resolution_state` describes whether a blocker has no candidate, pending review, all candidates rejected, or an accepted candidate pending structural application.
 - `application_requirements` names the cells and incidences an AI agent must create before treating a blocker as resolved.
 - `review_gated_commands` require explicit human review before accept/reject events.
+- For imported case stores, `completions accept` and `completions reject` require `--base-revision`; missing or stale base revision is a stale-write error.
 - `projection_loss` must be disclosed when summarizing the projection.
 - `evidence_origin: inferred` cannot satisfy hard evidence requirements by default.

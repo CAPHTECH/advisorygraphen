@@ -111,9 +111,9 @@ When `--from-report` is supplied, the review event embeds a HigherGraphen
 candidate remains unmutated and unreviewed; the review event records the
 accepted or rejected outcome.
 
-When the completion report identifies an imported `space_id`, `--base-revision`
-is checked against that space's case-store `HEAD`. A stale value fails with exit
-code `5`.
+When the completion report identifies an imported `space_id` with a case-store
+`HEAD`, `--base-revision` is required and checked against that `HEAD`. A missing
+or stale value fails with exit code `5`.
 
 ### `project`
 

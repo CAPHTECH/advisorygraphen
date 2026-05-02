@@ -65,6 +65,26 @@ fn rejected_candidate_survives_case_replay() {
         "json",
     ]));
 
+    let missing_base_reject = run_cli([
+        "completions",
+        "reject",
+        "--store",
+        path_str(&store),
+        "--candidate-id",
+        OWNER_CANDIDATE,
+        "--from-report",
+        path_str(&completions),
+        "--reviewer",
+        "reviewer:dogfood-agent",
+        "--reason",
+        "Reject without base revision should fail.",
+        "--format",
+        "json",
+    ]);
+    assert_failure_code(&missing_base_reject, 5);
+    assert_output_contains(&missing_base_reject, "stale revision");
+    assert_output_contains(&missing_base_reject, "<missing>");
+
     let reject = run_cli([
         "completions",
         "reject",

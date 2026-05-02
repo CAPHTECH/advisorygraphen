@@ -286,14 +286,20 @@ fn read_head_revision(store: &Path) -> AdvisoryResult<String> {
 }
 
 fn ensure_base_revision(head: Option<&str>, base: Option<&str>) -> AdvisoryResult<()> {
-    if let (Some(head), Some(base)) = (head, base) {
-        let head = head.trim();
-        if head != base {
-            return Err(AdvisoryError::StaleRevision {
-                expected: head.to_string(),
-                actual: base.to_string(),
-            });
-        }
+    let Some(head) = head.map(str::trim) else {
+        return Ok(());
+    };
+    let Some(base) = base else {
+        return Err(AdvisoryError::StaleRevision {
+            expected: head.to_string(),
+            actual: "<missing>".to_string(),
+        });
+    };
+    if head != base {
+        return Err(AdvisoryError::StaleRevision {
+            expected: head.to_string(),
+            actual: base.to_string(),
+        });
     }
     Ok(())
 }

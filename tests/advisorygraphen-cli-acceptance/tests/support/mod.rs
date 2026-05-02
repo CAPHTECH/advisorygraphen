@@ -272,6 +272,8 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
         "reviewer:dogfood-agent",
         "--reason",
         "Accepted during dogfood case resume.",
+        "--base-revision",
+        flow.revision_id,
         "--format",
         "json",
     ]);
