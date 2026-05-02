@@ -4,6 +4,8 @@
 
 Projection is a lossy audience-specific view. It is not the source of truth. Every projection must declare represented IDs, omitted IDs, and information loss.
 
+HigherGraphen is operated primarily by AI agents. Human-facing views are projections over the structure, not the primary editing surface. The `ai_agent` projection is therefore an operational contract for the next agent step, not a decorative report.
+
 ## Projection audiences
 
 | Audience | Purpose | Format |
@@ -11,7 +13,7 @@ Projection is a lossy audience-specific view. It is not the source of truth. Eve
 | `executive` | 意思決定者向け論点、リスク、選択肢、未解決障害 | Markdown / JSON |
 | `developer_action` | 実装担当者向けタスク、依存関係、完了条件 | Markdown / JSON |
 | `audit_trace` | 根拠、レビュー、source boundary、projection loss | JSON |
-| `ai_agent` | 次の AI 操作に必要な構造、allowed operations、candidate 状態 | JSON |
+| `ai_agent` | AIエージェントがHGを継続操作するための操作契約、禁止操作、candidate 状態 | JSON |
 | `client_review` | 顧客とのレビュー画面に出す候補 | JSON / Markdown |
 | `cli` | deterministic command output | JSON |
 
@@ -112,8 +114,11 @@ Audit output should be machine-readable JSON first.
 
 Must include:
 
+- HG operation model
 - allowed commands
+- review-gated commands
 - forbidden operations
+- resume protocol
 - unreviewed candidates
 - missing evidence
 - frontier work
@@ -122,6 +127,46 @@ Must include:
 - IDs required for follow-up commands
 
 The AI projection should make it hard for an agent to accidentally promote candidate structure.
+
+Minimum operation model:
+
+```json
+{
+  "hg_operation_model": {
+    "primary_operator": "ai_agent",
+    "human_role": "sets goals, reviews candidates, and accepts or rejects promotions",
+    "human_ui_role": "projection_consumer",
+    "source_of_truth": "advisory_space_case_log_and_review_events"
+  },
+  "agent_operation_contract": {
+    "allowed_commands": [
+      "validate",
+      "lift",
+      "check",
+      "completions propose",
+      "project ai_agent",
+      "project audit_trace",
+      "case import",
+      "case reason"
+    ],
+    "review_gated_commands": [
+      "completions accept",
+      "completions reject"
+    ],
+    "forbidden_operations": [
+      "promote unreviewed candidate structure",
+      "hide projection_loss",
+      "treat inferred evidence as accepted fact"
+    ],
+    "resume_protocol": [
+      "read close_status",
+      "inspect open_obstructions",
+      "propose missing owner or verification structure",
+      "generate audit_trace before reporting final state"
+    ]
+  }
+}
+```
 
 ## Projection loss taxonomy
 

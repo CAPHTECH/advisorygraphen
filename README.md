@@ -2,6 +2,8 @@
 
 AdvisoryGraphen は、コンサルティング業務を HigherGraphen の高次構造へ写像し、根拠、仮説、制約、未解決障害、提案候補、レビュー状態、投影結果を Rust で扱えるようにするための実装可能なプロダクト仕様である。
 
+HigherGraphen は人間が直接編集する一次UIではなく、AIエージェントが操作する構造基盤として扱う。人間は目的、制約、採否判断を与え、`executive`、`developer_action`、`audit_trace`、`ai_agent` projectionと明示的なreview eventを通じて状態を確認する。
+
 このドキュメント群は、最初の実装を **Rust workspace + CLI + JSON schema + agent skill + projection** として立ち上げることを目的にしている。最初から hosted SaaS や複雑な UI を実装しない。まず `advisorygraphen` CLI とファイルベースの構造モデルで、技術顧問・アーキテクチャレビュー・プロダクト意思決定支援の MVP を成立させる。
 
 ## 目的
@@ -13,6 +15,14 @@ AdvisoryGraphen は次の問題を解く。
 3. レポートをモデル本体にしない。レポート、開発者向けアクション、監査証跡、AI 操作用ビューは、すべて構造から生成される `Projection` とする。
 4. 継続顧問で、過去の意思決定、根拠、未解決 obstruction、採否済み candidate を append-only に追跡する。
 5. 顧客固有の解釈パッケージや商用ノウハウを、公開コアとは分離して蓄積する。
+
+## AI agent operating model
+
+AdvisoryGraphen の主な操作主体はAIエージェントである。エージェントはdocs、コード、PR、issue、議事録を bounded snapshot にまとめ、`lift`、`check`、`completions propose`、`project`、`case reason` を実行する。HG上の構造変更や補完候補は、review status、provenance、source boundaryを保持したまま扱う。
+
+人間の役割は、HGを直接手作業で編集することではなく、目的・制約・採否を与えることにある。completion candidateのaccept/reject、waive、商用境界の判断、顧客向け説明は人間の明示レビューを必要とする。
+
+`ai_agent` projection は、AIエージェントの再開プロトコルである。次に安全に実行できる操作、禁止操作、未解決obstruction、review gate、projection lossをJSONで返し、エージェントが未レビュー候補を承認済み構造として扱わないようにする。
 
 ## 最初の実装単位
 
@@ -33,7 +43,7 @@ MVP は `technical_advisory` interpretation package に限定する。
 - `executive` projection: 経営判断用要約
 - `developer_action` projection: 実装担当者向けアクション
 - `audit_trace` projection: 根拠、レビュー状態、情報損失
-- `ai_agent` projection: AI エージェントが継続作業するための構造
+- `ai_agent` projection: AI エージェントがHGを継続操作するための操作契約、再開状態、禁止操作
 
 ## 推奨読み順
 
@@ -131,6 +141,13 @@ advisorygraphen check \
 advisorygraphen project \
   --space /tmp/advisorygraphen-dogfood.space.json \
   --report /tmp/advisorygraphen-dogfood.check.json \
+  --audience ai_agent \
+  --format json \
+  --output /tmp/advisorygraphen-dogfood.agent.json
+
+advisorygraphen project \
+  --space /tmp/advisorygraphen-dogfood.space.json \
+  --report /tmp/advisorygraphen-dogfood.check.json \
   --audience audit_trace \
   --format json \
   --output /tmp/advisorygraphen-dogfood.audit.json
@@ -164,8 +181,9 @@ bounded snapshotを再生成する。
   customer data非混入、commercial rules exportのレビュー不足を扱う。
 
 これらは `validate -> lift -> check -> completions propose -> project audit_trace
--> case import/reason` まで受け入れテストで通し、HG由来の解釈、morphism、
-obstruction、completion candidate、projection、closeabilityが残ることを確認する。
+-> project ai_agent -> case import/reason` まで受け入れテストで通し、HG由来の解釈、
+morphism、obstruction、completion candidate、projection、closeability、AI agent
+operation contractが残ることを確認する。
 
 ## 採用する原則
 

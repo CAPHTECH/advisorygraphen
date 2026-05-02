@@ -157,6 +157,43 @@ fn ai_agent_projection(
         "space_id": space.space_id,
         "represented_ids": represented_ids,
         "omitted_ids": omitted_ids,
+        "hg_operation_model": {
+            "primary_operator": "ai_agent",
+            "human_role": "sets goals, reviews candidates, and accepts or rejects promotions",
+            "human_ui_role": "projection_consumer",
+            "source_of_truth": "advisory_space_case_log_and_review_events",
+            "principle": "HigherGraphen structure is manipulated by agents; humans review projections and explicit promotion events."
+        },
+        "agent_operation_contract": {
+            "allowed_commands": [
+                "validate",
+                "lift",
+                "check",
+                "completions propose",
+                "project ai_agent",
+                "project audit_trace",
+                "case import",
+                "case reason"
+            ],
+            "review_gated_commands": [
+                "completions accept",
+                "completions reject"
+            ],
+            "forbidden_operations": [
+                "promote unreviewed candidate structure",
+                "hide projection_loss",
+                "treat inferred evidence as accepted fact",
+                "rewrite source material outside the bounded snapshot"
+            ],
+            "resume_protocol": [
+                "read close_status",
+                "inspect open_obstructions",
+                "propose missing owner or verification structure",
+                "generate audit_trace before reporting final state"
+            ]
+        },
+        "open_obstructions": obstructions(report),
+        "candidate_review_state": completion_candidates(report),
         "next_safe_operations": ["review_obstructions", "propose_or_review_candidates", "generate_audit_projection"],
         "close_status": close_status(space, &serde_json::from_value(report.clone()).unwrap_or_else(|_| advisorygraphen_core::ReportEnvelope::new("check", None, json!({}), json!({})))),
         "projection_loss": projection_loss(space),

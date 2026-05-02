@@ -130,6 +130,7 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
     let check = dir.join("advisory.check.report.json");
     let completions = dir.join("advisory.completions.report.json");
     let audit = dir.join("audit-trace.json");
+    let ai_agent = dir.join("ai-agent.json");
     let store = dir.join("store");
 
     let validate = run_cli(["validate", "--input", flow.fixture, "--format", "json"]);
@@ -203,6 +204,27 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
     assert_success(&project);
     assert_file_contains(&audit, "projection:higher:audit_trace");
     assert_file_contains(&audit, flow.expected_audit_text);
+
+    let project_agent = run_cli([
+        "project",
+        "--space",
+        path_str(&space),
+        "--report",
+        path_str(&check),
+        "--audience",
+        "ai_agent",
+        "--format",
+        "json",
+        "--output",
+        path_str(&ai_agent),
+    ]);
+    assert_success(&project_agent);
+    assert_file_contains(&ai_agent, "projection:higher:ai_agent");
+    assert_file_contains(&ai_agent, r#""primary_operator": "ai_agent""#);
+    assert_file_contains(&ai_agent, "agent_operation_contract");
+    assert_file_contains(&ai_agent, "promote unreviewed candidate structure");
+    assert_file_contains(&ai_agent, "open_obstructions");
+    assert_file_contains(&ai_agent, r#""closeable": false"#);
 
     let import = run_cli([
         "case",

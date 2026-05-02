@@ -10,7 +10,7 @@ Rust crate prefix: `advisorygraphen-*`
 
 ## One-sentence definition
 
-AdvisoryGraphen は、コンサルティング案件を HigherGraphen の `Space`、`Cell`、`Context`、`Morphism`、`Invariant`、`Obstruction`、`CompletionCandidate`、`Projection`、`InterpretationPackage` として扱う Rust 製の構造化アドバイザリー基盤である。
+AdvisoryGraphen は、コンサルティング案件を HigherGraphen の `Space`、`Cell`、`Context`、`Morphism`、`Invariant`、`Obstruction`、`CompletionCandidate`、`Projection`、`InterpretationPackage` として扱う Rust 製の構造化アドバイザリー基盤である。HigherGraphen はAIエージェントが操作する構造基盤であり、人間はprojectionとreview eventを通じて状態確認と採否判断を行う。
 
 ## Non-goal
 
@@ -31,6 +31,12 @@ AdvisoryGraphen は次のものではない。
 | 開発責任者 / エンジニア | 実装可能なアクションと依存関係を見たい | Developer action projection |
 | 監査 / セキュリティ / 法務 | どの主張がどの根拠に支えられているかを確認したい | Audit projection |
 | AI エージェント | 追加調査、未レビュー candidate、次の安全な操作を知りたい | AI agent projection / skill |
+
+## Operating model
+
+AdvisoryGraphen の通常操作主体はAIエージェントである。エージェントはbounded snapshotを作成または更新し、`lift`、`check`、`completions propose`、`project ai_agent`、`project audit_trace`、`case import`、`case reason`を実行する。
+
+人間はHG構造を直接編集する前提ではない。人間は目的、制約、判断、accept/reject/waiveなどの明示レビューを与える。AIが生成した構造やcompletion candidateは、明示レビューがない限りaccepted factではない。
 
 ## Product thesis
 
@@ -65,6 +71,7 @@ MVP は次を満たすと成功である。
 6. executive、developer、audit、ai_agent projection を生成できる。
 7. JSON report が deterministic で、CI で snapshot test できる。
 8. candidate の accept / reject をレビューイベントとして記録できる。
+9. ai_agent projection が、AIエージェント向けのallowed commands、forbidden operations、resume protocol、review gateを返す。
 
 ## Product boundaries
 
@@ -118,3 +125,4 @@ MVP は次を満たすと成功である。
 3. AI が生成したものは、初期状態では `review_status = unreviewed` とする。
 4. Missing evidence、conflict、obstruction はツール失敗ではなく、成功した domain finding とする。
 5. Projection は必ず `projection_loss` を持つ。
+6. HG構造の操作はAIエージェント向けcontractを通じて行い、人間向けUIはprojection consumerとして扱う。

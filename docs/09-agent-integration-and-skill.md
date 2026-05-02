@@ -2,7 +2,7 @@
 
 ## Principle
 
-AI agent integration must teach agents when and how to use AdvisoryGraphen without violating evidence, review, or projection boundaries.
+AI agent integration must teach agents when and how to operate HigherGraphen through AdvisoryGraphen without violating evidence, review, or projection boundaries. HG is not assumed to be a hand-edited human workspace; it is the structural substrate an AI agent reads, writes, checks, and projects under explicit review gates.
 
 ## MVP integration surface
 
@@ -12,6 +12,7 @@ MVP uses:
 advisorygraphen CLI
   -> stable JSON report schema
   -> repository-owned skill
+  -> ai_agent projection operation contract
 ```
 
 MCP, provider plugin bundles, and marketplace metadata are future work.
@@ -48,9 +49,13 @@ CLI command: `advisorygraphen`
 4. Run advisorygraphen check.
 5. Inspect obstructions and evidence gaps.
 6. Run advisorygraphen completions propose.
-7. Generate requested projection.
-8. Keep candidates unreviewed unless the user explicitly reviews them.
+7. Generate advisorygraphen project --audience ai_agent.
+8. Follow the returned agent_operation_contract and close_status.
+9. Generate requested human projection or audit_trace.
+10. Keep candidates unreviewed unless the user explicitly reviews them.
 ```
+
+The agent should treat `ai_agent` projection as its resume protocol. It should use `open_obstructions`, `candidate_review_state`, `review_gated_commands`, and `forbidden_operations` before deciding the next command. The human does not need to edit HG directly; the human reviews projections and explicit accept/reject/waive events.
 
 ## Minimal skill file
 
@@ -88,6 +93,8 @@ Agents should interpret command output as follows:
 | `projection_loss` non-empty | View omitted or compressed information; disclose to user |
 | `review_status = unreviewed` | Do not present as accepted fact |
 | `evidence_origin = inferred` | Cannot satisfy hard evidence requirement by default |
+| `hg_operation_model.primary_operator = ai_agent` | Agent may operate HG only within the returned operation contract |
+| `review_gated_commands` non-empty | Require explicit human review before promotion or rejection |
 
 ## Skill testing
 
@@ -98,4 +105,5 @@ Each agent skill example must include:
 - expected output shape
 - expected safety behavior
 - projection with loss disclosure
+- ai_agent projection with operation contract
 - candidate that remains unreviewed
