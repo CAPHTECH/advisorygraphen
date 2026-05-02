@@ -42,6 +42,8 @@ version = "0.1.0"
 dependencies = [
  "advisorygraphen-core",
  "advisorygraphen-interpretation",
+ "higher-graphen-core",
+ "higher-graphen-structure",
  "indexmap",
  "serde_json",
 ]
@@ -80,6 +82,8 @@ dependencies = [
  "advisorygraphen-projection",
  "advisorygraphen-reasoning",
  "chrono",
+ "higher-graphen-core",
+ "higher-graphen-reasoning",
  "serde",
  "serde_json",
  "tempfile",

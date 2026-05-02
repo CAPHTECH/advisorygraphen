@@ -4,7 +4,10 @@ use advisorygraphen_core::{
     AdvisorySpaceEnvelope, JsonMap, PACKAGE_TECHNICAL_ADVISORY_MVP, SNAPSHOT_SCHEMA,
 };
 use advisorygraphen_interpretation::InterpretationPackage;
+use higher_graphen_core::{Confidence, Id, Provenance, ReviewStatus, SourceKind, SourceRef};
+use higher_graphen_structure::morphism::{CellMapping, Morphism, MorphismType, RelationMapping};
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
 
 pub fn lift_snapshot(
     snapshot: &Value,
@@ -30,12 +33,29 @@ pub fn lift_snapshot(
         }
     });
 
+    let space_id = format!(
+        "space:advisory:{}",
+        string_field(snapshot, "snapshot_id")?.trim_start_matches("snapshot:")
+    );
+    let source_to_space_morphism = source_to_space_morphism(snapshot, records, &space_id)?;
+    let source_to_space_preservation = source_to_space_morphism.check_preservation(
+        package
+            .invariant_records()
+            .into_iter()
+            .filter_map(|invariant| {
+                invariant
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            })
+            .map(Id::new)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(higher_error)?,
+    );
+
     let space = AdvisorySpaceEnvelope {
         schema: advisorygraphen_core::SPACE_SCHEMA.to_string(),
-        space_id: format!(
-            "space:advisory:{}",
-            string_field(snapshot, "snapshot_id")?.trim_start_matches("snapshot:")
-        ),
+        space_id: space_id.clone(),
         engagement_id: string_field(snapshot, "engagement_id")?.to_string(),
         snapshot_id: string_field(snapshot, "snapshot_id")?.to_string(),
         package_id: PACKAGE_TECHNICAL_ADVISORY_MVP.to_string(),
@@ -46,8 +66,12 @@ pub fn lift_snapshot(
             "id": "morphism:source-to-advisory-space",
             "morphism_type": "source_to_advisory_space",
             "from_id": string_field(snapshot, "snapshot_id")?,
-            "to_id": format!("space:advisory:{}", string_field(snapshot, "snapshot_id")?.trim_start_matches("snapshot:")),
-            "provenance": source_adapter_provenance()
+            "to_id": space_id,
+            "provenance": source_adapter_provenance(),
+            "higher_graphen": {
+                "morphism": source_to_space_morphism,
+                "preservation_report": source_to_space_preservation
+            }
         })],
         invariants: package.invariant_records(),
         policies: package.policy_records(),
@@ -55,6 +79,63 @@ pub fn lift_snapshot(
     };
     validate_space(&space)?;
     Ok(space)
+}
+
+fn source_to_space_morphism(
+    snapshot: &Value,
+    records: &[Value],
+    space_id: &str,
+) -> AdvisoryResult<Morphism> {
+    let mut cell_mapping: CellMapping = BTreeMap::new();
+    let mut relation_mapping: RelationMapping = BTreeMap::new();
+
+    for source in array_field(snapshot, "sources")? {
+        let Some(source_id) = source.get("id").and_then(Value::as_str) else {
+            continue;
+        };
+        cell_mapping.insert(
+            hg_id(source_id)?,
+            hg_id(&format!(
+                "cell:evidence-{}",
+                source_id.trim_start_matches("source:")
+            ))?,
+        );
+    }
+
+    for record in records {
+        let Some(record_id) = record.get("id").and_then(Value::as_str) else {
+            continue;
+        };
+        if record
+            .get("relation")
+            .is_some_and(|relation| !relation.is_null())
+        {
+            relation_mapping.insert(
+                hg_id(record_id)?,
+                hg_id(&format!(
+                    "incidence:{}",
+                    record_id.trim_start_matches("record:")
+                ))?,
+            );
+        } else {
+            cell_mapping.insert(hg_id(record_id)?, hg_id(&record_to_cell_id(record_id))?);
+        }
+    }
+
+    Ok(Morphism {
+        id: hg_id("morphism:source-to-advisory-space")?,
+        source_space_id: hg_id(string_field(snapshot, "snapshot_id")?)?,
+        target_space_id: hg_id(space_id)?,
+        name: "JSON snapshot to AdvisoryGraphen space".to_string(),
+        morphism_type: MorphismType::Lift,
+        cell_mapping,
+        relation_mapping,
+        preserved_invariant_ids: Vec::new(),
+        lost_structure: Vec::new(),
+        distortion: Vec::new(),
+        composable_with: Vec::new(),
+        provenance: hg_source_adapter_provenance()?,
+    })
 }
 
 fn build_contexts(records: &[Value]) -> Vec<Value> {
@@ -231,4 +312,22 @@ fn source_adapter_provenance() -> Value {
         "confidence": 1.0,
         "review_status": "accepted"
     })
+}
+
+fn hg_source_adapter_provenance() -> AdvisoryResult<Provenance> {
+    Ok(Provenance::new(
+        SourceRef::new(SourceKind::Document)
+            .with_title("source-adapter:json")
+            .map_err(higher_error)?,
+        Confidence::new(1.0).map_err(higher_error)?,
+    )
+    .with_review_status(ReviewStatus::Accepted))
+}
+
+fn hg_id(value: &str) -> AdvisoryResult<Id> {
+    Id::new(value).map_err(higher_error)
+}
+
+fn higher_error(error: higher_graphen_core::CoreError) -> advisorygraphen_core::AdvisoryError {
+    advisorygraphen_core::AdvisoryError::Validation(format!("higher-graphen lift: {error}"))
 }

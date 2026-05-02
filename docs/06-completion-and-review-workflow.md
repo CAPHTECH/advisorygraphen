@@ -46,6 +46,7 @@ Accepting a candidate must append a review event. In case-log mode, it must appe
 advisorygraphen completions accept \
   --store .advisorygraphen/store \
   --candidate-id candidate:billing-status-api \
+  --from-report advisory.completions.report.json \
   --reviewer reviewer:cto \
   --reason "Accepted as target architecture direction" \
   --base-revision revision:2026-05-02T00-00-00Z \
@@ -60,10 +61,16 @@ Rejecting a candidate records reason and leaves the original candidate visible i
 advisorygraphen completions reject \
   --store .advisorygraphen/store \
   --candidate-id candidate:billing-status-api \
+  --from-report advisory.completions.report.json \
   --reviewer reviewer:cto \
   --reason "Billing service ownership will be redesigned first" \
   --format json
 ```
+
+When the source completion report is supplied, the event metadata includes the
+HigherGraphen `CompletionReviewRecord`. That record preserves the candidate
+snapshot and creates a separate accepted or rejected result; it does not mutate
+the candidate itself.
 
 ## Review event fields
 

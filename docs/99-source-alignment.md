@@ -35,14 +35,24 @@ dependencies on `higher-graphen-core`, `higher-graphen-structure`,
 `AdvisorySpaceEnvelope::to_higher_graphen()` materializes advisory cells,
 contexts, and incidences into HigherGraphen `InMemorySpaceStore`/`Context`
 records. `advisorygraphen lift` embeds a HigherGraphen
-`InterpretationPackage` in the lift metadata. `advisorygraphen check` emits
+`InterpretationPackage` in the lift metadata and records source-to-space lift as
+a HigherGraphen `Morphism` with a preservation report. `advisorygraphen check` emits
 HigherGraphen `CheckResult`, `Violation`, `Obstruction`, `Counterexample`,
 `RequiredResolution`, and confidence evidence records, then projects them into
-the AdvisoryGraphen report contract. `advisorygraphen project` builds a
+the AdvisoryGraphen report contract. `advisorygraphen completions propose`
+materializes reviewable HigherGraphen `CompletionCandidate` snapshots, and
+`completions accept/reject --from-report` embeds a HigherGraphen
+`CompletionReviewRecord` without mutating the original candidate.
+`advisorygraphen project` builds a
 HigherGraphen `Projection` and `ProjectionResult` before rendering the
 audience-specific AdvisoryGraphen projection. The check report includes
 `result.higher_graphen` so callers can see that the HigherGraphen store was
 built.
+
+The dogfood path can now generate a bounded self-review snapshot from selected
+repository files via `advisorygraphen dogfood repo-snapshot`, then run the same
+lift/check/completion/review/projection flow against AdvisoryGraphen's own
+HigherGraphen integration posture.
 
 `higher-graphen-runtime` remains an upstream workflow crate. AdvisoryGraphen
 keeps its own product-specific runtime orchestration while consuming and

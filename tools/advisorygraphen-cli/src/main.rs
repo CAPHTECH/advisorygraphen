@@ -2,9 +2,10 @@ use advisorygraphen_core::{AdvisoryError, Severity, TOOL_VERSION};
 use advisorygraphen_projection::OutputFormat;
 use advisorygraphen_runtime::{
     case_close_check_workflow, case_import_workflow, case_reason_workflow, check_workflow,
-    completions_propose_workflow, lift_workflow, project_workflow, review_workflow,
-    validate_workflow, CaseCloseCheckOptions, CaseImportOptions, CaseReasonOptions, CheckOptions,
-    CompletionProposeOptions, LiftOptions, ProjectOptions, ReviewOptions, ValidateOptions,
+    completions_propose_workflow, dogfood_repo_snapshot_workflow, lift_workflow, project_workflow,
+    review_workflow, validate_workflow, CaseCloseCheckOptions, CaseImportOptions,
+    CaseReasonOptions, CheckOptions, CompletionProposeOptions, DogfoodRepoSnapshotOptions,
+    LiftOptions, ProjectOptions, ReviewOptions, ValidateOptions,
 };
 use clap::{Args, Parser, Subcommand};
 use serde::Serialize;
@@ -32,6 +33,10 @@ enum Command {
         command: CompletionsCommand,
     },
     Project(ProjectArgs),
+    Dogfood {
+        #[command(subcommand)]
+        command: DogfoodCommand,
+    },
     Case {
         #[command(subcommand)]
         command: CaseCommand,
@@ -50,6 +55,11 @@ enum CaseCommand {
     Import(CaseImportArgs),
     Reason(CaseReasonArgs),
     CloseCheck(CaseCloseCheckArgs),
+}
+
+#[derive(Debug, Subcommand)]
+enum DogfoodCommand {
+    RepoSnapshot(DogfoodRepoSnapshotArgs),
 }
 
 #[derive(Debug, Args)]
@@ -106,6 +116,8 @@ struct ReviewArgs {
     store: PathBuf,
     #[arg(long = "candidate-id")]
     candidate_id: String,
+    #[arg(long = "from-report")]
+    from_report: Option<PathBuf>,
     #[arg(long)]
     reviewer: String,
     #[arg(long)]
@@ -128,6 +140,16 @@ struct ProjectArgs {
     format: String,
     #[arg(long)]
     output: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct DogfoodRepoSnapshotArgs {
+    #[arg(long, default_value = ".")]
+    repo: PathBuf,
+    #[arg(long)]
+    output: Option<PathBuf>,
+    #[arg(long, default_value = "json")]
+    format: String,
 }
 
 #[derive(Debug, Args)]
@@ -233,6 +255,17 @@ fn run() -> Result<(), AdvisoryError> {
             println!("{rendered}");
             Ok(())
         }
+        Command::Dogfood { command } => match command {
+            DogfoodCommand::RepoSnapshot(args) => {
+                require_json_format(&args.format)?;
+                print_json(&dogfood_repo_snapshot_workflow(
+                    &DogfoodRepoSnapshotOptions {
+                        repo: args.repo,
+                        output: args.output,
+                    },
+                )?)
+            }
+        },
         Command::Case { command } => match command {
             CaseCommand::Import(args) => {
                 require_json_format(&args.format)?;
@@ -266,6 +299,7 @@ fn run_review(args: ReviewArgs, outcome: &str) -> Result<(), AdvisoryError> {
     print_json(&review_workflow(&ReviewOptions {
         store: args.store,
         candidate_id: args.candidate_id,
+        from_report: args.from_report,
         reviewer: args.reviewer,
         reason: args.reason,
         outcome: outcome.to_string(),

@@ -12,6 +12,8 @@ advisorygraphen-lift = { path = "../advisorygraphen-lift" }
 advisorygraphen-projection = { path = "../advisorygraphen-projection" }
 advisorygraphen-reasoning = { path = "../advisorygraphen-reasoning" }
 chrono.workspace = true
+higher-graphen-core.workspace = true
+higher-graphen-reasoning.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 

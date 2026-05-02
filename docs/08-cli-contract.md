@@ -85,6 +85,7 @@ Append acceptance review event and optionally promote candidate.
 advisorygraphen completions accept \
   --store .advisorygraphen/store \
   --candidate-id candidate:billing-status-api \
+  --from-report advisory.completions.report.json \
   --reviewer reviewer:cto \
   --reason "Accepted target direction" \
   --base-revision revision:technical-advisory-smoke-1 \
@@ -97,10 +98,16 @@ advisorygraphen completions accept \
 advisorygraphen completions reject \
   --store .advisorygraphen/store \
   --candidate-id candidate:billing-status-api \
+  --from-report advisory.completions.report.json \
   --reviewer reviewer:cto \
   --reason "Deferred until ownership redesign" \
   --format json
 ```
+
+When `--from-report` is supplied, the review event embeds a HigherGraphen
+`CompletionReviewRecord` built from the preserved candidate snapshot. The source
+candidate remains unmutated and unreviewed; the review event records the
+accepted or rejected outcome.
 
 ### `project`
 
@@ -123,6 +130,22 @@ Supported audiences:
 - `ai_agent`
 - `client_review`
 - `cli`
+
+### `dogfood repo-snapshot`
+
+Generate a bounded engagement snapshot from this repository's own docs and
+workspace manifest.
+
+```sh
+advisorygraphen dogfood repo-snapshot \
+  --repo . \
+  --output advisorygraphen-dogfood.input.json \
+  --format json
+```
+
+The generated snapshot can be passed through `lift`, `check`, and `project`.
+It is intentionally bounded: git history, issue tracker state, PR comments, and
+the full HigherGraphen workspace source body are outside this ingestion path.
 
 ### `case import`
 

@@ -113,8 +113,12 @@ AdvisoryGraphen 自身の HigherGraphen 統合判断を、同じ `technical_advi
 パイプラインで検査する例を含めている。
 
 ```sh
+advisorygraphen dogfood repo-snapshot \
+  --repo . \
+  --output /tmp/advisorygraphen-dogfood.input.json
+
 advisorygraphen lift \
-  --input examples/dogfood/higher-graphen-integration/advisory.input.json \
+  --input /tmp/advisorygraphen-dogfood.input.json \
   --package technical_advisory \
   --output /tmp/advisorygraphen-dogfood.space.json
 
@@ -130,11 +134,24 @@ advisorygraphen project \
   --audience audit_trace \
   --format json \
   --output /tmp/advisorygraphen-dogfood.audit.json
+
+advisorygraphen case import \
+  --store /tmp/advisorygraphen-dogfood-store \
+  --space /tmp/advisorygraphen-dogfood.space.json \
+  --revision-id revision:dogfood-hg-1
+
+advisorygraphen case reason \
+  --store /tmp/advisorygraphen-dogfood-store \
+  --space-id space:advisory:dogfood-higher-graphen-integration
 ```
 
 この例は、HG境界出力が受け入れテストで検証されていることと、
 `higher-graphen-runtime` 採用判断が post-MVP の未検証 follow-up であることを
 同じ構造モデル上で分離して扱う。
+
+`examples/dogfood/higher-graphen-integration/advisory.input.json` は、同じ構造を
+固定fixtureとして保持している。`dogfood repo-snapshot` は実repoファイルから
+bounded snapshotを再生成する。
 
 ## 採用する原則
 

@@ -12,6 +12,11 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+mod dogfood;
+mod review;
+pub use dogfood::{dogfood_repo_snapshot_workflow, DogfoodRepoSnapshotOptions};
+use review::higher_graphen_completion_review;
+
 #[derive(Debug, Clone)]
 pub struct ValidateOptions {
     pub input: PathBuf,
@@ -47,6 +52,7 @@ pub struct CompletionProposeOptions {
 pub struct ReviewOptions {
     pub store: PathBuf,
     pub candidate_id: String,
+    pub from_report: Option<PathBuf>,
     pub reviewer: String,
     pub reason: String,
     pub outcome: String,
@@ -129,6 +135,15 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
     fs::create_dir_all(&options.store)?;
     let head = read_head_revision(&options.store).ok();
     ensure_base_revision(head.as_deref(), options.base_revision.as_deref())?;
+    let reviewed_at = Utc::now().to_rfc3339();
+    let higher_graphen_review = match &options.from_report {
+        Some(path) => Some(higher_graphen_completion_review(
+            options,
+            path,
+            &reviewed_at,
+        )?),
+        None => None,
+    };
     let event = json!({
         "schema": REVIEW_EVENT_SCHEMA,
         "review_event_id": format!("review:{}:{}", options.outcome, options.candidate_id.trim_start_matches("candidate:")),
@@ -136,11 +151,14 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
         "target_ids": [options.candidate_id],
         "outcome": options.outcome,
         "reviewer_id": options.reviewer,
-        "reviewed_at": Utc::now().to_rfc3339(),
+        "reviewed_at": reviewed_at,
         "reason": options.reason,
         "evidence_ids": [],
         "base_revision_id": options.base_revision,
-        "metadata": {}
+        "metadata": {
+            "from_report": options.from_report.as_ref().map(|path| path.display().to_string()),
+            "higher_graphen": higher_graphen_review
+        }
     });
     validate_document(&event, Some(REVIEW_EVENT_SCHEMA))?;
     append_store_event(

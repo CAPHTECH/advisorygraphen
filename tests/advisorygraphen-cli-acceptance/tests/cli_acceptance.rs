@@ -1,9 +1,8 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::path::Path;
 
-const PACKAGE: &str = "advisorygraphen-cli";
-const BINARY: &str = "advisorygraphen";
+mod support;
+use support::*;
+
 const FIXTURE: &str = "examples/technical-advisory/direct-db-access/advisory.input.json";
 const DOGFOOD_FIXTURE: &str = "examples/dogfood/higher-graphen-integration/advisory.input.json";
 const PACKAGE_NAME: &str = "technical_advisory";
@@ -33,17 +32,42 @@ fn validate_accepts_direct_db_access_fixture() {
 #[test]
 fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
     let dir = clean_case_dir("dogfood-higher-graphen");
+    let generated = dir.join("generated.advisory.input.json");
     let space = dir.join("advisory.space.json");
     let check = dir.join("advisory.check.report.json");
     let audit = dir.join("audit-trace.json");
+    let store = dir.join("store");
 
     let validate = run_cli(["validate", "--input", DOGFOOD_FIXTURE, "--format", "json"]);
     assert_success(&validate);
 
+    let generate = run_cli([
+        "dogfood",
+        "repo-snapshot",
+        "--repo",
+        ".",
+        "--output",
+        path_str(&generated),
+        "--format",
+        "json",
+    ]);
+    assert_success(&generate);
+    assert_file_contains(&generated, "repo_snapshot:0.1.0");
+    assert_file_contains(&generated, "source:workspace-manifest");
+
+    let validate_generated = run_cli([
+        "validate",
+        "--input",
+        path_str(&generated),
+        "--format",
+        "json",
+    ]);
+    assert_success(&validate_generated);
+
     let lift = run_cli([
         "lift",
         "--input",
-        DOGFOOD_FIXTURE,
+        path_str(&generated),
         "--package",
         PACKAGE_NAME,
         "--output",
@@ -55,6 +79,7 @@ fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
     assert_file_contains(&space, "space:advisory:dogfood-higher-graphen-integration");
     assert_file_contains(&space, "higher_graphen_interpretation");
     assert_file_contains(&space, "morphism:source-to-advisory-space");
+    assert_file_contains(&space, "\"morphism_type\": \"lift\"");
 
     check_space(&space, &check);
     assert_file_contains(&check, "higher_graphen");
@@ -67,6 +92,33 @@ fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
         &check,
         "obstruction:hg-boundary-requirement-missing-verification",
     );
+
+    let import = run_cli([
+        "case",
+        "import",
+        "--store",
+        path_str(&store),
+        "--space",
+        path_str(&space),
+        "--revision-id",
+        "revision:dogfood-hg-1",
+        "--format",
+        "json",
+    ]);
+    assert_success(&import);
+
+    let reason = run_cli([
+        "case",
+        "reason",
+        "--store",
+        path_str(&store),
+        "--space-id",
+        "space:advisory:dogfood-higher-graphen-integration",
+        "--format",
+        "json",
+    ]);
+    assert_success(&reason);
+    assert_output_contains(&reason, "obstruction:runtime-adoption-action-missing-owner");
 
     let project = run_cli([
         "project",
@@ -86,7 +138,7 @@ fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
     assert_file_contains(&audit, "Evaluate higher-graphen-runtime adoption");
     assert_file_contains(
         &audit,
-        "No repository history, issue tracker, or pull request review comments were ingested.",
+        "Git history, issue tracker, pull request comments, and the HigherGraphen workspace source body were not ingested.",
     );
 }
 
@@ -98,6 +150,7 @@ fn direct_fixture_lift_check_completions_and_executive_projection() {
     let completions = dir.join("advisory.completions.report.json");
     let executive = dir.join("executive-review.md");
     let executive_json = dir.join("executive-review.json");
+    let review_store = dir.join("review-store");
 
     lift_fixture(&space);
     assert_file_contains(&space, SPACE_ID);
@@ -120,6 +173,28 @@ fn direct_fixture_lift_check_completions_and_executive_projection() {
     propose_completions(&space, &check, &completions);
     assert_file_contains(&completions, "candidate:billing-status-api");
     assert_file_contains(&completions, "unreviewed");
+    assert_file_contains(&completions, "higher_graphen");
+    assert_file_contains(&completions, "\"missing_type\": \"cell\"");
+
+    let accept = run_cli([
+        "completions",
+        "accept",
+        "--store",
+        path_str(&review_store),
+        "--candidate-id",
+        "candidate:billing-status-api",
+        "--from-report",
+        path_str(&completions),
+        "--reviewer",
+        "reviewer:cto",
+        "--reason",
+        "Reviewed dogfood completion path.",
+        "--format",
+        "json",
+    ]);
+    assert_success(&accept);
+    assert_output_contains(&accept, "accepted_completion");
+    assert_output_contains(&accept, "\"outcome_review_status\": \"accepted\"");
 
     let output = run_cli([
         "project",
@@ -264,113 +339,4 @@ fn propose_completions(space_path: &Path, check_path: &Path, output_path: &Path)
         "json",
     ]);
     assert_success(&output);
-}
-
-fn run_cli<const N: usize>(args: [&str; N]) -> Output {
-    let repo = repo_root();
-    let mut command = Command::new("cargo");
-    command
-        .current_dir(&repo)
-        .env("CARGO_NET_OFFLINE", "true")
-        .args([
-            "run",
-            "--quiet",
-            "--package",
-            PACKAGE,
-            "--bin",
-            BINARY,
-            "--",
-        ])
-        .args(args);
-
-    command.output().unwrap_or_else(|error| {
-        panic!("failed to execute cargo for {BINARY}: {error}");
-    })
-}
-
-fn assert_success(output: &Output) {
-    if !output.status.success() {
-        panic!(
-            "command failed with status {:?}\nstdout:\n{}\nstderr:\n{}",
-            output.status.code(),
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-}
-
-fn assert_output_contains(output: &Output, needle: &str) {
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    if !stdout.contains(needle) && !stderr.contains(needle) {
-        panic!(
-            "expected command output to contain {needle:?}\nstdout:\n{stdout}\nstderr:\n{stderr}"
-        );
-    }
-}
-
-fn assert_output_contains_any(output: &Output, needles: &[&str]) {
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    if !needles
-        .iter()
-        .any(|needle| stdout.contains(needle) || stderr.contains(needle))
-    {
-        panic!(
-            "expected command output to contain one of {needles:?}\nstdout:\n{stdout}\nstderr:\n{stderr}"
-        );
-    }
-}
-
-fn assert_file_contains(path: &Path, needle: &str) {
-    let contents = fs::read_to_string(path).unwrap_or_else(|error| {
-        panic!("failed to read {}: {error}", path.display());
-    });
-    if !contents.contains(needle) {
-        panic!(
-            "expected {} to contain {needle:?}\ncontents:\n{contents}",
-            path.display()
-        );
-    }
-}
-
-fn assert_file_not_contains(path: &Path, needle: &str) {
-    let contents = fs::read_to_string(path).unwrap_or_else(|error| {
-        panic!("failed to read {}: {error}", path.display());
-    });
-    if contents.contains(needle) {
-        panic!(
-            "expected {} not to contain {needle:?}\ncontents:\n{contents}",
-            path.display()
-        );
-    }
-}
-
-fn clean_case_dir(name: &str) -> PathBuf {
-    let dir = repo_root()
-        .join("target")
-        .join("tmp")
-        .join("cli-acceptance")
-        .join(name);
-    if dir.exists() {
-        fs::remove_dir_all(&dir).unwrap_or_else(|error| {
-            panic!("failed to remove {}: {error}", dir.display());
-        });
-    }
-    fs::create_dir_all(&dir).unwrap_or_else(|error| {
-        panic!("failed to create {}: {error}", dir.display());
-    });
-    dir
-}
-
-fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(2)
-        .expect("test crate should live under tests/advisorygraphen-cli-acceptance")
-        .to_path_buf()
-}
-
-fn path_str(path: &Path) -> &str {
-    path.to_str().expect("test paths should be valid UTF-8")
 }

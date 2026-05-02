@@ -3,52 +3,143 @@
   "report_type": "completion_proposal",
   "report_version": 1,
   "tool": {
+    "command": "advisorygraphen completions propose --space advisory.space.json --from-report expected.check.report.json --output expected.completion.report.json --format json",
+    "git_revision": null,
     "name": "advisorygraphen",
     "version": "0.1.0"
   },
   "input": {
-    "space_id": "space:advisory:technical-advisory-direct-db-access",
-    "from_report": "expected.check.report.json"
+    "from_report": "expected.check.report.json",
+    "space_id": "space:advisory:technical-advisory-direct-db-access"
   },
   "result": {
     "completion_candidates": [
       {
-        "id": "candidate:billing-status-api",
         "candidate_type": "proposed_interface",
-        "title": "Add Billing status query API",
+        "confidence": 0.82,
+        "higher_graphen": {
+          "confidence": 0.82,
+          "id": "candidate:billing-status-api",
+          "inferred_from": [
+            "obstruction:order-service-direct-billing-db-access"
+          ],
+          "missing_type": "cell",
+          "rationale": "Remove cross-context direct database access while preserving billing status check.",
+          "review_status": "unreviewed",
+          "space_id": "space:advisory:technical-advisory-direct-db-access",
+          "suggested_structure": {
+            "related_ids": [
+              "obstruction:order-service-direct-billing-db-access",
+              "cell:billing-status-api"
+            ],
+            "structure_id": "cell:billing-status-api",
+            "structure_type": "interface_cell",
+            "summary": "Add Billing status query API"
+          }
+        },
+        "id": "candidate:billing-status-api",
+        "metadata": {},
+        "proposed_cell_ids": [
+          "cell:billing-status-api"
+        ],
         "rationale": "Remove cross-context direct database access while preserving billing status check.",
         "resolves_obstruction_ids": [
           "obstruction:order-service-direct-billing-db-access"
         ],
-        "proposed_cell_ids": [
-          "cell:billing-status-api"
-        ],
+        "review_status": "unreviewed",
         "source_ids": [
           "source:architecture-note"
         ],
-        "confidence": 0.82,
-        "review_status": "unreviewed",
-        "metadata": {}
+        "title": "Add Billing status query API"
       },
       {
-        "id": "candidate:replace-order-service-db-read",
         "candidate_type": "proposed_refactor_action",
-        "title": "Replace Order Service direct DB read with Billing API call",
+        "confidence": 0.78,
+        "higher_graphen": {
+          "confidence": 0.78,
+          "id": "candidate:replace-order-service-db-read",
+          "inferred_from": [
+            "obstruction:order-service-direct-billing-db-access"
+          ],
+          "missing_type": "cell",
+          "rationale": "Order Service should depend on Billing Service interface instead of Billing DB ownership boundary.",
+          "review_status": "unreviewed",
+          "space_id": "space:advisory:technical-advisory-direct-db-access",
+          "suggested_structure": {
+            "related_ids": [
+              "obstruction:order-service-direct-billing-db-access",
+              "cell:action-replace-direct-db-read"
+            ],
+            "structure_id": "cell:action-replace-direct-db-read",
+            "structure_type": "refactor_action_cell",
+            "summary": "Replace Order Service direct DB read with Billing API call"
+          }
+        },
+        "id": "candidate:replace-order-service-db-read",
+        "metadata": {},
+        "proposed_cell_ids": [
+          "cell:action-replace-direct-db-read"
+        ],
         "rationale": "Order Service should depend on Billing Service interface instead of Billing DB ownership boundary.",
         "resolves_obstruction_ids": [
           "obstruction:order-service-direct-billing-db-access"
         ],
-        "proposed_cell_ids": [
-          "cell:action-replace-direct-db-read"
-        ],
+        "review_status": "unreviewed",
         "source_ids": [
           "source:architecture-note"
         ],
-        "confidence": 0.78,
-        "review_status": "unreviewed",
-        "metadata": {}
+        "title": "Replace Order Service direct DB read with Billing API call"
       }
-    ]
+    ],
+    "higher_graphen": {
+      "candidates": [
+        {
+          "confidence": 0.82,
+          "id": "candidate:billing-status-api",
+          "inferred_from": [
+            "obstruction:order-service-direct-billing-db-access"
+          ],
+          "missing_type": "cell",
+          "rationale": "Remove cross-context direct database access while preserving billing status check.",
+          "review_status": "unreviewed",
+          "space_id": "space:advisory:technical-advisory-direct-db-access",
+          "suggested_structure": {
+            "related_ids": [
+              "obstruction:order-service-direct-billing-db-access",
+              "cell:billing-status-api"
+            ],
+            "structure_id": "cell:billing-status-api",
+            "structure_type": "interface_cell",
+            "summary": "Add Billing status query API"
+          }
+        },
+        {
+          "confidence": 0.78,
+          "id": "candidate:replace-order-service-db-read",
+          "inferred_from": [
+            "obstruction:order-service-direct-billing-db-access"
+          ],
+          "missing_type": "cell",
+          "rationale": "Order Service should depend on Billing Service interface instead of Billing DB ownership boundary.",
+          "review_status": "unreviewed",
+          "space_id": "space:advisory:technical-advisory-direct-db-access",
+          "suggested_structure": {
+            "related_ids": [
+              "obstruction:order-service-direct-billing-db-access",
+              "cell:action-replace-direct-db-read"
+            ],
+            "structure_id": "cell:action-replace-direct-db-read",
+            "structure_type": "refactor_action_cell",
+            "summary": "Replace Order Service direct DB read with Billing API call"
+          }
+        }
+      ],
+      "context_ids": [
+        "context:billing",
+        "context:orders"
+      ],
+      "space_id": "space:advisory:technical-advisory-direct-db-access"
+    }
   },
   "projection": {},
   "warnings": []
