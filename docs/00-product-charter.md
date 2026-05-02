@@ -34,7 +34,7 @@ AdvisoryGraphen は次のものではない。
 
 ## Operating model
 
-AdvisoryGraphen の通常操作主体はAIエージェントである。エージェントはbounded snapshotを作成または更新し、`lift`、`check`、`completions propose`、`project ai_agent`、`project audit_trace`、`case import`、`case reason`を実行する。
+AdvisoryGraphen の通常操作主体はAIエージェントである。エージェントはbounded snapshotを作成または更新し、`lift`、`check`、`completions propose`、`project ai_agent`、`project audit_trace`、`case import`、`case reason`、`case close-check`を実行する。
 
 人間はHG構造を直接編集する前提ではない。人間は目的、制約、判断、accept/reject/waiveなどの明示レビューを与える。AIが生成した構造やcompletion candidateは、明示レビューがない限りaccepted factではない。
 

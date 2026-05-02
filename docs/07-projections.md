@@ -152,7 +152,8 @@ Minimum operation model:
       "project ai_agent",
       "project audit_trace",
       "case import",
-      "case reason"
+      "case reason",
+      "case close-check"
     ],
     "review_gated_commands": [
       "completions accept",

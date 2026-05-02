@@ -176,7 +176,8 @@ fn ai_agent_projection(
                 "project ai_agent",
                 "project audit_trace",
                 "case import",
-                "case reason"
+                "case reason",
+                "case close-check"
             ],
             "review_gated_commands": [
                 "completions accept",
@@ -204,6 +205,7 @@ fn ai_agent_projection(
             "review_obstructions",
             "inspect_application_requirements",
             "propose_or_review_candidates",
+            "run_case_close_check_before_closure",
             "generate_audit_projection"
         ],
         "close_status": close_status(space, &serde_json::from_value(report.clone()).unwrap_or_else(|_| advisorygraphen_core::ReportEnvelope::new("check", None, json!({}), json!({})))),

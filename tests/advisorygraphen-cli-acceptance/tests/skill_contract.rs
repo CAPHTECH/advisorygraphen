@@ -16,6 +16,7 @@ fn repository_skill_documents_agent_resume_protocol() {
         "blocker_resolution_state",
         "application_requirements",
         "case reason",
+        "case close-check",
         "review_gated_commands",
     ] {
         assert!(

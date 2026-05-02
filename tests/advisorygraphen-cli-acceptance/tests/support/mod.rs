@@ -251,6 +251,8 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
     assert_file_contains(&ai_agent, "projection:higher:ai_agent");
     assert_file_contains(&ai_agent, r#""primary_operator": "ai_agent""#);
     assert_file_contains(&ai_agent, "agent_operation_contract");
+    assert_file_contains(&ai_agent, "case close-check");
+    assert_file_contains(&ai_agent, "run_case_close_check_before_closure");
     assert_file_contains(&ai_agent, "promote unreviewed candidate structure");
     assert_file_contains(&ai_agent, "open_obstructions");
     assert_file_contains(&ai_agent, "candidate_review_state");

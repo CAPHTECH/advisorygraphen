@@ -42,6 +42,7 @@ advisorygraphen project --space SPACE.json --report CHECK.json --audience execut
 advisorygraphen project --space SPACE.json --report CHECK.json --audience audit_trace --format json --output AUDIT.json
 advisorygraphen case import --store STORE --space SPACE.json --revision-id REVISION --format json
 advisorygraphen case reason --store STORE --space-id SPACE_ID --format json
+advisorygraphen case close-check --store STORE --space-id SPACE_ID --base-revision REVISION --format json
 advisorygraphen completions accept --store STORE --candidate-id CANDIDATE --from-report COMPLETIONS.json --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
 advisorygraphen completions reject --store STORE --candidate-id CANDIDATE --from-report COMPLETIONS.json --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
 ```
@@ -54,6 +55,7 @@ advisorygraphen completions reject --store STORE --candidate-id CANDIDATE --from
 - `agent_operation_contract` lists safe next commands and review-gated commands.
 - `blocker_resolution_state` describes whether a blocker has no candidate, pending review, all candidates rejected, or an accepted candidate pending structural application.
 - `application_requirements` names the cells and incidences an AI agent must create before treating a blocker as resolved.
+- Run `case close-check` before reporting a case as closeable.
 - `review_gated_commands` require explicit human review before accept/reject events.
 - For imported case stores, `completions accept` and `completions reject` require `--base-revision`; missing or stale base revision is a stale-write error.
 - `projection_loss` must be disclosed when summarizing the projection.
