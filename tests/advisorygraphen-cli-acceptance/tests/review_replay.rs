@@ -118,6 +118,41 @@ fn rejected_candidate_survives_case_replay() {
     assert_output_contains(&mismatched_space_reject, "does not match");
     assert_output_contains(&mismatched_space_reject, "higher_graphen.space_id");
 
+    let missing_space_completions = dir.join("missing-space.completions.report.json");
+    let mut missing_space: serde_json::Value =
+        serde_json::from_slice(&fs::read(&completions).expect("completion report should exist"))
+            .expect("completion report should be valid json");
+    missing_space["input"]
+        .as_object_mut()
+        .expect("completion report input should be an object")
+        .remove("space_id");
+    fs::write(
+        &missing_space_completions,
+        serde_json::to_vec_pretty(&missing_space)
+            .expect("missing-space report should serialize"),
+    )
+    .expect("missing-space report should be writable");
+    let missing_space_reject = run_cli([
+        "completions",
+        "reject",
+        "--store",
+        path_str(&store),
+        "--candidate-id",
+        OWNER_CANDIDATE,
+        "--from-report",
+        path_str(&missing_space_completions),
+        "--reviewer",
+        "reviewer:dogfood-agent",
+        "--reason",
+        "Reject with missing report space should fail.",
+        "--base-revision",
+        REVISION_ID,
+        "--format",
+        "json",
+    ]);
+    assert_failure_code(&missing_space_reject, 1);
+    assert_output_contains(&missing_space_reject, "input.space_id");
+
     let reject = run_cli([
         "completions",
         "reject",

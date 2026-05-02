@@ -39,14 +39,8 @@ pub fn review_space_id(options: &ReviewOptions) -> AdvisoryResult<Option<String>
     options
         .from_report
         .as_deref()
-        .map(|path| {
-            Ok(read_json(path)?
-                .pointer("/input/space_id")
-                .and_then(Value::as_str)
-                .map(str::to_owned))
-        })
+        .map(|path| report_space_id(&read_json(path)?))
         .transpose()
-        .map(Option::flatten)
 }
 
 fn find_higher_graphen_candidate(
@@ -86,9 +80,7 @@ fn validate_candidate_space(
     higher_candidate: &Value,
     candidate_id: &str,
 ) -> AdvisoryResult<()> {
-    let Some(report_space_id) = report.pointer("/input/space_id").and_then(Value::as_str) else {
-        return Ok(());
-    };
+    let report_space_id = report_space_id(report)?;
     let candidate_space_id = higher_candidate
         .get("space_id")
         .and_then(Value::as_str)
@@ -103,6 +95,18 @@ fn validate_candidate_space(
         )));
     }
     Ok(())
+}
+
+fn report_space_id(report: &Value) -> AdvisoryResult<String> {
+    report
+        .pointer("/input/space_id")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .ok_or_else(|| {
+            AdvisoryError::Validation(
+                "from-report must contain input.space_id for completion review".to_string(),
+            )
+        })
 }
 
 fn hg_runtime_err(error: higher_graphen_core::CoreError) -> AdvisoryError {
