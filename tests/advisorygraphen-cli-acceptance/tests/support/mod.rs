@@ -122,6 +122,7 @@ pub struct AdvisoryFixtureFlow<'a> {
     pub expected_obstructions: &'a [&'a str],
     pub unexpected_obstructions: &'a [&'a str],
     pub expected_audit_text: &'a str,
+    pub expected_candidate_text: &'a str,
 }
 
 pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
@@ -211,6 +212,8 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
         path_str(&space),
         "--report",
         path_str(&check),
+        "--completions-report",
+        path_str(&completions),
         "--audience",
         "ai_agent",
         "--format",
@@ -224,6 +227,8 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
     assert_file_contains(&ai_agent, "agent_operation_contract");
     assert_file_contains(&ai_agent, "promote unreviewed candidate structure");
     assert_file_contains(&ai_agent, "open_obstructions");
+    assert_file_contains(&ai_agent, "candidate_review_state");
+    assert_file_contains(&ai_agent, flow.expected_candidate_text);
     assert_file_contains(&ai_agent, r#""closeable": false"#);
 
     let import = run_cli([
@@ -275,6 +280,7 @@ pub fn assert_advanced_dogfood_fixture_flows(package: &str, ruleset: &str) {
             "obstruction:private-boundary-checklist-action-missing-owner",
         ],
         expected_audit_text: "Define enterprise packaging owner and launch gate",
+        expected_candidate_text: "candidate:enterprise-packaging-action-missing-owner-owner",
     });
 
     assert_advisory_fixture_flow(AdvisoryFixtureFlow {
@@ -293,6 +299,7 @@ pub fn assert_advanced_dogfood_fixture_flows(package: &str, ruleset: &str) {
             "obstruction:prompt-injection-boundary-action-missing-owner",
         ],
         expected_audit_text: "Create agent recovery runbook",
+        expected_candidate_text: "candidate:agent-recovery-runbook-action-missing-owner-owner",
     });
 
     assert_advisory_fixture_flow(AdvisoryFixtureFlow {
@@ -311,5 +318,6 @@ pub fn assert_advanced_dogfood_fixture_flows(package: &str, ruleset: &str) {
             "obstruction:public-examples-no-customer-data-missing-verification",
         ],
         expected_audit_text: "Create commercial packaging review board",
+        expected_candidate_text: "candidate:commercial-packaging-review-board-action-missing-owner-owner",
     });
 }

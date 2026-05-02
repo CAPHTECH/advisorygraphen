@@ -49,13 +49,13 @@ CLI command: `advisorygraphen`
 4. Run advisorygraphen check.
 5. Inspect obstructions and evidence gaps.
 6. Run advisorygraphen completions propose.
-7. Generate advisorygraphen project --audience ai_agent.
+7. Generate advisorygraphen project --audience ai_agent with --completions-report.
 8. Follow the returned agent_operation_contract and close_status.
 9. Generate requested human projection or audit_trace.
 10. Keep candidates unreviewed unless the user explicitly reviews them.
 ```
 
-The agent should treat `ai_agent` projection as its resume protocol. It should use `open_obstructions`, `candidate_review_state`, `review_gated_commands`, and `forbidden_operations` before deciding the next command. The human does not need to edit HG directly; the human reviews projections and explicit accept/reject/waive events.
+The agent should treat `ai_agent` projection as its resume protocol. It should use `open_obstructions`, `candidate_review_state`, `review_gated_commands`, and `forbidden_operations` before deciding the next command. `candidate_review_state` is populated when the agent supplies the completion proposal report to `project`. The human does not need to edit HG directly; the human reviews projections and explicit accept/reject/waive events.
 
 ## Minimal skill file
 

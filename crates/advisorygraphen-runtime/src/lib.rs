@@ -13,8 +13,10 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 mod dogfood;
+mod projection_report;
 mod review;
 pub use dogfood::{dogfood_repo_snapshot_workflow, DogfoodRepoSnapshotOptions};
+use projection_report::read_projection_report;
 use review::higher_graphen_completion_review;
 
 #[derive(Debug, Clone)]
@@ -63,6 +65,7 @@ pub struct ReviewOptions {
 pub struct ProjectOptions {
     pub space: PathBuf,
     pub report: PathBuf,
+    pub completions_report: Option<PathBuf>,
     pub audience: String,
     pub format: OutputFormat,
     pub output: Option<PathBuf>,
@@ -183,7 +186,7 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
 
 pub fn project_workflow(options: &ProjectOptions) -> AdvisoryResult<String> {
     let space = read_space(&options.space)?;
-    let report = read_json(&options.report)?;
+    let report = read_projection_report(&options.report, options.completions_report.as_deref())?;
     let rendered = project(&space, &report, &options.audience, options.format)?;
     write_string_if_requested(&options.output, &rendered)?;
     Ok(rendered)

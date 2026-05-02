@@ -134,6 +134,8 @@ struct ProjectArgs {
     space: PathBuf,
     #[arg(long)]
     report: PathBuf,
+    #[arg(long = "completions-report")]
+    completions_report: Option<PathBuf>,
     #[arg(long)]
     audience: String,
     #[arg(long, default_value = "json")]
@@ -248,6 +250,7 @@ fn run() -> Result<(), AdvisoryError> {
             let rendered = project_workflow(&ProjectOptions {
                 space: args.space,
                 report: args.report,
+                completions_report: args.completions_report,
                 audience: args.audience,
                 format,
                 output: args.output,

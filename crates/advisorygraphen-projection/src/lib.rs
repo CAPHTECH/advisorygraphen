@@ -188,6 +188,7 @@ fn ai_agent_projection(
             "resume_protocol": [
                 "read close_status",
                 "inspect open_obstructions",
+                "inspect candidate_review_state",
                 "propose missing owner or verification structure",
                 "generate audit_trace before reporting final state"
             ]
@@ -286,9 +287,17 @@ fn obstructions(report: &Value) -> Vec<Value> {
 }
 
 fn completion_candidates(report: &Value) -> Vec<Value> {
-    report
+    let mut candidates = report
         .pointer("/result/completion_candidates")
         .and_then(Value::as_array)
         .cloned()
-        .unwrap_or_default()
+        .unwrap_or_default();
+    candidates.extend(
+        report
+            .pointer("/related_reports/completions/result/completion_candidates")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default(),
+    );
+    candidates
 }

@@ -141,6 +141,7 @@ advisorygraphen check \
 advisorygraphen project \
   --space /tmp/advisorygraphen-dogfood.space.json \
   --report /tmp/advisorygraphen-dogfood.check.json \
+  --completions-report /tmp/advisorygraphen-dogfood.completions.json \
   --audience ai_agent \
   --format json \
   --output /tmp/advisorygraphen-dogfood.agent.json

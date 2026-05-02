@@ -122,6 +122,20 @@ advisorygraphen project \
   --output executive-review.md
 ```
 
+`--report` is the primary report for the projection. For `ai_agent`, callers can
+also pass a completion proposal report so the projection includes current
+candidate review state:
+
+```sh
+advisorygraphen project \
+  --space advisory.space.json \
+  --report advisory.check.report.json \
+  --completions-report advisory.completions.report.json \
+  --audience ai_agent \
+  --format json \
+  --output ai-agent.json
+```
+
 Supported audiences:
 
 - `executive`

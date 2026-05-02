@@ -127,6 +127,9 @@ Must include:
 - IDs required for follow-up commands
 
 The AI projection should make it hard for an agent to accidentally promote candidate structure.
+When a completion proposal report is available, the projection should be built
+with that report attached so `candidate_review_state` contains the current
+unreviewed candidates alongside `open_obstructions`.
 
 Minimum operation model:
 
@@ -161,6 +164,7 @@ Minimum operation model:
     "resume_protocol": [
       "read close_status",
       "inspect open_obstructions",
+      "inspect candidate_review_state",
       "propose missing owner or verification structure",
       "generate audit_trace before reporting final state"
     ]
