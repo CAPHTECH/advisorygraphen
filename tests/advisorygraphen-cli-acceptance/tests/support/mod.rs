@@ -123,6 +123,21 @@ pub fn path_str(path: &Path) -> &str {
     path.to_str().expect("test paths should be valid UTF-8")
 }
 
+pub fn import_case(store: &Path, space: &Path, revision_id: &str) -> Output {
+    run_cli([
+        "case",
+        "import",
+        "--store",
+        path_str(store),
+        "--space",
+        path_str(space),
+        "--revision-id",
+        revision_id,
+        "--format",
+        "json",
+    ])
+}
+
 pub struct AdvisoryFixtureFlow<'a> {
     pub case_name: &'a str,
     pub fixture: &'a str,
@@ -245,18 +260,7 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
     assert_file_contains(&ai_agent, flow.expected_candidate_text);
     assert_file_contains(&ai_agent, r#""closeable": false"#);
 
-    let import = run_cli([
-        "case",
-        "import",
-        "--store",
-        path_str(&store),
-        "--space",
-        path_str(&space),
-        "--revision-id",
-        flow.revision_id,
-        "--format",
-        "json",
-    ]);
+    let import = import_case(&store, &space, flow.revision_id);
     assert_success(&import);
 
     let accept = run_cli([

@@ -114,9 +114,9 @@ match the candidate snapshot `higher_graphen.space_id`; missing values or
 mismatches are rejected as validation errors before any review event is
 appended.
 
-When the completion report identifies an imported `space_id` with a case-store
-`HEAD`, `--base-revision` is required and checked against that `HEAD`. A missing
-or stale value fails with exit code `5`.
+The completion report `space_id` must already be imported into the case store.
+`--base-revision` is required and checked against that space's case-store
+`HEAD`. A missing or stale value fails with exit code `5`.
 
 ### `project`
 

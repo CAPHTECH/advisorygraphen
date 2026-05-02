@@ -53,6 +53,29 @@ fn rejected_candidate_survives_case_replay() {
         "--format",
         "json",
     ]));
+
+    let unimported_store = dir.join("unimported-store");
+    let unimported_reject = run_cli([
+        "completions",
+        "reject",
+        "--store",
+        path_str(&unimported_store),
+        "--candidate-id",
+        OWNER_CANDIDATE,
+        "--from-report",
+        path_str(&completions),
+        "--reviewer",
+        "reviewer:dogfood-agent",
+        "--reason",
+        "Reject before import should fail.",
+        "--base-revision",
+        REVISION_ID,
+        "--format",
+        "json",
+    ]);
+    assert_failure_code(&unimported_reject, 1);
+    assert_output_contains(&unimported_reject, "must be imported before review");
+
     assert_success(&run_cli([
         "case",
         "import",

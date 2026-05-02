@@ -93,19 +93,7 @@ fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
         "obstruction:hg-boundary-requirement-missing-verification",
     );
 
-    let import = run_cli([
-        "case",
-        "import",
-        "--store",
-        path_str(&store),
-        "--space",
-        path_str(&space),
-        "--revision-id",
-        "revision:dogfood-hg-1",
-        "--format",
-        "json",
-    ]);
-    assert_success(&import);
+    assert_success(&import_case(&store, &space, "revision:dogfood-hg-1"));
 
     let reason = run_cli([
         "case",
@@ -183,6 +171,8 @@ fn direct_fixture_lift_check_completions_and_executive_projection() {
     assert_file_contains(&completions, "higher_graphen");
     assert_file_contains(&completions, "\"missing_type\": \"cell\"");
 
+    assert_success(&import_case(&review_store, &space, REVISION_ID));
+
     let accept = run_cli([
         "completions",
         "accept",
@@ -196,6 +186,8 @@ fn direct_fixture_lift_check_completions_and_executive_projection() {
         "reviewer:cto",
         "--reason",
         "Reviewed dogfood completion path.",
+        "--base-revision",
+        REVISION_ID,
         "--format",
         "json",
     ]);
@@ -251,18 +243,7 @@ fn case_import_reason_and_close_check_report_unresolved_obstruction() {
     check_space(&space, &check);
     propose_completions(&space, &check, &completions);
 
-    let import = run_cli([
-        "case",
-        "import",
-        "--store",
-        path_str(&store),
-        "--space",
-        path_str(&space),
-        "--revision-id",
-        REVISION_ID,
-        "--format",
-        "json",
-    ]);
+    let import = import_case(&store, &space, REVISION_ID);
     assert_success(&import);
     assert_output_contains(&import, REVISION_ID);
 

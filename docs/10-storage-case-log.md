@@ -103,9 +103,9 @@ An engagement can close only when:
 
 ## Concurrency
 
-Commands that append to an imported space log must require `--base-revision`. If
-the base revision is missing or the store head changed, the command must fail
-with stale revision error.
+Commands that append review events must target an imported case space with a
+space `HEAD` and must require `--base-revision`. If the base revision is missing
+or the store head changed, the command must fail with stale revision error.
 Review events that target an imported space advance that space's `HEAD` to the
 review log entry's sequence-derived `target_revision_id`.
 

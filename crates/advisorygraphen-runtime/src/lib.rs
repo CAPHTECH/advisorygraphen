@@ -70,13 +70,11 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
     fs::create_dir_all(&options.store)?;
     let from_report = review_report_path(options)?;
     let space_id = review_space_id(from_report)?;
-    let head = read_space_head_revision(&options.store, &space_id)
-        .ok()
-        .or_else(|| read_head_revision(&options.store).ok());
-    ensure_base_revision(head.as_deref(), options.base_revision.as_deref())?;
     let reviewed_at = Utc::now().to_rfc3339();
     let higher_graphen_review =
         higher_graphen_completion_review(options, from_report, &reviewed_at)?;
+    let head = read_imported_space_head(&options.store, &space_id)?;
+    ensure_base_revision(Some(&head), options.base_revision.as_deref())?;
     let sequence = next_sequence(&options.store);
     let target_revision = format!("revision:review-{sequence:06}");
     let candidate_slug = options.candidate_id.trim_start_matches("candidate:");
@@ -106,7 +104,7 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
             "sequence": sequence,
             "entry_id": format!("log:{sequence:06}"),
             "morphism_id": format!("morphism:{}-{candidate_slug}", options.outcome),
-            "source_revision_id": head.clone(),
+            "source_revision_id": head,
             "target_revision_id": target_revision.clone(),
             "actor": event["reviewer_id"],
             "recorded_at": Utc::now().to_rfc3339(),
@@ -115,12 +113,10 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
             "payload": event
         }),
     )?;
-    if head.is_some() {
-        fs::write(
-            space_dir(&options.store, &space_id).join("HEAD"),
-            &target_revision,
-        )?;
-    }
+    fs::write(
+        space_dir(&options.store, &space_id).join("HEAD"),
+        &target_revision,
+    )?;
     Ok(event)
 }
 pub fn project_workflow(options: &ProjectOptions) -> AdvisoryResult<String> {
@@ -280,8 +276,13 @@ fn read_space_head_revision(store: &Path, space_id: &str) -> AdvisoryResult<Stri
     Ok(fs::read_to_string(space_dir(store, space_id).join("HEAD"))?)
 }
 
-fn read_head_revision(store: &Path) -> AdvisoryResult<String> {
-    Ok(fs::read_to_string(store.join("HEAD"))?)
+fn read_imported_space_head(store: &Path, space_id: &str) -> AdvisoryResult<String> {
+    read_space_head_revision(store, space_id).map_err(|error| match error {
+        AdvisoryError::Io(_) => AdvisoryError::Validation(format!(
+            "case space {space_id} must be imported before review"
+        )),
+        other => other,
+    })
 }
 
 fn ensure_base_revision(head: Option<&str>, base: Option<&str>) -> AdvisoryResult<()> {
