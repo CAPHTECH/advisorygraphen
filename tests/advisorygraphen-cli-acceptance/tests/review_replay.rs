@@ -2,6 +2,7 @@
 mod support;
 use support::*;
 use std::fs;
+use std::io::Write;
 
 const FIXTURE: &str = "examples/dogfood/product-governance/advisory.input.json";
 const PACKAGE_NAME: &str = "technical_advisory";
@@ -194,6 +195,51 @@ fn rejected_candidate_survives_case_replay() {
     ]);
     assert_failure_code(&missing_space_reject, 1);
     assert_output_contains(&missing_space_reject, "input.space_id");
+
+    let root_log_path = store.join("logs/morphism-log.jsonl");
+    fs::create_dir_all(root_log_path.parent().expect("root log should have a parent"))
+        .expect("root log directory should be creatable");
+    let mut root_log = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&root_log_path)
+        .expect("root morphism log should be appendable");
+    writeln!(
+        root_log,
+        "{}",
+        serde_json::json!({
+            "schema": "advisorygraphen.morphism_log_entry.v1",
+            "case_space_id": "space:unknown",
+            "id": "log:legacy-unknown-space-review",
+            "payload": {
+                "schema": "advisorygraphen.review.event.v1",
+                "review_event_id": "review:legacy-unknown-space-review",
+                "target_ids": [OWNER_CANDIDATE],
+                "outcome": "accepted",
+                "reviewer_id": "reviewer:legacy-agent",
+                "reviewed_at": "2026-05-02T00:00:00Z",
+                "reason": "Legacy unknown-space review must not replay into an imported case."
+            }
+        })
+    )
+    .expect("legacy review event should be writable");
+
+    let reason_after_legacy_unknown = run_cli([
+        "case",
+        "reason",
+        "--store",
+        path_str(&store),
+        "--space-id",
+        SPACE_ID,
+        "--format",
+        "json",
+    ]);
+    assert_success(&reason_after_legacy_unknown);
+    assert_output_contains(&reason_after_legacy_unknown, "candidate_review_pending");
+    assert_output_not_contains(
+        &reason_after_legacy_unknown,
+        "Legacy unknown-space review must not replay",
+    );
 
     let reject = run_cli([
         "completions",

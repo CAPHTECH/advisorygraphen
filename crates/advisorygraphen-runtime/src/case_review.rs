@@ -36,13 +36,7 @@ fn review_events(store: &Path, space_id: &str) -> AdvisoryResult<BTreeMap<String
         };
         for line in contents.lines().filter(|line| !line.trim().is_empty()) {
             let entry: Value = serde_json::from_str(line)?;
-            if entry
-                .get("case_space_id")
-                .and_then(Value::as_str)
-                .is_some_and(|case_space_id| {
-                    case_space_id != space_id && case_space_id != "space:unknown"
-                })
-            {
+            if entry.get("case_space_id").and_then(Value::as_str) != Some(space_id) {
                 continue;
             }
             let Some(payload) = entry.get("payload") else {

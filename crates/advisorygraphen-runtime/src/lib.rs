@@ -77,7 +77,7 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
     let head = read_imported_space_head(&options.store, &space_id)?;
     let materialized_space = read_materialized_space(&options.store, &space_id)?;
     ensure_base_revision(Some(&head), options.base_revision.as_deref())?;
-    let sequence = next_sequence(&options.store);
+    let sequence = next_sequence(&options.store, &space_id);
     let target_revision = format!("revision:review-{sequence:06}");
     let candidate_slug = options.candidate_id.trim_start_matches("candidate:");
     let review_event_id = format!("review:{}:{candidate_slug}-{sequence:06}", options.outcome);
@@ -351,10 +351,19 @@ fn append_log_line(path: &Path, value: &Value) -> AdvisoryResult<()> {
     Ok(())
 }
 
-fn next_sequence(store: &Path) -> u64 {
+fn next_sequence(store: &Path, space_id: &str) -> u64 {
     let path = store.join("logs/morphism-log.jsonl");
     fs::read_to_string(path)
         .ok()
-        .map(|contents| contents.lines().count() as u64 + 1)
+        .map(|contents| {
+            contents
+                .lines()
+                .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+                .filter(|entry| {
+                    entry.get("case_space_id").and_then(Value::as_str) == Some(space_id)
+                })
+                .count() as u64
+                + 1
+        })
         .unwrap_or(1)
 }
