@@ -7,6 +7,7 @@ use serde_json::{json, Value};
 
 pub const BOUNDARY_INVARIANT: &str =
     "invariant:architecture_no_cross_context_direct_database_access";
+pub const EVIDENCE_INVARIANT: &str = "invariant:recommendation_requires_evidence";
 pub const OWNER_INVARIANT: &str = "invariant:action_requires_owner";
 pub const REQUIREMENT_VERIFICATION_INVARIANT: &str = "invariant:requirement_requires_verification";
 
@@ -21,6 +22,7 @@ pub fn check_space(
     let mut obstructions = Vec::new();
 
     evaluate_boundary(space, &mut invariant_results, &mut obstructions);
+    evaluate_recommendation_evidence(space, &mut invariant_results, &mut obstructions);
     evaluate_action_owners(space, &mut invariant_results, &mut obstructions);
     evaluate_required_verification(space, &mut invariant_results, &mut obstructions);
 
@@ -51,6 +53,48 @@ pub fn check_space(
     ))
 }
 
+fn evaluate_recommendation_evidence(
+    space: &AdvisorySpaceEnvelope,
+    invariant_results: &mut Vec<Value>,
+    obstructions: &mut Vec<Value>,
+) {
+    for cell in space
+        .cells
+        .iter()
+        .filter(|cell| matches!(cell["cell_type"].as_str(), Some("action" | "decision")))
+    {
+        let review_status = cell
+            .pointer("/provenance/review_status")
+            .and_then(Value::as_str);
+        if review_status != Some("accepted") || is_source_backed_or_review_promoted(cell) {
+            continue;
+        }
+        let obstruction_id = format!(
+            "obstruction:{}-insufficient-evidence",
+            json_id(cell).trim_start_matches("cell:")
+        );
+        invariant_results.push(json!({
+            "id": EVIDENCE_INVARIANT,
+            "invariant_id": EVIDENCE_INVARIANT,
+            "status": "violated",
+            "severity": "high",
+            "witness_ids": [cell["id"].clone()],
+            "obstruction_ids": [obstruction_id],
+            "message": format!("{} is accepted without source-backed or review-promoted evidence.", title(cell))
+        }));
+        obstructions.push(json!({
+            "id": obstruction_id,
+            "obstruction_type": "insufficient_evidence",
+            "severity": "high",
+            "blocked_ids": [cell["id"].clone()],
+            "witness_ids": [cell["id"].clone()],
+            "evidence_ids": cell.get("source_ids").cloned().unwrap_or_else(|| json!([])),
+            "recommended_completion_types": ["review_promote_evidence", "source_backed_evidence"],
+            "review_status": "unreviewed",
+            "message": format!("{} needs source-backed or review-promoted evidence.", title(cell))
+        }));
+    }
+}
 pub fn propose_completions(
     space: &AdvisorySpaceEnvelope,
     check_report: &ReportEnvelope,
@@ -85,7 +129,6 @@ pub fn propose_completions(
         json!({ "completion_candidates": candidates }),
     ))
 }
-
 pub fn close_status(space: &AdvisorySpaceEnvelope, check_report: &ReportEnvelope) -> Value {
     let blocking = check_report
         .result
@@ -108,7 +151,6 @@ pub fn close_status(space: &AdvisorySpaceEnvelope, check_report: &ReportEnvelope
         "blocking_obstructions": blocking
     })
 }
-
 fn evaluate_boundary(
     space: &AdvisorySpaceEnvelope,
     invariant_results: &mut Vec<Value>,
@@ -344,4 +386,13 @@ fn requires_verification(requirement: &Value) -> bool {
             .pointer("/metadata/verification_required")
             .and_then(Value::as_bool)
             == Some(true)
+}
+
+fn is_source_backed_or_review_promoted(cell: &Value) -> bool {
+    let origin = cell.pointer("/provenance/origin").and_then(Value::as_str);
+    let source_ids = cell
+        .get("source_ids")
+        .and_then(Value::as_array)
+        .is_some_and(|ids| !ids.is_empty());
+    matches!(origin, Some("source_backed" | "review_promoted")) && source_ids
 }
