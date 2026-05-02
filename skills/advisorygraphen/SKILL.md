@@ -55,6 +55,7 @@ advisorygraphen completions reject --store STORE --candidate-id CANDIDATE --from
 - `agent_operation_contract` lists safe next commands and review-gated commands.
 - `blocker_resolution_state` describes whether a blocker has no candidate, pending review, all candidates rejected, or an accepted candidate pending structural application.
 - `application_requirements` names the cells and incidences an AI agent must create before treating a blocker as resolved.
+- `case_head_revision` from `case reason` is the base revision for the next `case close-check`.
 - Run `case close-check` before reporting a case as closeable.
 - `review_gated_commands` require explicit human review before accept/reject events.
 - For imported case stores, `completions accept` and `completions reject` require `--base-revision`; missing or stale base revision is a stale-write error.

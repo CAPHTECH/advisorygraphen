@@ -185,6 +185,8 @@ advisorygraphen case import \
 ### `case reason`
 
 Replay case log and derive readiness, blockers, frontier, and close status.
+The report includes `case_head_revision`; agents should use that value as the
+`--base-revision` for a following `case close-check`.
 
 ```sh
 advisorygraphen case reason \

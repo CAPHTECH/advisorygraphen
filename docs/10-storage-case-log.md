@@ -90,6 +90,9 @@ If cache and log disagree, log replay wins.
 | `ai_agent projection` | resume contract combining blockers, candidates, close status, and projection loss |
 | `evolution_report` | differences between revisions |
 
+`case reason` exposes the current `case_head_revision` so an agent can pass it
+directly to `case close-check --base-revision` without reading storage files.
+
 ## Close check
 
 An engagement can close only when:

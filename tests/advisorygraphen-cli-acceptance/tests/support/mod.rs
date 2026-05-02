@@ -296,6 +296,8 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
         "json",
     ]);
     assert_success(&reason);
+    assert_output_contains(&reason, "case_head_revision");
+    assert_output_contains(&reason, "revision:review-000001");
     assert_output_contains_any(&reason, &[r#""closeable": false"#, r#""closeable":false"#]);
     assert_output_contains(&reason, r#""blocking_threshold": "medium""#);
     assert_output_contains(&reason, "candidate_review_state");

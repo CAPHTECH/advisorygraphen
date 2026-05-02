@@ -173,6 +173,7 @@ pub fn case_import_workflow(options: &CaseImportOptions) -> AdvisoryResult<Value
 }
 
 pub fn case_reason_workflow(options: &CaseReasonOptions) -> AdvisoryResult<Value> {
+    let head = read_space_head_revision(&options.store, &options.space_id)?;
     let space = read_materialized_space(&options.store, &options.space_id)?;
     let check = check_space(&space, "technical_advisory_mvp", None, None)?;
     let mut completions = propose_completions(&space, &check, "case_reason", None)?;
@@ -195,14 +196,20 @@ pub fn case_reason_workflow(options: &CaseReasonOptions) -> AdvisoryResult<Value
         serde_json::to_value(&check)?,
         serde_json::to_value(&completions)?,
     )?;
+    let mut projection = build_projection(&space, &agent_report, "ai_agent")?;
+    projection["case_head_revision"] = json!(head.clone());
     Ok(json!({
         "schema": "advisorygraphen.report.v1",
         "report_type": "case_reason",
         "report_version": 1,
         "tool": advisorygraphen_core::tool_metadata(None),
-        "input": { "space_id": options.space_id },
+        "input": {
+            "space_id": options.space_id,
+            "case_head_revision": head
+        },
         "result": {
             "space_id": options.space_id,
+            "case_head_revision": head,
             "blockers": blockers,
             "candidate_review_state": candidates,
             "blocker_resolution_state": resolution_state,
@@ -210,7 +217,7 @@ pub fn case_reason_workflow(options: &CaseReasonOptions) -> AdvisoryResult<Value
             "frontier_items": [],
             "waiting_items": []
         },
-        "projection": build_projection(&space, &agent_report, "ai_agent")?,
+        "projection": projection,
         "warnings": []
     }))
 }

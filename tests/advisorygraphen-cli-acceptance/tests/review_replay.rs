@@ -232,6 +232,8 @@ fn rejected_candidate_survives_case_replay() {
         "json",
     ]);
     assert_success(&reason);
+    assert_output_contains(&reason, "case_head_revision");
+    assert_output_contains(&reason, "revision:review-000001");
     assert_output_contains(&reason, OWNER_CANDIDATE);
     assert_output_contains(&reason, r#""review_status": "rejected""#);
     assert_output_contains(&reason, "all_candidates_rejected");
@@ -279,6 +281,8 @@ fn rejected_candidate_survives_case_replay() {
         "json",
     ]);
     assert_success(&reason_after_accept);
+    assert_output_contains(&reason_after_accept, "case_head_revision");
+    assert_output_contains(&reason_after_accept, "revision:review-000002");
     assert_output_contains(&reason_after_accept, r#""review_status": "accepted""#);
     assert_output_contains(&reason_after_accept, "accepted_candidate_pending_application");
     assert_output_contains(&reason_after_accept, "add owner cell and owns incidence");
