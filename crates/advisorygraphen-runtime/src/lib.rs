@@ -98,7 +98,6 @@ pub fn lift_workflow(options: &LiftOptions) -> AdvisoryResult<AdvisorySpaceEnvel
     let _ = &options.command;
     Ok(space)
 }
-
 pub fn check_workflow(options: &CheckOptions) -> AdvisoryResult<ReportEnvelope> {
     let space = read_space(&options.space)?;
     let report = check_space(
@@ -110,7 +109,6 @@ pub fn check_workflow(options: &CheckOptions) -> AdvisoryResult<ReportEnvelope> 
     write_json_if_requested(&options.output, &report)?;
     Ok(report)
 }
-
 pub fn completions_propose_workflow(
     options: &CompletionProposeOptions,
 ) -> AdvisoryResult<ReportEnvelope> {
@@ -125,7 +123,6 @@ pub fn completions_propose_workflow(
     write_json_if_requested(&options.output, &report)?;
     Ok(report)
 }
-
 pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
     fs::create_dir_all(&options.store)?;
     let space_id = review_space_id(options)?;
@@ -160,6 +157,7 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
         }
     });
     validate_document(&event, Some(REVIEW_EVENT_SCHEMA))?;
+    let target_revision = format!("revision:review-{}", Utc::now().timestamp());
     append_store_event(
         &options.store,
         &json!({
@@ -169,7 +167,7 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
             "entry_id": format!("log:{:06}", next_sequence(&options.store)),
             "morphism_id": format!("morphism:{}-{}", options.outcome, options.candidate_id.trim_start_matches("candidate:")),
             "source_revision_id": head,
-            "target_revision_id": format!("revision:review-{}", Utc::now().timestamp()),
+            "target_revision_id": target_revision.clone(),
             "actor": event["reviewer_id"],
             "recorded_at": Utc::now().to_rfc3339(),
             "previous_entry_hash": null,
@@ -177,9 +175,11 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
             "payload": event
         }),
     )?;
+    if let (Some(id), Some(_)) = (space_id.as_deref(), head.as_deref()) {
+        fs::write(space_dir(&options.store, id).join("HEAD"), &target_revision)?;
+    }
     Ok(event)
 }
-
 pub fn project_workflow(options: &ProjectOptions) -> AdvisoryResult<String> {
     let space = read_space(&options.space)?;
     let report = read_projection_report(&options.report, options.completions_report.as_deref())?;

@@ -280,24 +280,7 @@ fn case_import_reason_and_close_check_report_unresolved_obstruction() {
     assert_output_contains(&reason, SPACE_ID);
     assert_output_contains(&reason, "blockers");
 
-    let stale_accept = run_cli([
-        "completions",
-        "accept",
-        "--store",
-        path_str(&store),
-        "--candidate-id",
-        "candidate:billing-status-api",
-        "--from-report",
-        path_str(&completions),
-        "--reviewer",
-        "reviewer:cto",
-        "--reason",
-        "stale base should fail",
-        "--base-revision",
-        "revision:stale",
-        "--format",
-        "json",
-    ]);
+    let stale_accept = review_billing_candidate(&store, &completions, "stale base should fail", "revision:stale");
     assert_failure_code(&stale_accept, 5);
     assert_output_contains(&stale_accept, "stale revision");
 
@@ -323,6 +306,17 @@ fn case_import_reason_and_close_check_report_unresolved_obstruction() {
         "obstruction:order-service-direct-billing-db-access",
     );
     assert_output_contains(&close_check, "incidence:order-service-accesses-billing-db");
+
+    let accept = review_billing_candidate(&store, &completions, "advance case head", REVISION_ID);
+    assert_success(&accept);
+    let space_head = store
+        .join("spaces")
+        .join(SPACE_ID.replace([':', '/'], "-"))
+        .join("HEAD");
+    assert_file_contains(&space_head, "revision:review-");
+
+    let stale_second_accept = review_billing_candidate(&store, &completions, "same base should now be stale", REVISION_ID);
+    assert_failure_code(&stale_second_accept, 5);
 }
 
 fn lift_fixture(output_path: &Path) {
@@ -369,4 +363,30 @@ fn propose_completions(space_path: &Path, check_path: &Path, output_path: &Path)
         "json",
     ]);
     assert_success(&output);
+}
+
+fn review_billing_candidate(
+    store: &Path,
+    completions: &Path,
+    reason: &str,
+    base_revision: &str,
+) -> std::process::Output {
+    run_cli([
+        "completions",
+        "accept",
+        "--store",
+        path_str(store),
+        "--candidate-id",
+        "candidate:billing-status-api",
+        "--from-report",
+        path_str(completions),
+        "--reviewer",
+        "reviewer:cto",
+        "--reason",
+        reason,
+        "--base-revision",
+        base_revision,
+        "--format",
+        "json",
+    ])
 }

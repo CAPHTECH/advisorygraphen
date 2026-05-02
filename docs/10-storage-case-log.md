@@ -104,6 +104,8 @@ An engagement can close only when:
 ## Concurrency
 
 Commands that append to the log should accept `--base-revision`. If the store head changed, the command must fail with stale revision error.
+Review events that target an imported space advance that space's `HEAD` to the
+review log entry's `target_revision_id`.
 
 ## Storage future
 
