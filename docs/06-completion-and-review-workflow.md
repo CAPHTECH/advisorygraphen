@@ -103,7 +103,6 @@ This separation prevents silent promotion.
 | --- | --- |
 | Executive recommendation | human reviewer |
 | Developer action export | human reviewer or explicit draft export policy |
-| Todoist task export | accepted candidate or `draft_task_allowed` policy |
 | High-severity waiver | named accountable reviewer |
 | AI-inferred evidence promotion | reviewer with evidence authority |
 | Projection loss waiver | reviewer with publication authority |

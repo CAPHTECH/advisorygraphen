@@ -88,7 +88,6 @@ Deliverables:
 - developer action projection
 - audit trace projection
 - AI agent projection
-- Todoist task export projection
 - Markdown renderer derived from JSON
 - `advisorygraphen project`
 
@@ -96,7 +95,6 @@ Acceptance:
 
 - every projection includes represented IDs, omitted IDs, information loss
 - executive view does not present unreviewed candidate as accepted action
-- Todoist export excludes unreviewed action unless draft policy is enabled
 
 ## Phase 5: Case log MVP
 
@@ -143,7 +141,6 @@ Acceptance:
 
 - adapters preserve source boundary
 - customer-specific packages are outside public repository
-- Todoist integration remains projection-driven
 
 ## Cut lines
 

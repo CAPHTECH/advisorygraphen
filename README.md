@@ -10,7 +10,7 @@ AdvisoryGraphen は次の問題を解く。
 
 1. コンサルタントの主張、顧客資料、AI 推論、レビュー済み結論を混同しない。
 2. 提案を即座に事実や承認済み施策に昇格させず、`CompletionCandidate` としてレビュー可能に保つ。
-3. レポートをモデル本体にしない。レポート、Todoist タスク、開発者向けアクション、監査証跡、AI 操作用ビューは、すべて構造から生成される `Projection` とする。
+3. レポートをモデル本体にしない。レポート、開発者向けアクション、監査証跡、AI 操作用ビューは、すべて構造から生成される `Projection` とする。
 4. 継続顧問で、過去の意思決定、根拠、未解決 obstruction、採否済み candidate を append-only に追跡する。
 5. 顧客固有の解釈パッケージや商用ノウハウを、公開コアとは分離して蓄積する。
 
@@ -34,7 +34,6 @@ MVP は `technical_advisory` interpretation package に限定する。
 - `developer_action` projection: 実装担当者向けアクション
 - `audit_trace` projection: 根拠、レビュー状態、情報損失
 - `ai_agent` projection: AI エージェントが継続作業するための構造
-- `todoist_task_export` projection: Todoist に投入可能なタスク候補
 
 ## 推奨読み順
 
@@ -103,9 +102,9 @@ advisorygraphen project \
 advisorygraphen project \
   --space /tmp/advisory.space.json \
   --report /tmp/advisory.check.report.json \
-  --audience todoist_task_export \
+  --audience audit_trace \
   --format json \
-  --output /tmp/todoist-tasks.json
+  --output /tmp/audit-trace.json
 ```
 
 ## 採用する原則
@@ -130,7 +129,6 @@ advisorygraphen project \
 - AI agent skill
 - case log / storage 設計
 - security / governance
-- Todoist projection
 - 実装ロードマップ
 - テスト戦略
 - ADR

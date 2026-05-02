@@ -1,7 +1,7 @@
 use crate::{
     json_id, optional_string_array, string_field, AdvisoryError, AdvisoryResult,
     AdvisorySpaceEnvelope, ValidationReport, PROJECTION_REQUEST_SCHEMA, REPORT_SCHEMA,
-    REVIEW_EVENT_SCHEMA, SNAPSHOT_SCHEMA, SPACE_SCHEMA, TODOIST_PROJECTION_SCHEMA,
+    REVIEW_EVENT_SCHEMA, SNAPSHOT_SCHEMA, SPACE_SCHEMA,
 };
 use indexmap::IndexSet;
 use serde_json::Value;
@@ -65,16 +65,6 @@ fn dispatch_schema_validation<'a>(
         REVIEW_EVENT_SCHEMA => {
             validate_review_event(value, errors);
             "review_event"
-        }
-        TODOIST_PROJECTION_SCHEMA => {
-            require_fields(value, TODOIST_PROJECTION_FIELDS, errors);
-            if value["projection_loss"]
-                .as_array()
-                .is_none_or(Vec::is_empty)
-            {
-                errors.push("todoist projection must declare projection_loss".to_string());
-            }
-            "todoist_projection"
         }
         other => {
             return Err(AdvisoryError::SchemaMismatch {
@@ -318,14 +308,6 @@ const PROJECTION_REQUEST_FIELDS: &[&str] = &[
     "exclude_ids",
     "policy_ids",
     "metadata",
-];
-const TODOIST_PROJECTION_FIELDS: &[&str] = &[
-    "schema",
-    "projection_id",
-    "space_id",
-    "tasks",
-    "blocked_tasks",
-    "projection_loss",
 ];
 const CELL_FIELDS: &[&str] = &[
     "id",

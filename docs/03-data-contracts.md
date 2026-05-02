@@ -13,7 +13,6 @@ AdvisoryGraphen の CLI と agent skill は JSON schema を安定契約として
 | Report envelope | `schemas/advisorygraphen/advisory.report.schema.json` |
 | Projection request | `schemas/advisorygraphen/projection.request.schema.json` |
 | Review event | `schemas/advisorygraphen/review.event.schema.json` |
-| Todoist projection | `schemas/advisorygraphen/todoist.projection.schema.json` |
 
 ## Engagement snapshot
 

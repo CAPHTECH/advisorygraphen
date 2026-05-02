@@ -37,7 +37,6 @@ impl InterpretationPackage {
         vec![json!({
             "id": "policy:technical-advisory-mvp-defaults",
             "package_id": self.package_id,
-            "todoist_export_requires_review": true,
             "projection_loss_required": true
         })]
     }

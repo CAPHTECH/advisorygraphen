@@ -49,8 +49,8 @@ advisorygraphen-cli
 Rules:
 
 1. CLI depends on runtime; lower crates do not depend on CLI.
-2. Core types do not depend on runtime, adapters, HTTP, provider SDKs, or Todoist.
-3. Projection crate may define `todoist_task_export`, but actual Todoist API mutation belongs to a separate adapter.
+2. Core types do not depend on runtime, adapters, HTTP, provider SDKs, or task-management provider SDKs.
+3. Projection crate emits advisory views only; external task-management integrations belong to separate adapters.
 4. Interpretation packages define vocabulary, invariants, completion rules, and projection templates.
 5. Customer-specific interpretation packages live outside the public workspace unless intentionally open-sourced.
 
@@ -123,7 +123,7 @@ Must not contain:
 
 - LLM calls
 - filesystem command logic
-- Todoist network calls
+- task-management provider network calls
 - provider-specific agent configuration
 
 ### `advisorygraphen-lift`
@@ -181,7 +181,6 @@ Contains:
 - developer action projection
 - audit trace projection
 - ai agent projection
-- Todoist task export projection
 - Markdown renderer
 - JSON renderer
 
@@ -239,7 +238,6 @@ Non-zero exit:
 default = ["json", "markdown"]
 json = []
 markdown = []
-todoist-projection = []
 case-log = []
 path-highergraphen = []
 mcp = [] # future; must not be part of MVP default

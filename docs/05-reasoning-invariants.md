@@ -47,7 +47,7 @@ Violation creates:
 
 ### `action_requires_owner`
 
-A developer action or Todoist task candidate must have an owner cell or owner placeholder.
+A developer action candidate must have an owner cell or owner placeholder.
 
 Violation creates:
 

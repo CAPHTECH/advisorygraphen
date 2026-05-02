@@ -43,35 +43,9 @@ pub fn build_projection(
         "developer_action" => Ok(developer_projection(space, report)),
         "audit_trace" => Ok(audit_projection(space, report)),
         "ai_agent" => Ok(ai_agent_projection(space, report)),
-        "todoist_task_export" => Ok(todoist_projection(space, report)),
         "client_review" | "cli" => Ok(executive_projection(space, report)),
         other => Err(AdvisoryError::UnsupportedAudience(other.to_string())),
     }
-}
-
-pub fn todoist_projection(space: &AdvisorySpaceEnvelope, report: &Value) -> Value {
-    let blocked_tasks = completion_candidates(report)
-        .into_iter()
-        .filter(|candidate| {
-            candidate.get("candidate_type").and_then(Value::as_str) == Some("proposed_refactor_action")
-                && candidate.get("review_status").and_then(Value::as_str) != Some("accepted")
-        })
-        .map(|candidate| {
-            json!({
-                "source_id": candidate["id"].clone(),
-                "reason": "Completion candidate is unreviewed. Todoist export requires accepted action or draft export policy.",
-                "export_status": "blocked_missing_review"
-            })
-        })
-        .collect::<Vec<_>>();
-    json!({
-        "schema": "advisorygraphen.todoist.projection.v1",
-        "projection_id": format!("projection:todoist:{}", space.space_id.trim_start_matches("space:advisory:")),
-        "space_id": space.space_id,
-        "tasks": [],
-        "blocked_tasks": blocked_tasks,
-        "projection_loss": projection_loss(space)
-    })
 }
 
 fn executive_projection(space: &AdvisorySpaceEnvelope, report: &Value) -> Value {

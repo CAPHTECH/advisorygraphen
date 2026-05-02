@@ -28,7 +28,7 @@ CLI command: `advisorygraphen`
 - The user needs evidence-backed recommendations.
 - The user needs to distinguish accepted facts, AI inference, and reviewable candidates.
 - The task involves technical advisory, architecture review, product decision support, AI transformation governance, or delivery risk analysis.
-- A projection is needed for executive, developer, audit, AI, or Todoist use.
+- A projection is needed for executive, developer, audit, or AI use.
 
 ## Agent must not
 
@@ -37,7 +37,6 @@ CLI command: `advisorygraphen`
 - Hide projection loss.
 - Collapse context-specific terms without mapping.
 - Report invariant preservation unless a check ran.
-- Export unreviewed actions to Todoist unless draft export policy allows it.
 - Rewrite customer source material outside the bounded snapshot.
 
 ## Agent workflow
@@ -51,7 +50,6 @@ CLI command: `advisorygraphen`
 6. Run advisorygraphen completions propose.
 7. Generate requested projection.
 8. Keep candidates unreviewed unless the user explicitly reviews them.
-9. For Todoist, export projection JSON instead of mutating tasks directly unless an explicit integration action is requested.
 ```
 
 ## Minimal skill file

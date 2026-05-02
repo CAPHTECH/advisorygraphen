@@ -121,7 +121,6 @@ Supported audiences:
 - `developer_action`
 - `audit_trace`
 - `ai_agent`
-- `todoist_task_export`
 - `client_review`
 - `cli`
 

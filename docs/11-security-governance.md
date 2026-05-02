@@ -62,20 +62,6 @@ Each projection has audience and policy.
 | `developer_action` | task export may leak sensitive context |
 | `audit_trace` | includes extensive provenance; high sensitivity |
 | `ai_agent` | operational details and allowed commands; high sensitivity |
-| `todoist_task_export` | may leave AdvisoryGraphen boundary; minimize fields |
-
-## Todoist export governance
-
-Todoist task export should include enough context to execute the task, but not raw customer-sensitive source excerpts unless policy allows.
-
-Recommended default:
-
-- include AdvisoryGraphen ID
-- include concise title
-- include owner / due suggestion if reviewed
-- include link to internal projection or case ID
-- omit raw evidence excerpts
-- omit confidential business details
 
 ## Policy checks
 
@@ -83,7 +69,6 @@ Minimum policies:
 
 - `customer_data_public_repo_prohibited`
 - `secret_ingestion_prohibited`
-- `todoist_export_requires_review_or_draft_policy`
 - `audit_projection_requires_authorized_audience`
 - `ai_projection_requires_internal_policy`
 - `external_projection_must_disclose_loss`
@@ -99,6 +84,5 @@ Runtime logs should include command metadata and IDs, but not raw source text un
 | AI promotes unsupported recommendation | review status and invariant checks |
 | Customer data committed to public repo | classification policy and pre-commit validation |
 | Projection hides critical caveat | projection loss invariant |
-| Todoist export leaks confidential details | minimal task projection and policy gates |
 | Stale review accepts obsolete candidate | base revision check |
 | Source adapter over-infers | adapter governance and unknown records |

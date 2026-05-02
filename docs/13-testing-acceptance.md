@@ -86,10 +86,6 @@ Given candidate confidence `0.99` and no review event, candidate remains `unrevi
 
 Given a projection with omitted source IDs but no information loss entries, `projection_loss_declared` fails.
 
-### Todoist export policy
-
-Given unreviewed action and no draft export policy, Todoist task export must omit the action or mark export as blocked.
-
 ### Close-check blocks unresolved obstruction
 
 Given high-severity obstruction unresolved, `case close-check` must return closeable = false with obstruction witness IDs.

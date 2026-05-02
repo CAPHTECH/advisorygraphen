@@ -77,38 +77,6 @@ fn direct_fixture_lift_check_completions_and_executive_projection() {
 }
 
 #[test]
-fn todoist_projection_blocks_unreviewed_completion_candidates() {
-    let dir = clean_case_dir("todoist-projection");
-    let space = dir.join("advisory.space.json");
-    let check = dir.join("advisory.check.report.json");
-    let completions = dir.join("advisory.completions.report.json");
-    let todoist = dir.join("todoist.projection.json");
-
-    lift_fixture(&space);
-    check_space(&space, &check);
-    propose_completions(&space, &check, &completions);
-
-    let output = run_cli([
-        "project",
-        "--space",
-        path_str(&space),
-        "--report",
-        path_str(&completions),
-        "--audience",
-        "todoist_task_export",
-        "--format",
-        "json",
-        "--output",
-        path_str(&todoist),
-    ]);
-    assert_success(&output);
-    assert_file_contains_any(&todoist, &[r#""tasks": []"#, r#""tasks":[]"#]);
-    assert_file_contains(&todoist, "candidate:replace-order-service-db-read");
-    assert_file_contains(&todoist, "blocked_missing_review");
-    assert_file_contains(&todoist, "projection_loss");
-}
-
-#[test]
 fn case_import_reason_and_close_check_report_unresolved_obstruction() {
     let dir = clean_case_dir("case-basics");
     let space = dir.join("advisory.space.json");
@@ -280,18 +248,6 @@ fn assert_file_contains(path: &Path, needle: &str) {
     if !contents.contains(needle) {
         panic!(
             "expected {} to contain {needle:?}\ncontents:\n{contents}",
-            path.display()
-        );
-    }
-}
-
-fn assert_file_contains_any(path: &Path, needles: &[&str]) {
-    let contents = fs::read_to_string(path).unwrap_or_else(|error| {
-        panic!("failed to read {}: {error}", path.display());
-    });
-    if !needles.iter().any(|needle| contents.contains(needle)) {
-        panic!(
-            "expected {} to contain one of {needles:?}\ncontents:\n{contents}",
             path.display()
         );
     }

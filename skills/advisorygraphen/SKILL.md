@@ -9,7 +9,6 @@ Use this skill when a task asks for evidence-backed consulting, technical adviso
 - Do not hide projection loss.
 - Do not collapse context-specific terms into one meaning without a mapping.
 - Do not present unsupported claims as evidence-backed conclusions.
-- Do not export unreviewed actions to Todoist unless draft export policy is explicit.
 
 ## Workflow
 
@@ -31,7 +30,6 @@ advisorygraphen check --space SPACE.json --ruleset technical_advisory_mvp --outp
 advisorygraphen completions propose --space SPACE.json --from-report CHECK.json --output COMPLETIONS.json --format json
 advisorygraphen project --space SPACE.json --report CHECK.json --audience executive --format markdown --output REPORT.md
 advisorygraphen project --space SPACE.json --report CHECK.json --audience audit_trace --format json --output AUDIT.json
-advisorygraphen project --space SPACE.json --report CHECK.json --audience todoist_task_export --format json --output TODOIST.json
 ```
 
 ## Output interpretation

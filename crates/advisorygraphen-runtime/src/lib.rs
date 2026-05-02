@@ -333,7 +333,6 @@ fn canonical_schema_name(schema: &str) -> String {
         "report" => advisorygraphen_core::REPORT_SCHEMA,
         "projection_request" => advisorygraphen_core::PROJECTION_REQUEST_SCHEMA,
         "review_event" => REVIEW_EVENT_SCHEMA,
-        "todoist_projection" => advisorygraphen_core::TODOIST_PROJECTION_SCHEMA,
         other => other,
     }
     .to_string()

@@ -10,7 +10,7 @@ Every projection must include represented IDs, omitted IDs, and information loss
 
 ## Rationale
 
-Executive summaries, developer tasks, AI views, and Todoist tasks necessarily omit information. Without explicit loss records, users may over-trust simplified views.
+Executive summaries, developer tasks, and AI views necessarily omit information. Without explicit loss records, users may over-trust simplified views.
 
 ## Consequences
 

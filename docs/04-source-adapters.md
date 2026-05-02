@@ -96,7 +96,7 @@ Adapters must not:
 - merge context-specific terms without explicit mapping;
 - hide extraction loss;
 - place secrets into metadata;
-- create Todoist tasks directly.
+- create external task-management items directly.
 
 Adapters should:
 

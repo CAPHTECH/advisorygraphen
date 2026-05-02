@@ -62,7 +62,7 @@ MVP は次を満たすと成功である。
 3. 少なくとも 5 つの consulting invariant を check できる。
 4. invariant failure を obstruction として出力できる。
 5. obstruction を解消する completion candidate を提案できる。
-6. executive、developer、audit、ai_agent、todoist projection を生成できる。
+6. executive、developer、audit、ai_agent projection を生成できる。
 7. JSON report が deterministic で、CI で snapshot test できる。
 8. candidate の accept / reject をレビューイベントとして記録できる。
 
@@ -118,4 +118,3 @@ MVP は次を満たすと成功である。
 3. AI が生成したものは、初期状態では `review_status = unreviewed` とする。
 4. Missing evidence、conflict、obstruction はツール失敗ではなく、成功した domain finding とする。
 5. Projection は必ず `projection_loss` を持つ。
-6. Todoist への出力は execution view であり、AdvisoryGraphen の truth source ではない。

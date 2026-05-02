@@ -12,7 +12,6 @@ Projection is a lossy audience-specific view. It is not the source of truth. Eve
 | `developer_action` | 実装担当者向けタスク、依存関係、完了条件 | Markdown / JSON |
 | `audit_trace` | 根拠、レビュー、source boundary、projection loss | JSON |
 | `ai_agent` | 次の AI 操作に必要な構造、allowed operations、candidate 状態 | JSON |
-| `todoist_task_export` | Todoist に投入可能なタスク候補 | JSON |
 | `client_review` | 顧客とのレビュー画面に出す候補 | JSON / Markdown |
 | `cli` | deterministic command output | JSON |
 
@@ -123,17 +122,6 @@ Must include:
 - IDs required for follow-up commands
 
 The AI projection should make it hard for an agent to accidentally promote candidate structure.
-
-## Todoist task export projection
-
-Todoist export is an execution view. It must include only:
-
-- accepted actions; or
-- explicitly marked draft task candidates under policy.
-
-It must preserve AdvisoryGraphen IDs in labels, description, or external metadata fields where available. The source of truth remains AdvisoryGraphen.
-
-See [`docs/14-todoist-projection.md`](14-todoist-projection.md).
 
 ## Projection loss taxonomy
 

@@ -15,6 +15,5 @@ Consulting recommendations can affect architecture, cost, staffing, and business
 ## Consequences
 
 - Candidate promotion requires explicit review event.
-- Todoist export excludes unreviewed candidates unless draft export policy allows it.
 - Audit projection must show candidate lifecycle.
 - Executive projection must not present unreviewed candidate as final recommendation.
