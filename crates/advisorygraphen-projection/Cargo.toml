@@ -1,0 +1,11 @@
+[package]
+name = "advisorygraphen-projection"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+advisorygraphen-core = { path = "../advisorygraphen-core" }
+advisorygraphen-reasoning = { path = "../advisorygraphen-reasoning" }
+serde_json.workspace = true

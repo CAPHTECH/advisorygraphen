@@ -1,0 +1,9 @@
+[package]
+name = "advisorygraphen-cli-acceptance"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dev-dependencies]

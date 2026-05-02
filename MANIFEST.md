@@ -2,8 +2,22 @@
 
 ## Root
 
+- `Cargo.toml`: Rust workspace definition for crates and CLI.
+- `Cargo.lock`: locked dependency set for reproducible CLI builds.
 - `README.md`: overview, scope, first commands, design principles.
 - `MANIFEST.md`: this file.
+- `.github/workflows/ci.yml`: fmt, clippy, tests, acceptance tests, fixture validation.
+
+## Implementation
+
+- `crates/advisorygraphen-core`: shared DTOs, IDs, validation, report envelope, error policy.
+- `crates/advisorygraphen-interpretation`: `technical_advisory_mvp` package metadata.
+- `crates/advisorygraphen-lift`: JSON snapshot to advisory space lift workflow.
+- `crates/advisorygraphen-reasoning`: invariant checks, obstructions, completion candidates, close status.
+- `crates/advisorygraphen-projection`: executive, developer, audit, AI, and Todoist projections.
+- `crates/advisorygraphen-runtime`: file workflows and local append-only case store.
+- `tools/advisorygraphen-cli`: `advisorygraphen` command-line binary.
+- `tests/advisorygraphen-cli-acceptance`: black-box CLI acceptance tests.
 
 ## Docs
 

@@ -6,3 +6,4 @@ reports/private/
 customer-workspaces/
 .env
 .env.*
+target/

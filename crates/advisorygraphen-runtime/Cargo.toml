@@ -1,0 +1,19 @@
+[package]
+name = "advisorygraphen-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+advisorygraphen-core = { path = "../advisorygraphen-core" }
+advisorygraphen-interpretation = { path = "../advisorygraphen-interpretation" }
+advisorygraphen-lift = { path = "../advisorygraphen-lift" }
+advisorygraphen-projection = { path = "../advisorygraphen-projection" }
+advisorygraphen-reasoning = { path = "../advisorygraphen-reasoning" }
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

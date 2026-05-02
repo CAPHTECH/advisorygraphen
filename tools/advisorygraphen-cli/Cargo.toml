@@ -1,0 +1,18 @@
+[package]
+name = "advisorygraphen-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "advisorygraphen"
+path = "src/main.rs"
+
+[dependencies]
+advisorygraphen-core = { path = "../../crates/advisorygraphen-core" }
+advisorygraphen-projection = { path = "../../crates/advisorygraphen-projection" }
+advisorygraphen-runtime = { path = "../../crates/advisorygraphen-runtime" }
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true

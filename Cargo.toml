@@ -1,0 +1,27 @@
+[workspace]
+members = [
+  "crates/advisorygraphen-core",
+  "crates/advisorygraphen-interpretation",
+  "crates/advisorygraphen-lift",
+  "crates/advisorygraphen-reasoning",
+  "crates/advisorygraphen-projection",
+  "crates/advisorygraphen-runtime",
+  "tools/advisorygraphen-cli",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/CAPHTECH/advisorygraphen"
+version = "0.1.0"
+
+[workspace.dependencies]
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4", features = ["derive", "env"] }
+indexmap = { version = "2", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tempfile = "3"
+thiserror = "1"

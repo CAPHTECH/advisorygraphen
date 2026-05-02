@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: File size guard
+        run: |
+          find crates tools tests/advisorygraphen-cli-acceptance/tests -name '*.rs' -print0 |
+            xargs -0 wc -l |
+            awk '$2 != "total" && $1 > 400 { print "file too long: " $0; failed=1 } END { exit failed }'
+      - name: Test workspace
+        run: cargo test --workspace
+      - name: Acceptance CLI tests
+        run: cargo test --manifest-path tests/advisorygraphen-cli-acceptance/Cargo.toml
+      - name: Fixture validation smoke
+        run: cargo run -q -p advisorygraphen-cli -- validate --input examples/technical-advisory/direct-db-access/advisory.input.json --format json
