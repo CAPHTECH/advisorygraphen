@@ -1,5 +1,7 @@
 use advisorygraphen_core::AdvisorySpaceEnvelope;
-use advisorygraphen_reasoning::{blocker_resolution_state, check_space};
+use advisorygraphen_reasoning::{
+    blocker_resolution_state, check_space, frontier_items, waiting_items,
+};
 use serde_json::{json, Value};
 
 #[test]
@@ -98,6 +100,57 @@ fn blocker_resolution_describes_accepted_candidate_application_contract() {
         json!(["test_or_verification"])
     );
     assert_eq!(requirement["required_relation_types"], json!(["verifies"]));
+}
+
+#[test]
+fn no_candidate_frontier_preserves_obstruction_completion_hints() {
+    let blockers = vec![json!({
+        "id": "obstruction:missing-owner",
+        "obstruction_type": "missing_owner",
+        "severity": "medium",
+        "blocked_ids": ["cell:ship-action"],
+        "recommended_completion_types": ["ownership_clarification"]
+    })];
+    let state = blocker_resolution_state(&blockers, &[]);
+    let frontier = frontier_items(&state);
+
+    assert_eq!(state[0]["resolution_status"], "no_candidate");
+    assert_eq!(frontier[0]["item_type"], "propose_completion_candidate");
+    assert_eq!(frontier[0]["blocked_ids"], json!(["cell:ship-action"]));
+    assert_eq!(
+        frontier[0]["recommended_completion_types"],
+        json!(["ownership_clarification"])
+    );
+}
+
+#[test]
+fn waiting_items_preserve_rejected_candidate_completion_hints() {
+    let blockers = vec![json!({
+        "id": "obstruction:missing-owner",
+        "obstruction_type": "missing_owner",
+        "severity": "medium",
+        "blocked_ids": ["cell:ship-action"],
+        "recommended_completion_types": ["ownership_clarification"]
+    })];
+    let candidates = vec![json!({
+        "id": "candidate:missing-owner-owner",
+        "candidate_type": "ownership_clarification",
+        "review_status": "rejected",
+        "resolves_obstruction_ids": ["obstruction:missing-owner"]
+    })];
+    let state = blocker_resolution_state(&blockers, &candidates);
+    let waiting = waiting_items(&state);
+
+    assert_eq!(state[0]["resolution_status"], "all_candidates_rejected");
+    assert_eq!(waiting[0]["item_type"], "all_candidates_rejected");
+    assert_eq!(
+        waiting[0]["candidate_ids"],
+        json!(["candidate:missing-owner-owner"])
+    );
+    assert_eq!(
+        waiting[0]["recommended_completion_types"],
+        json!(["ownership_clarification"])
+    );
 }
 
 fn assert_obstruction(result: &Value, obstruction_type: &str) {

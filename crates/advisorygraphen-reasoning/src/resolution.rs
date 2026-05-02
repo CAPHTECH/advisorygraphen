@@ -26,6 +26,22 @@ pub fn blocker_resolution_state(blockers: &[Value], candidates: &[Value]) -> Vec
             };
             Some(json!({
                 "obstruction_id": obstruction_id,
+                "obstruction_type": blocker
+                    .get("obstruction_type")
+                    .cloned()
+                    .unwrap_or_else(|| json!("unknown")),
+                "severity": blocker
+                    .get("severity")
+                    .cloned()
+                    .unwrap_or_else(|| json!("unknown")),
+                "blocked_ids": blocker
+                    .get("blocked_ids")
+                    .cloned()
+                    .unwrap_or_else(|| json!([])),
+                "recommended_completion_types": blocker
+                    .get("recommended_completion_types")
+                    .cloned()
+                    .unwrap_or_else(|| json!([])),
                 "resolution_status": status,
                 "candidate_ids": candidate_ids(&resolving),
                 "accepted_candidate_ids": candidate_ids(&accepted),
@@ -62,6 +78,14 @@ pub fn frontier_items(resolution_state: &[Value]) -> Vec<Value> {
                     "item_type": "propose_completion_candidate",
                     "obstruction_id": obstruction_id,
                     "candidate_ids": [],
+                    "blocked_ids": item
+                        .get("blocked_ids")
+                        .cloned()
+                        .unwrap_or_else(|| json!([])),
+                    "recommended_completion_types": item
+                        .get("recommended_completion_types")
+                        .cloned()
+                        .unwrap_or_else(|| json!([])),
                     "application_requirements": [],
                     "next_operation": "run completions propose or add bounded source structure"
                 })),
@@ -84,6 +108,10 @@ pub fn waiting_items(resolution_state: &[Value]) -> Vec<Value> {
                         .get("candidate_ids")
                         .cloned()
                         .unwrap_or_else(|| json!([])),
+                    "recommended_completion_types": item
+                        .get("recommended_completion_types")
+                        .cloned()
+                        .unwrap_or_else(|| json!([])),
                     "waiting_on": "explicit accept/reject review for candidate structure"
                 })),
                 Some("all_candidates_rejected") => Some(json!({
@@ -91,6 +119,10 @@ pub fn waiting_items(resolution_state: &[Value]) -> Vec<Value> {
                     "obstruction_id": obstruction_id,
                     "candidate_ids": item
                         .get("candidate_ids")
+                        .cloned()
+                        .unwrap_or_else(|| json!([])),
+                    "recommended_completion_types": item
+                        .get("recommended_completion_types")
                         .cloned()
                         .unwrap_or_else(|| json!([])),
                     "waiting_on": "new bounded source structure or human direction"
