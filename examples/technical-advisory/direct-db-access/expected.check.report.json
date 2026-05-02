@@ -35,7 +35,20 @@
         "obstruction_ids": [
           "obstruction:order-service-direct-billing-db-access"
         ],
-        "message": "Order Service accesses Billing DB owned by Billing context."
+        "message": "Order Service directly reads Billing DB across ownership boundary.",
+        "higher_graphen": {
+          "target_kind": "invariant",
+          "target_id": "invariant:architecture_no_cross_context_direct_database_access",
+          "status": "violated",
+          "violation": {
+            "message": "Order Service directly reads Billing DB across ownership boundary.",
+            "severity": "high",
+            "location_cell_ids": [
+              "cell:order-service",
+              "cell:billing-db"
+            ]
+          }
+        }
       }
     ],
     "obstructions": [
@@ -47,6 +60,8 @@
           "decision:approve-current-architecture"
         ],
         "witness_ids": [
+          "cell:order-service",
+          "cell:billing-db",
           "incidence:order-service-accesses-billing-db"
         ],
         "evidence_ids": [
@@ -57,7 +72,45 @@
           "proposed_refactor_action"
         ],
         "review_status": "unreviewed",
-        "message": "Order Service directly reads Billing DB across ownership boundary."
+        "message": "Order Service directly reads Billing DB across ownership boundary.",
+        "higher_graphen": {
+          "id": "obstruction:order-service-direct-billing-db-access",
+          "space_id": "space:advisory:technical-advisory-direct-db-access",
+          "obstruction_type": "custom:boundary_violation",
+          "location_cell_ids": [
+            "cell:order-service",
+            "cell:billing-db"
+          ],
+          "location_context_ids": [],
+          "related_morphisms": [],
+          "explanation": {
+            "summary": "Order Service directly reads Billing DB across ownership boundary."
+          },
+          "counterexample": {
+            "description": "Order Service directly reads Billing DB across ownership boundary.",
+            "path_cell_ids": [
+              "cell:order-service",
+              "cell:billing-db"
+            ]
+          },
+          "severity": "high",
+          "required_resolution": {
+            "summary": "replace cross-context direct database access with an explicit interface",
+            "target_cell_ids": [
+              "cell:order-service",
+              "cell:billing-db"
+            ],
+            "target_context_ids": [],
+            "target_morphism_ids": []
+          },
+          "provenance": {
+            "source": {
+              "kind": "code"
+            },
+            "confidence": 1.0,
+            "review_status": "unreviewed"
+          }
+        }
       }
     ]
   },

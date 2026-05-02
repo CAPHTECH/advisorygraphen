@@ -29,12 +29,20 @@ This file records why AdvisoryGraphen is designed this way. It is a traceability
 ## Implementation caution
 
 The current MVP verifies the selected local HigherGraphen APIs through path
-dependencies on `higher-graphen-core` and `higher-graphen-structure`.
+dependencies on `higher-graphen-core`, `higher-graphen-structure`,
+`higher-graphen-reasoning`, `higher-graphen-evidence`, and
+`higher-graphen-projection`.
 `AdvisorySpaceEnvelope::to_higher_graphen()` materializes advisory cells,
 contexts, and incidences into HigherGraphen `InMemorySpaceStore`/`Context`
-records, and `advisorygraphen check` runs structural relationship checks against
-that materialized store. The check report includes `result.higher_graphen` so
-callers can see that the HigherGraphen store was built.
+records. `advisorygraphen check` emits HigherGraphen `CheckResult`,
+`Violation`, `Obstruction`, `Counterexample`, `RequiredResolution`, and
+confidence evidence records, then projects them into the AdvisoryGraphen report
+contract. `advisorygraphen project` builds a HigherGraphen `Projection` and
+`ProjectionResult` before rendering the audience-specific AdvisoryGraphen
+projection. The check report includes `result.higher_graphen` so callers can see
+that the HigherGraphen store was built.
 
-APIs from the other HigherGraphen crates remain integration candidates, not
-compiled dependencies, until AdvisoryGraphen needs their concrete engines.
+`higher-graphen-runtime` and `higher-graphen-interpretation` remain upstream
+workflow/package crates. AdvisoryGraphen uses its own product-specific runtime
+and interpretation package, but those layers now consume and emit HigherGraphen
+core, structure, reasoning, evidence, and projection primitives.

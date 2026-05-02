@@ -9,5 +9,7 @@ repository.workspace = true
 advisorygraphen-core = { path = "../advisorygraphen-core" }
 advisorygraphen-interpretation = { path = "../advisorygraphen-interpretation" }
 higher-graphen-core.workspace = true
+higher-graphen-evidence.workspace = true
+higher-graphen-reasoning.workspace = true
 higher-graphen-structure.workspace = true
 serde_json.workspace = true

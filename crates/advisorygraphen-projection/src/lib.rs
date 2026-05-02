@@ -2,6 +2,8 @@ use advisorygraphen_core::{AdvisoryError, AdvisoryResult, AdvisorySpaceEnvelope}
 use advisorygraphen_reasoning::close_status;
 use serde_json::{json, Value};
 
+mod higher;
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum OutputFormat {
     Json,
@@ -39,71 +41,127 @@ pub fn build_projection(
     audience: &str,
 ) -> AdvisoryResult<Value> {
     match audience {
-        "executive" => Ok(executive_projection(space, report)),
-        "developer_action" => Ok(developer_projection(space, report)),
-        "audit_trace" => Ok(audit_projection(space, report)),
-        "ai_agent" => Ok(ai_agent_projection(space, report)),
-        "client_review" | "cli" => Ok(executive_projection(space, report)),
+        "executive" => executive_projection(space, report, audience),
+        "developer_action" => developer_projection(space, report, audience),
+        "audit_trace" => audit_projection(space, report, audience),
+        "ai_agent" => ai_agent_projection(space, report, audience),
+        "client_review" | "cli" => executive_projection(space, report, audience),
         other => Err(AdvisoryError::UnsupportedAudience(other.to_string())),
     }
 }
 
-fn executive_projection(space: &AdvisorySpaceEnvelope, report: &Value) -> Value {
+fn executive_projection(
+    space: &AdvisorySpaceEnvelope,
+    report: &Value,
+    audience: &str,
+) -> AdvisoryResult<Value> {
     let obstructions = obstructions(report);
-    json!({
+    let represented_ids = represented_ids(report);
+    let omitted_ids = source_ids(space);
+    let higher_graphen = higher::projection_result_json(
+        space,
+        report,
+        audience,
+        represented_ids.clone(),
+        omitted_ids.clone(),
+    )?;
+    Ok(json!({
         "schema": "advisorygraphen.projection.v1",
         "projection_id": format!("projection:executive:{}", space.space_id.trim_start_matches("space:advisory:")),
         "audience": "executive",
         "space_id": space.space_id,
-        "represented_ids": represented_ids(report),
-        "omitted_ids": source_ids(space),
+        "represented_ids": represented_ids,
+        "omitted_ids": omitted_ids,
         "summary": {
             "high_severity_obstructions": obstructions.iter().filter(|item| item["severity"] == "high").cloned().collect::<Vec<_>>(),
             "unreviewed_candidates_are_not_accepted": true
         },
-        "projection_loss": projection_loss(space)
-    })
+        "projection_loss": projection_loss(space),
+        "higher_graphen": higher_graphen
+    }))
 }
 
-fn developer_projection(space: &AdvisorySpaceEnvelope, report: &Value) -> Value {
-    json!({
+fn developer_projection(
+    space: &AdvisorySpaceEnvelope,
+    report: &Value,
+    audience: &str,
+) -> AdvisoryResult<Value> {
+    let represented_ids = represented_ids(report);
+    let omitted_ids = source_ids(space);
+    let higher_graphen = higher::projection_result_json(
+        space,
+        report,
+        audience,
+        represented_ids.clone(),
+        omitted_ids.clone(),
+    )?;
+    Ok(json!({
         "schema": "advisorygraphen.projection.v1",
         "projection_id": format!("projection:developer-action:{}", space.space_id.trim_start_matches("space:advisory:")),
         "audience": "developer_action",
         "space_id": space.space_id,
-        "represented_ids": represented_ids(report),
-        "omitted_ids": source_ids(space),
+        "represented_ids": represented_ids,
+        "omitted_ids": omitted_ids,
         "actions": completion_candidates(report),
-        "projection_loss": projection_loss(space)
-    })
+        "projection_loss": projection_loss(space),
+        "higher_graphen": higher_graphen
+    }))
 }
 
-fn audit_projection(space: &AdvisorySpaceEnvelope, report: &Value) -> Value {
-    json!({
+fn audit_projection(
+    space: &AdvisorySpaceEnvelope,
+    report: &Value,
+    audience: &str,
+) -> AdvisoryResult<Value> {
+    let represented_ids = represented_ids(report);
+    let omitted_ids = Vec::new();
+    let higher_graphen = higher::projection_result_json(
+        space,
+        report,
+        audience,
+        represented_ids.clone(),
+        omitted_ids.clone(),
+    )?;
+    Ok(json!({
         "schema": "advisorygraphen.projection.v1",
         "projection_id": format!("projection:audit:{}", space.space_id.trim_start_matches("space:advisory:")),
         "audience": "audit_trace",
         "space_id": space.space_id,
-        "represented_ids": represented_ids(report),
-        "omitted_ids": [],
+        "represented_ids": represented_ids,
+        "omitted_ids": omitted_ids,
         "source_boundary": space.metadata.get("source_boundary").cloned().unwrap_or_else(|| json!({})),
         "report": report,
-        "projection_loss": projection_loss(space)
-    })
+        "projection_loss": projection_loss(space),
+        "higher_graphen": higher_graphen
+    }))
 }
 
-fn ai_agent_projection(space: &AdvisorySpaceEnvelope, report: &Value) -> Value {
-    json!({
+fn ai_agent_projection(
+    space: &AdvisorySpaceEnvelope,
+    report: &Value,
+    audience: &str,
+) -> AdvisoryResult<Value> {
+    let represented_ids = represented_ids(report);
+    let omitted_ids = source_ids(space);
+    let higher_graphen = higher::projection_result_json(
+        space,
+        report,
+        audience,
+        represented_ids.clone(),
+        omitted_ids.clone(),
+    )?;
+    Ok(json!({
         "schema": "advisorygraphen.projection.v1",
         "projection_id": format!("projection:ai-agent:{}", space.space_id.trim_start_matches("space:advisory:")),
         "audience": "ai_agent",
         "space_id": space.space_id,
-        "represented_ids": represented_ids(report),
-        "omitted_ids": source_ids(space),
+        "represented_ids": represented_ids,
+        "omitted_ids": omitted_ids,
         "next_safe_operations": ["review_obstructions", "propose_or_review_candidates", "generate_audit_projection"],
         "close_status": close_status(space, &serde_json::from_value(report.clone()).unwrap_or_else(|_| advisorygraphen_core::ReportEnvelope::new("check", None, json!({}), json!({})))),
-        "projection_loss": projection_loss(space)
-    })
+        "projection_loss": projection_loss(space),
+        "higher_graphen": higher_graphen
+    }))
 }
 
 fn render_markdown(audience: &str, projection: &Value) -> AdvisoryResult<String> {

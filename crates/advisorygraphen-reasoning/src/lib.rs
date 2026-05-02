@@ -7,7 +7,9 @@ use higher_graphen_core::Id as HigherId;
 use serde_json::{json, Value};
 
 mod completions;
+mod higher;
 pub use completions::propose_completions;
+use higher::{has_accepted_supporting_evidence, violation_finding, FindingInput};
 
 pub const BOUNDARY_INVARIANT: &str =
     "invariant:architecture_no_cross_context_direct_database_access";
@@ -31,20 +33,20 @@ pub fn check_space(
         &higher_space,
         &mut invariant_results,
         &mut obstructions,
-    );
-    evaluate_recommendation_evidence(space, &mut invariant_results, &mut obstructions);
+    )?;
+    evaluate_recommendation_evidence(space, &mut invariant_results, &mut obstructions)?;
     evaluate_action_owners(
         space,
         &higher_space,
         &mut invariant_results,
         &mut obstructions,
-    );
+    )?;
     evaluate_required_verification(
         space,
         &higher_space,
         &mut invariant_results,
         &mut obstructions,
-    );
+    )?;
 
     invariant_results = sorted_values_by_id(invariant_results);
     obstructions = sorted_values_by_id(obstructions);
@@ -78,7 +80,7 @@ fn evaluate_recommendation_evidence(
     space: &AdvisorySpaceEnvelope,
     invariant_results: &mut Vec<Value>,
     obstructions: &mut Vec<Value>,
-) {
+) -> AdvisoryResult<()> {
     for cell in space
         .cells
         .iter()
@@ -87,34 +89,37 @@ fn evaluate_recommendation_evidence(
         let review_status = cell
             .pointer("/provenance/review_status")
             .and_then(Value::as_str);
-        if review_status != Some("accepted") || is_source_backed_or_review_promoted(cell) {
+        if review_status != Some("accepted") || has_accepted_supporting_evidence(cell)? {
             continue;
         }
         let obstruction_id = format!(
             "obstruction:{}-insufficient-evidence",
             json_id(cell).trim_start_matches("cell:")
         );
-        invariant_results.push(json!({
-            "id": EVIDENCE_INVARIANT,
-            "invariant_id": EVIDENCE_INVARIANT,
-            "status": "violated",
-            "severity": "high",
-            "witness_ids": [cell["id"].clone()],
-            "obstruction_ids": [obstruction_id],
-            "message": format!("{} is accepted without source-backed or review-promoted evidence.", title(cell))
-        }));
-        obstructions.push(json!({
-            "id": obstruction_id,
-            "obstruction_type": "insufficient_evidence",
-            "severity": "high",
-            "blocked_ids": [cell["id"].clone()],
-            "witness_ids": [cell["id"].clone()],
-            "evidence_ids": cell.get("source_ids").cloned().unwrap_or_else(|| json!([])),
-            "recommended_completion_types": ["review_promote_evidence", "source_backed_evidence"],
-            "review_status": "unreviewed",
-            "message": format!("{} needs source-backed or review-promoted evidence.", title(cell))
-        }));
+        let finding = violation_finding(FindingInput {
+            space_id: &space.space_id,
+            invariant_id: EVIDENCE_INVARIANT,
+            obstruction_id: &obstruction_id,
+            obstruction_type: "insufficient_evidence",
+            severity: "high",
+            message: format!(
+                "{} is accepted without source-backed or review-promoted evidence.",
+                title(cell)
+            ),
+            witness_ids: vec![json_id(cell).to_string()],
+            blocked_ids: vec![cell["id"].clone()],
+            evidence_ids: cell
+                .get("source_ids")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
+            recommended_completion_types: vec!["review_promote_evidence", "source_backed_evidence"],
+            resolution: "attach source-backed or review-promoted evidence",
+        })?;
+        invariant_results.push(finding.invariant_result);
+        obstructions.push(finding.obstruction);
     }
+    Ok(())
 }
 pub fn close_status(space: &AdvisorySpaceEnvelope, check_report: &ReportEnvelope) -> Value {
     let blocking = check_report
@@ -143,7 +148,7 @@ fn evaluate_boundary(
     higher_space: &HigherGraphenAdvisorySpace,
     invariant_results: &mut Vec<Value>,
     obstructions: &mut Vec<Value>,
-) {
+) -> AdvisoryResult<()> {
     for incidence in &space.incidences {
         let Some(higher_incidence) = higher_space.incidence(json_id(incidence)) else {
             continue;
@@ -188,27 +193,35 @@ fn evaluate_boundary(
         let Some(to_advisory) = find_cell(space, Some(higher_incidence.to_cell_id.as_str())) else {
             continue;
         };
-        invariant_results.push(json!({
-            "id": BOUNDARY_INVARIANT,
-            "invariant_id": BOUNDARY_INVARIANT,
-            "status": "violated",
-            "severity": "high",
-            "witness_ids": [from_advisory["id"].clone(), to_advisory["id"].clone(), incidence["id"].clone()],
-            "obstruction_ids": [obstruction_id],
-            "message": format!("{} accesses {} owned by Billing context.", title(from_advisory), title(to_advisory))
-        }));
-        obstructions.push(json!({
-            "id": obstruction_id,
-            "obstruction_type": "boundary_violation",
-            "severity": "high",
-            "blocked_ids": ["decision:approve-current-architecture"],
-            "witness_ids": [incidence["id"].clone()],
-            "evidence_ids": incidence.get("evidence_ids").cloned().unwrap_or_else(|| json!([])),
-            "recommended_completion_types": ["proposed_interface", "proposed_refactor_action"],
-            "review_status": "unreviewed",
-            "message": format!("{} directly reads {} across ownership boundary.", title(from_advisory), title(to_advisory))
-        }));
+        let finding = violation_finding(FindingInput {
+            space_id: &space.space_id,
+            invariant_id: BOUNDARY_INVARIANT,
+            obstruction_id,
+            obstruction_type: "boundary_violation",
+            severity: "high",
+            message: format!(
+                "{} directly reads {} across ownership boundary.",
+                title(from_advisory),
+                title(to_advisory)
+            ),
+            witness_ids: vec![
+                json_id(from_advisory).to_string(),
+                json_id(to_advisory).to_string(),
+                json_id(incidence).to_string(),
+            ],
+            blocked_ids: vec![json!("decision:approve-current-architecture")],
+            evidence_ids: incidence
+                .get("evidence_ids")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
+            recommended_completion_types: vec!["proposed_interface", "proposed_refactor_action"],
+            resolution: "replace cross-context direct database access with an explicit interface",
+        })?;
+        invariant_results.push(finding.invariant_result);
+        obstructions.push(finding.obstruction);
     }
+    Ok(())
 }
 
 fn evaluate_action_owners(
@@ -216,7 +229,7 @@ fn evaluate_action_owners(
     higher_space: &HigherGraphenAdvisorySpace,
     invariant_results: &mut Vec<Value>,
     obstructions: &mut Vec<Value>,
-) {
+) -> AdvisoryResult<()> {
     for action in space
         .cells
         .iter()
@@ -229,27 +242,27 @@ fn evaluate_action_owners(
             "obstruction:{}-missing-owner",
             json_id(action).trim_start_matches("cell:")
         );
-        invariant_results.push(json!({
-            "id": OWNER_INVARIANT,
-            "invariant_id": OWNER_INVARIANT,
-            "status": "violated",
-            "severity": "medium",
-            "witness_ids": [action["id"].clone()],
-            "obstruction_ids": [obstruction_id],
-            "message": format!("{} has no owner.", title(action))
-        }));
-        obstructions.push(json!({
-            "id": obstruction_id,
-            "obstruction_type": "missing_owner",
-            "severity": "medium",
-            "blocked_ids": [action["id"].clone()],
-            "witness_ids": [action["id"].clone()],
-            "evidence_ids": action.get("source_ids").cloned().unwrap_or_else(|| json!([])),
-            "recommended_completion_types": ["ownership_clarification"],
-            "review_status": "unreviewed",
-            "message": format!("{} needs an owner before export or acceptance.", title(action))
-        }));
+        let finding = violation_finding(FindingInput {
+            space_id: &space.space_id,
+            invariant_id: OWNER_INVARIANT,
+            obstruction_id: &obstruction_id,
+            obstruction_type: "missing_owner",
+            severity: "medium",
+            message: format!("{} has no owner.", title(action)),
+            witness_ids: vec![json_id(action).to_string()],
+            blocked_ids: vec![action["id"].clone()],
+            evidence_ids: action
+                .get("source_ids")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
+            recommended_completion_types: vec!["ownership_clarification"],
+            resolution: "clarify the action owner",
+        })?;
+        invariant_results.push(finding.invariant_result);
+        obstructions.push(finding.obstruction);
     }
+    Ok(())
 }
 
 fn evaluate_required_verification(
@@ -257,7 +270,7 @@ fn evaluate_required_verification(
     higher_space: &HigherGraphenAdvisorySpace,
     invariant_results: &mut Vec<Value>,
     obstructions: &mut Vec<Value>,
-) {
+) -> AdvisoryResult<()> {
     for requirement in space
         .cells
         .iter()
@@ -272,27 +285,31 @@ fn evaluate_required_verification(
             "obstruction:{}-missing-verification",
             json_id(requirement).trim_start_matches("cell:")
         );
-        invariant_results.push(json!({
-            "id": REQUIREMENT_VERIFICATION_INVARIANT,
-            "invariant_id": REQUIREMENT_VERIFICATION_INVARIANT,
-            "status": "violated",
-            "severity": "medium",
-            "witness_ids": [requirement["id"].clone()],
-            "obstruction_ids": [obstruction_id],
-            "message": format!("{} has no verification method.", title(requirement))
-        }));
-        obstructions.push(json!({
-            "id": obstruction_id,
-            "obstruction_type": "requirement_unverified",
-            "severity": "medium",
-            "blocked_ids": [requirement["id"].clone()],
-            "witness_ids": [requirement["id"].clone()],
-            "evidence_ids": requirement.get("source_ids").cloned().unwrap_or_else(|| json!([])),
-            "recommended_completion_types": ["proposed_test", "proposed_metric", "requirement_review"],
-            "review_status": "unreviewed",
-            "message": format!("{} needs a test or metric.", title(requirement))
-        }));
+        let finding = violation_finding(FindingInput {
+            space_id: &space.space_id,
+            invariant_id: REQUIREMENT_VERIFICATION_INVARIANT,
+            obstruction_id: &obstruction_id,
+            obstruction_type: "requirement_unverified",
+            severity: "medium",
+            message: format!("{} has no verification method.", title(requirement)),
+            witness_ids: vec![json_id(requirement).to_string()],
+            blocked_ids: vec![requirement["id"].clone()],
+            evidence_ids: requirement
+                .get("source_ids")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
+            recommended_completion_types: vec![
+                "proposed_test",
+                "proposed_metric",
+                "requirement_review",
+            ],
+            resolution: "define a test, metric, or review path for the requirement",
+        })?;
+        invariant_results.push(finding.invariant_result);
+        obstructions.push(finding.obstruction);
     }
+    Ok(())
 }
 
 fn find_cell<'a>(space: &'a AdvisorySpaceEnvelope, id: Option<&str>) -> Option<&'a Value> {
@@ -334,13 +351,4 @@ fn requires_verification(requirement: &Value) -> bool {
             .pointer("/metadata/verification_required")
             .and_then(Value::as_bool)
             == Some(true)
-}
-
-fn is_source_backed_or_review_promoted(cell: &Value) -> bool {
-    let origin = cell.pointer("/provenance/origin").and_then(Value::as_str);
-    let source_ids = cell
-        .get("source_ids")
-        .and_then(Value::as_array)
-        .is_some_and(|ids| !ids.is_empty());
-    matches!(origin, Some("source_backed" | "review_promoted")) && source_ids
 }

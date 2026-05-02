@@ -36,6 +36,7 @@ fn direct_fixture_lift_check_completions_and_executive_projection() {
     let check = dir.join("advisory.check.report.json");
     let completions = dir.join("advisory.completions.report.json");
     let executive = dir.join("executive-review.md");
+    let executive_json = dir.join("executive-review.json");
 
     lift_fixture(&space);
     assert_file_contains(&space, SPACE_ID);
@@ -76,6 +77,23 @@ fn direct_fixture_lift_check_completions_and_executive_projection() {
     assert_file_contains(&executive, "Billing DB");
     assert_file_contains(&executive, "boundary");
     assert_file_contains(&executive, "projection");
+
+    let output = run_cli([
+        "project",
+        "--space",
+        path_str(&space),
+        "--report",
+        path_str(&check),
+        "--audience",
+        "executive",
+        "--format",
+        "json",
+        "--output",
+        path_str(&executive_json),
+    ]);
+    assert_success(&output);
+    assert_file_contains(&executive_json, "higher_graphen");
+    assert_file_contains(&executive_json, "projection:higher:executive");
 }
 
 #[test]

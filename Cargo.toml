@@ -21,6 +21,9 @@ anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive", "env"] }
 higher-graphen-core = { path = "../higher-graphen/crates/higher-graphen-core" }
+higher-graphen-evidence = { path = "../higher-graphen/crates/higher-graphen-evidence" }
+higher-graphen-projection = { path = "../higher-graphen/crates/higher-graphen-projection" }
+higher-graphen-reasoning = { path = "../higher-graphen/crates/higher-graphen-reasoning" }
 higher-graphen-structure = { path = "../higher-graphen/crates/higher-graphen-structure" }
 indexmap = { version = "2", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }

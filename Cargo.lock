@@ -50,6 +50,8 @@ version = "0.1.0"
 dependencies = [
  "advisorygraphen-core",
  "advisorygraphen-reasoning",
+ "higher-graphen-core",
+ "higher-graphen-projection",
  "serde_json",
 ]
 
@@ -60,6 +62,8 @@ dependencies = [
  "advisorygraphen-core",
  "advisorygraphen-interpretation",
  "higher-graphen-core",
+ "higher-graphen-evidence",
+ "higher-graphen-reasoning",
  "higher-graphen-structure",
  "serde_json",
 ]
@@ -340,6 +344,32 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 name = "higher-graphen-core"
 version = "0.3.0"
 dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "higher-graphen-evidence"
+version = "0.3.0"
+dependencies = [
+ "higher-graphen-core",
+ "serde",
+]
+
+[[package]]
+name = "higher-graphen-projection"
+version = "0.3.0"
+dependencies = [
+ "higher-graphen-core",
+ "serde",
+]
+
+[[package]]
+name = "higher-graphen-reasoning"
+version = "0.3.0"
+dependencies = [
+ "higher-graphen-core",
+ "higher-graphen-projection",
+ "higher-graphen-structure",
  "serde",
 ]
 
