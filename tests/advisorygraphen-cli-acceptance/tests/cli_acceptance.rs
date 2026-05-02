@@ -119,6 +119,8 @@ fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
     ]);
     assert_success(&reason);
     assert_output_contains(&reason, "obstruction:runtime-adoption-action-missing-owner");
+    assert_output_contains_any(&reason, &[r#""closeable": false"#, r#""closeable":false"#]);
+    assert_output_contains(&reason, r#""blocking_threshold": "medium""#);
 
     let project = run_cli([
         "project",

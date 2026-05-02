@@ -129,15 +129,18 @@ pub fn close_status(space: &AdvisorySpaceEnvelope, check_report: &ReportEnvelope
         .into_iter()
         .flatten()
         .filter(|obstruction| {
-            matches!(
-                obstruction.get("severity").and_then(Value::as_str),
-                Some("high" | "critical")
-            ) && obstruction.get("review_status").and_then(Value::as_str) != Some("waived")
+            obstruction
+                .get("severity")
+                .and_then(Value::as_str)
+                .and_then(Severity::parse)
+                .is_some_and(|severity| severity >= Severity::Medium)
+                && obstruction.get("review_status").and_then(Value::as_str) != Some("waived")
         })
         .cloned()
         .collect::<Vec<_>>();
     json!({
         "space_id": space.space_id,
+        "blocking_threshold": "medium",
         "closeable": blocking.is_empty(),
         "blocking_obstruction_ids": blocking.iter().filter_map(|item| item.get("id").and_then(Value::as_str)).collect::<Vec<_>>(),
         "blocking_obstructions": blocking

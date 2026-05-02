@@ -88,7 +88,7 @@ Given a projection with omitted source IDs but no information loss entries, `pro
 
 ### Close-check blocks unresolved obstruction
 
-Given high-severity obstruction unresolved, `case close-check` must return closeable = false with obstruction witness IDs.
+Given medium-or-higher obstruction unresolved, `case close-check` must return closeable = false with obstruction witness IDs.
 
 ## Property tests
 

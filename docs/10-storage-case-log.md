@@ -84,7 +84,7 @@ If cache and log disagree, log replay wins.
 | `blocked_items` | hard obstruction exists |
 | `frontier_items` | ready items with no completed downstream work |
 | `waiting_items` | blocked only by external wait or missing owner |
-| `close_status` | close invariants satisfied and high obstructions resolved |
+| `close_status` | close invariants satisfied and medium-or-higher obstructions resolved |
 | `evolution_report` | differences between revisions |
 
 ## Close check
