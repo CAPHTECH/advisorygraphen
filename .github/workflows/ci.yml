@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Checkout HigherGraphen path dependency
+        run: git clone --depth 1 https://github.com/CAPHTECH/higher-graphen ../higher-graphen
       - uses: dtolnay/rust-toolchain@stable
       - name: Format
         run: cargo fmt --all --check
