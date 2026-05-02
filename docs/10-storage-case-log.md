@@ -82,8 +82,8 @@ If cache and log disagree, log replay wins.
 | --- | --- |
 | `ready_items` | hard dependencies satisfied, required evidence accepted/source-backed, required review accepted |
 | `blocked_items` | hard obstruction exists |
-| `frontier_items` | ready items with no completed downstream work |
-| `waiting_items` | blocked only by external wait or missing owner |
+| `frontier_items` | agent-actionable next work such as applying accepted candidate structure or proposing missing candidates |
+| `waiting_items` | blockers waiting on explicit review, new bounded source structure, or human direction |
 | `close_status` | close invariants satisfied and medium-or-higher obstructions resolved |
 | `candidate_review_state` | deterministic completion candidates derived from current blockers, overlaid with review events |
 | `blocker_resolution_state` | blocker candidate state plus `application_requirements` for accepted or still-reviewable candidates; rejected candidates are not application instructions |

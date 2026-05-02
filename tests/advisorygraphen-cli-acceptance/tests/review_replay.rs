@@ -237,6 +237,8 @@ fn rejected_candidate_survives_case_replay() {
     assert_output_contains(&reason, OWNER_CANDIDATE);
     assert_output_contains(&reason, r#""review_status": "rejected""#);
     assert_output_contains(&reason, "all_candidates_rejected");
+    assert_output_contains(&reason, "waiting_items");
+    assert_output_contains(&reason, "new bounded source structure or human direction");
     assert_output_contains(&reason, r#""application_requirements": []"#);
 
     let accept = run_cli([
@@ -285,5 +287,7 @@ fn rejected_candidate_survives_case_replay() {
     assert_output_contains(&reason_after_accept, "revision:review-000002");
     assert_output_contains(&reason_after_accept, r#""review_status": "accepted""#);
     assert_output_contains(&reason_after_accept, "accepted_candidate_pending_application");
+    assert_output_contains(&reason_after_accept, "frontier_items");
+    assert_output_contains(&reason_after_accept, "apply_accepted_candidate_structure");
     assert_output_contains(&reason_after_accept, "add owner cell and owns incidence");
 }

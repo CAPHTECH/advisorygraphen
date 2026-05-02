@@ -257,6 +257,8 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
     assert_file_contains(&ai_agent, "open_obstructions");
     assert_file_contains(&ai_agent, "candidate_review_state");
     assert_file_contains(&ai_agent, r#""blocker_resolution_state": ["#);
+    assert_file_contains(&ai_agent, "waiting_items");
+    assert_file_contains(&ai_agent, "candidate_review_pending");
     assert_file_contains(&ai_agent, r#""application_requirements": ["#);
     assert_file_contains(&ai_agent, "inspect_application_requirements");
     assert_file_contains(&ai_agent, flow.expected_candidate_text);
@@ -305,6 +307,8 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
     assert_output_contains(&reason, r#""review_status": "accepted""#);
     assert_output_contains(&reason, "blocker_resolution_state");
     assert_output_contains(&reason, "accepted_candidate_pending_application");
+    assert_output_contains(&reason, "frontier_items");
+    assert_output_contains(&reason, "apply_accepted_candidate_structure");
     assert_output_contains(&reason, "application_requirements");
     assert_output_contains(&reason, "required_cell_types");
     assert_output_contains(&reason, "owner");

@@ -54,6 +54,7 @@ advisorygraphen completions reject --store STORE --candidate-id CANDIDATE --from
 - `review_status: unreviewed` means do not present as accepted.
 - `agent_operation_contract` lists safe next commands and review-gated commands.
 - `blocker_resolution_state` describes whether a blocker has no candidate, pending review, all candidates rejected, or an accepted candidate pending structural application.
+- `frontier_items` lists agent-actionable next work; `waiting_items` lists review or source-structure waits.
 - `application_requirements` names the cells and incidences an AI agent must create before treating a blocker as resolved.
 - `case_head_revision` from `case reason` is the base revision for the next `case close-check`.
 - Run `case close-check` before reporting a case as closeable.

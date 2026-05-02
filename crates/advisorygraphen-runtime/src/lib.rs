@@ -6,7 +6,8 @@ use advisorygraphen_interpretation::InterpretationPackage;
 use advisorygraphen_lift::lift_snapshot;
 use advisorygraphen_projection::{build_projection, project};
 use advisorygraphen_reasoning::{
-    blocker_resolution_state, check_space, close_status, propose_completions,
+    blocker_resolution_state, check_space, close_status, frontier_items, propose_completions,
+    waiting_items,
 };
 use chrono::Utc;
 use serde_json::{json, Value};
@@ -192,6 +193,8 @@ pub fn case_reason_workflow(options: &CaseReasonOptions) -> AdvisoryResult<Value
     apply_candidate_reviews(&options.store, &options.space_id, &mut candidates)?;
     completions.result["completion_candidates"] = json!(candidates.clone());
     let resolution_state = blocker_resolution_state(&blockers, &candidates);
+    let frontier = frontier_items(&resolution_state);
+    let waiting = waiting_items(&resolution_state);
     let agent_report = attach_completion_report(
         serde_json::to_value(&check)?,
         serde_json::to_value(&completions)?,
@@ -214,8 +217,8 @@ pub fn case_reason_workflow(options: &CaseReasonOptions) -> AdvisoryResult<Value
             "candidate_review_state": candidates,
             "blocker_resolution_state": resolution_state,
             "close_status": close_status(&space, &check),
-            "frontier_items": [],
-            "waiting_items": []
+            "frontier_items": frontier,
+            "waiting_items": waiting
         },
         "projection": projection,
         "warnings": []

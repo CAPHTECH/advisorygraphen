@@ -39,6 +39,68 @@ pub fn blocker_resolution_state(blockers: &[Value], candidates: &[Value]) -> Vec
         .collect()
 }
 
+pub fn frontier_items(resolution_state: &[Value]) -> Vec<Value> {
+    resolution_state
+        .iter()
+        .filter_map(|item| {
+            let obstruction_id = item.get("obstruction_id").and_then(Value::as_str)?;
+            match item.get("resolution_status").and_then(Value::as_str) {
+                Some("accepted_candidate_pending_application") => Some(json!({
+                    "item_type": "apply_accepted_candidate_structure",
+                    "obstruction_id": obstruction_id,
+                    "candidate_ids": item
+                        .get("accepted_candidate_ids")
+                        .cloned()
+                        .unwrap_or_else(|| json!([])),
+                    "application_requirements": item
+                        .get("application_requirements")
+                        .cloned()
+                        .unwrap_or_else(|| json!([])),
+                    "next_operation": "apply required cells/incidences, rerun check, then rerun case reason"
+                })),
+                Some("no_candidate") => Some(json!({
+                    "item_type": "propose_completion_candidate",
+                    "obstruction_id": obstruction_id,
+                    "candidate_ids": [],
+                    "application_requirements": [],
+                    "next_operation": "run completions propose or add bounded source structure"
+                })),
+                _ => None,
+            }
+        })
+        .collect()
+}
+
+pub fn waiting_items(resolution_state: &[Value]) -> Vec<Value> {
+    resolution_state
+        .iter()
+        .filter_map(|item| {
+            let obstruction_id = item.get("obstruction_id").and_then(Value::as_str)?;
+            match item.get("resolution_status").and_then(Value::as_str) {
+                Some("candidate_review_pending") => Some(json!({
+                    "item_type": "candidate_review_pending",
+                    "obstruction_id": obstruction_id,
+                    "candidate_ids": item
+                        .get("candidate_ids")
+                        .cloned()
+                        .unwrap_or_else(|| json!([])),
+                    "waiting_on": "explicit accept/reject review for candidate structure"
+                })),
+                Some("all_candidates_rejected") => Some(json!({
+                    "item_type": "all_candidates_rejected",
+                    "obstruction_id": obstruction_id,
+                    "candidate_ids": item
+                        .get("candidate_ids")
+                        .cloned()
+                        .unwrap_or_else(|| json!([])),
+                    "waiting_on": "new bounded source structure or human direction"
+                })),
+                _ => None,
+            }
+        })
+        .collect()
+}
+
 fn resolving_candidates<'a>(obstruction_id: &str, candidates: &'a [Value]) -> Vec<&'a Value> {
     candidates
         .iter()

@@ -1,5 +1,7 @@
 use advisorygraphen_core::{AdvisoryError, AdvisoryResult, AdvisorySpaceEnvelope};
-use advisorygraphen_reasoning::{blocker_resolution_state, close_status};
+use advisorygraphen_reasoning::{
+    blocker_resolution_state, close_status, frontier_items, waiting_items,
+};
 use serde_json::{json, Value};
 
 mod higher;
@@ -201,6 +203,8 @@ fn ai_agent_projection(
         "open_obstructions": open_obstructions,
         "candidate_review_state": candidates,
         "blocker_resolution_state": resolution_state,
+        "frontier_items": frontier_items(&resolution_state),
+        "waiting_items": waiting_items(&resolution_state),
         "next_safe_operations": [
             "review_obstructions",
             "inspect_application_requirements",

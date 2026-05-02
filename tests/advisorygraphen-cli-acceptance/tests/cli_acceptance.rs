@@ -262,6 +262,8 @@ fn case_import_reason_and_close_check_report_unresolved_obstruction() {
     assert_output_contains(&reason, "case_head_revision");
     assert_output_contains(&reason, REVISION_ID);
     assert_output_contains(&reason, "blockers");
+    assert_output_contains(&reason, "waiting_items");
+    assert_output_contains(&reason, "candidate_review_pending");
 
     let stale_accept = review_billing_candidate(&store, &completions, "stale base should fail", "revision:stale");
     assert_failure_code(&stale_accept, 5);

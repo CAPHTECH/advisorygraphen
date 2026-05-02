@@ -187,6 +187,8 @@ advisorygraphen case import \
 Replay case log and derive readiness, blockers, frontier, and close status.
 The report includes `case_head_revision`; agents should use that value as the
 `--base-revision` for a following `case close-check`.
+`frontier_items` lists agent-actionable next work, while `waiting_items` lists
+blockers waiting on review or new bounded source structure.
 
 ```sh
 advisorygraphen case reason \
