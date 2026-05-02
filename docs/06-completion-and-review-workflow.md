@@ -71,6 +71,8 @@ The source completion report is required. The event metadata includes the
 HigherGraphen `CompletionReviewRecord`, preserving the candidate snapshot and
 creating a separate accepted or rejected result without mutating the candidate
 itself.
+The event `engagement_id` is copied from the imported case space so replayed
+review decisions remain tied to the original advisory engagement.
 
 ## Review event fields
 

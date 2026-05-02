@@ -214,6 +214,7 @@ fn rejected_candidate_survives_case_replay() {
         "json",
     ]);
     assert_success(&reject);
+    assert_output_contains(&reject, r#""engagement_id": "engagement:advisorygraphen-self-review""#);
     assert_output_contains(&reject, "\"outcome_review_status\": \"rejected\"");
     assert_output_contains(
         &reject,
@@ -255,6 +256,7 @@ fn rejected_candidate_survives_case_replay() {
         "json",
     ]);
     assert_success(&accept);
+    assert_output_contains(&accept, r#""engagement_id": "engagement:advisorygraphen-self-review""#);
     assert_output_contains(&accept, "\"outcome_review_status\": \"accepted\"");
     assert_output_contains(
         &accept,

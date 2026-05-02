@@ -74,6 +74,7 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
     let higher_graphen_review =
         higher_graphen_completion_review(options, from_report, &reviewed_at)?;
     let head = read_imported_space_head(&options.store, &space_id)?;
+    let materialized_space = read_materialized_space(&options.store, &space_id)?;
     ensure_base_revision(Some(&head), options.base_revision.as_deref())?;
     let sequence = next_sequence(&options.store);
     let target_revision = format!("revision:review-{sequence:06}");
@@ -82,7 +83,7 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
     let event = json!({
         "schema": REVIEW_EVENT_SCHEMA,
         "review_event_id": review_event_id,
-        "engagement_id": "engagement:unknown",
+        "engagement_id": materialized_space.engagement_id,
         "target_ids": [options.candidate_id],
         "outcome": options.outcome,
         "reviewer_id": options.reviewer,
