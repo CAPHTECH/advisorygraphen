@@ -8,8 +8,10 @@ use serde_json::{json, Value};
 
 mod completions;
 mod higher;
+mod resolution;
 pub use completions::propose_completions;
 use higher::{has_accepted_supporting_evidence, violation_finding, FindingInput};
+pub use resolution::blocker_resolution_state;
 
 pub const BOUNDARY_INVARIANT: &str =
     "invariant:architecture_no_cross_context_direct_database_access";

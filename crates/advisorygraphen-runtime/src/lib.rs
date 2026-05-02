@@ -1,11 +1,13 @@
 use advisorygraphen_core::{
     validate_document, AdvisoryError, AdvisoryResult, AdvisorySpaceEnvelope, ReportEnvelope,
-    Severity, REVIEW_EVENT_SCHEMA,
+    REVIEW_EVENT_SCHEMA,
 };
 use advisorygraphen_interpretation::InterpretationPackage;
 use advisorygraphen_lift::lift_snapshot;
-use advisorygraphen_projection::{build_projection, project, OutputFormat};
-use advisorygraphen_reasoning::{check_space, close_status, propose_completions};
+use advisorygraphen_projection::{build_projection, project};
+use advisorygraphen_reasoning::{
+    blocker_resolution_state, check_space, close_status, propose_completions,
+};
 use chrono::Utc;
 use serde_json::{json, Value};
 use std::fs::{self, OpenOptions};
@@ -14,76 +16,17 @@ use std::path::{Path, PathBuf};
 
 mod case_review;
 mod dogfood;
+mod options;
 mod projection_report;
 mod review;
-use case_review::{apply_candidate_reviews, blocker_resolution_state, with_resolution};
+use case_review::apply_candidate_reviews;
 pub use dogfood::{dogfood_repo_snapshot_workflow, DogfoodRepoSnapshotOptions};
+pub use options::{
+    CaseCloseCheckOptions, CaseImportOptions, CaseReasonOptions, CheckOptions,
+    CompletionProposeOptions, LiftOptions, ProjectOptions, ReviewOptions, ValidateOptions,
+};
 use projection_report::{attach_completion_report, read_projection_report};
 use review::{higher_graphen_completion_review, review_space_id};
-
-#[derive(Debug, Clone)]
-pub struct ValidateOptions {
-    pub input: PathBuf,
-    pub schema: Option<String>,
-}
-#[derive(Debug, Clone)]
-pub struct LiftOptions {
-    pub input: PathBuf,
-    pub package: String,
-    pub output: Option<PathBuf>,
-    pub command: Option<String>,
-}
-#[derive(Debug, Clone)]
-pub struct CheckOptions {
-    pub space: PathBuf,
-    pub ruleset: String,
-    pub output: Option<PathBuf>,
-    pub fail_on: Option<Severity>,
-    pub command: Option<String>,
-}
-#[derive(Debug, Clone)]
-pub struct CompletionProposeOptions {
-    pub space: PathBuf,
-    pub from_report: PathBuf,
-    pub output: Option<PathBuf>,
-    pub command: Option<String>,
-}
-#[derive(Debug, Clone)]
-pub struct ReviewOptions {
-    pub store: PathBuf,
-    pub candidate_id: String,
-    pub from_report: Option<PathBuf>,
-    pub reviewer: String,
-    pub reason: String,
-    pub outcome: String,
-    pub base_revision: Option<String>,
-}
-#[derive(Debug, Clone)]
-pub struct ProjectOptions {
-    pub space: PathBuf,
-    pub report: PathBuf,
-    pub completions_report: Option<PathBuf>,
-    pub audience: String,
-    pub format: OutputFormat,
-    pub output: Option<PathBuf>,
-}
-#[derive(Debug, Clone)]
-pub struct CaseImportOptions {
-    pub store: PathBuf,
-    pub space: PathBuf,
-    pub revision_id: String,
-}
-#[derive(Debug, Clone)]
-pub struct CaseReasonOptions {
-    pub store: PathBuf,
-    pub space_id: String,
-}
-#[derive(Debug, Clone)]
-pub struct CaseCloseCheckOptions {
-    pub store: PathBuf,
-    pub space_id: String,
-    pub base_revision: Option<String>,
-}
 pub fn validate_workflow(options: &ValidateOptions) -> AdvisoryResult<Value> {
     let value = read_json(&options.input)?;
     let schema = options.schema.as_deref().map(canonical_schema_name);
@@ -271,7 +214,7 @@ pub fn case_reason_workflow(options: &CaseReasonOptions) -> AdvisoryResult<Value
             "frontier_items": [],
             "waiting_items": []
         },
-        "projection": with_resolution(build_projection(&space, &agent_report, "ai_agent")?, &resolution_state),
+        "projection": build_projection(&space, &agent_report, "ai_agent")?,
         "warnings": []
     }))
 }

@@ -1,5 +1,5 @@
 use advisorygraphen_core::AdvisorySpaceEnvelope;
-use advisorygraphen_reasoning::check_space;
+use advisorygraphen_reasoning::{blocker_resolution_state, check_space};
 use serde_json::{json, Value};
 
 #[test]
@@ -49,6 +49,55 @@ fn accepted_inferred_action_emits_insufficient_evidence() {
     let report = check_space(&space, "technical_advisory_mvp", None, None).unwrap();
 
     assert_obstruction(&report.result, "insufficient_evidence");
+}
+
+#[test]
+fn blocker_resolution_excludes_rejected_candidates_from_application_requirements() {
+    let blockers = vec![json!({
+        "id": "obstruction:missing-owner",
+        "blocked_ids": ["cell:ship-action"]
+    })];
+    let candidates = vec![json!({
+        "id": "candidate:missing-owner-owner",
+        "candidate_type": "ownership_clarification",
+        "review_status": "rejected",
+        "resolves_obstruction_ids": ["obstruction:missing-owner"]
+    })];
+
+    let state = blocker_resolution_state(&blockers, &candidates);
+
+    assert_eq!(state[0]["resolution_status"], "all_candidates_rejected");
+    assert!(state[0]["application_requirements"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
+fn blocker_resolution_describes_accepted_candidate_application_contract() {
+    let blockers = vec![json!({
+        "id": "obstruction:missing-verification",
+        "blocked_ids": ["cell:requirement"]
+    })];
+    let candidates = vec![json!({
+        "id": "candidate:missing-verification-test",
+        "candidate_type": "proposed_test",
+        "review_status": "accepted",
+        "resolves_obstruction_ids": ["obstruction:missing-verification"]
+    })];
+
+    let state = blocker_resolution_state(&blockers, &candidates);
+    let requirement = &state[0]["application_requirements"][0];
+
+    assert_eq!(
+        state[0]["resolution_status"],
+        "accepted_candidate_pending_application"
+    );
+    assert_eq!(
+        requirement["required_cell_types"],
+        json!(["test_or_verification"])
+    );
+    assert_eq!(requirement["required_relation_types"], json!(["verifies"]));
 }
 
 fn assert_obstruction(result: &Value, obstruction_type: &str) {

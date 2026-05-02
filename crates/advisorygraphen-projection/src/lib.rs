@@ -1,9 +1,8 @@
 use advisorygraphen_core::{AdvisoryError, AdvisoryResult, AdvisorySpaceEnvelope};
-use advisorygraphen_reasoning::close_status;
+use advisorygraphen_reasoning::{blocker_resolution_state, close_status};
 use serde_json::{json, Value};
 
 mod higher;
-mod resolution;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum OutputFormat {
@@ -146,7 +145,7 @@ fn ai_agent_projection(
     let omitted_ids = source_ids(space);
     let open_obstructions = obstructions(report);
     let candidates = completion_candidates(report);
-    let resolution_state = resolution::blocker_resolution_state(&open_obstructions, &candidates);
+    let resolution_state = blocker_resolution_state(&open_obstructions, &candidates);
     let higher_graphen = higher::projection_result_json(
         space,
         report,
