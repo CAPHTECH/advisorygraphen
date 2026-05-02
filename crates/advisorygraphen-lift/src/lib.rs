@@ -25,7 +25,8 @@ pub fn lift_snapshot(
         "source_boundary": snapshot.get("source_boundary").cloned().unwrap_or_else(|| json!({})),
         "lift": {
             "adapter": "json_snapshot",
-            "package_id": package.package_id
+            "package_id": package.package_id,
+            "higher_graphen_interpretation": package.higher_graphen_package_value()?
         }
     });
 

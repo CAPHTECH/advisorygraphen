@@ -7,4 +7,6 @@ repository.workspace = true
 
 [dependencies]
 advisorygraphen-core = { path = "../advisorygraphen-core" }
+higher-graphen-core.workspace = true
+higher-graphen-interpretation.workspace = true
 serde_json.workspace = true

@@ -31,6 +31,8 @@ name = "advisorygraphen-interpretation"
 version = "0.1.0"
 dependencies = [
  "advisorygraphen-core",
+ "higher-graphen-core",
+ "higher-graphen-interpretation",
  "serde_json",
 ]
 
@@ -349,6 +351,14 @@ dependencies = [
 
 [[package]]
 name = "higher-graphen-evidence"
+version = "0.3.0"
+dependencies = [
+ "higher-graphen-core",
+ "serde",
+]
+
+[[package]]
+name = "higher-graphen-interpretation"
 version = "0.3.0"
 dependencies = [
  "higher-graphen-core",
