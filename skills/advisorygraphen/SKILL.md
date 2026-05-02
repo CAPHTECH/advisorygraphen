@@ -1,3 +1,8 @@
+---
+name: advisorygraphen
+description: Use when an agent needs to run AdvisoryGraphen for evidence-backed technical advisory, architecture review, AI-governed completion review, or case reasoning workflows.
+---
+
 # AdvisoryGraphen Skill
 
 Use this skill when a task asks for evidence-backed consulting, technical advisory, architecture review, product decision analysis, AI transformation governance, delivery risk analysis, or projection of advisory findings into reports or tasks.

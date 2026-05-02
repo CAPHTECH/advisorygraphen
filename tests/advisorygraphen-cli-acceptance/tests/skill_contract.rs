@@ -9,6 +9,11 @@ fn repository_skill_documents_agent_resume_protocol() {
     let skill = fs::read_to_string(repo_root().join("skills/advisorygraphen/SKILL.md"))
         .expect("skill file should be readable");
 
+    assert!(
+        skill.starts_with("---\nname: advisorygraphen\ndescription:"),
+        "skill should start with YAML frontmatter\n{skill}"
+    );
+
     for required in [
         "project --audience ai_agent",
         "--completions-report",
