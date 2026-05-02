@@ -35,12 +35,16 @@ pub fn higher_graphen_completion_review(
     Ok(serde_json::to_value(record)?)
 }
 
-pub fn review_space_id(options: &ReviewOptions) -> AdvisoryResult<Option<String>> {
-    options
-        .from_report
-        .as_deref()
-        .map(|path| report_space_id(&read_json(path)?))
-        .transpose()
+pub fn review_report_path(options: &ReviewOptions) -> AdvisoryResult<&Path> {
+    options.from_report.as_deref().ok_or_else(|| {
+        AdvisoryError::Validation(
+            "from-report is required for completion review events".to_string(),
+        )
+    })
+}
+
+pub fn review_space_id(from_report: &Path) -> AdvisoryResult<String> {
+    report_space_id(&read_json(from_report)?)
 }
 
 fn find_higher_graphen_candidate(

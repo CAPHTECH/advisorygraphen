@@ -26,7 +26,7 @@ pub use options::{
     CompletionProposeOptions, LiftOptions, ProjectOptions, ReviewOptions, ValidateOptions,
 };
 use projection_report::{attach_completion_report, read_projection_report};
-use review::{higher_graphen_completion_review, review_space_id};
+use review::{higher_graphen_completion_review, review_report_path, review_space_id};
 pub fn validate_workflow(options: &ValidateOptions) -> AdvisoryResult<Value> {
     let value = read_json(&options.input)?;
     let schema = options.schema.as_deref().map(canonical_schema_name);
@@ -68,26 +68,22 @@ pub fn completions_propose_workflow(
 }
 pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
     fs::create_dir_all(&options.store)?;
-    let space_id = review_space_id(options)?;
-    let head = space_id
-        .as_deref()
-        .and_then(|id| read_space_head_revision(&options.store, id).ok())
+    let from_report = review_report_path(options)?;
+    let space_id = review_space_id(from_report)?;
+    let head = read_space_head_revision(&options.store, &space_id)
+        .ok()
         .or_else(|| read_head_revision(&options.store).ok());
     ensure_base_revision(head.as_deref(), options.base_revision.as_deref())?;
     let reviewed_at = Utc::now().to_rfc3339();
-    let higher_graphen_review = match &options.from_report {
-        Some(path) => Some(higher_graphen_completion_review(
-            options,
-            path,
-            &reviewed_at,
-        )?),
-        None => None,
-    };
+    let higher_graphen_review =
+        higher_graphen_completion_review(options, from_report, &reviewed_at)?;
     let sequence = next_sequence(&options.store);
     let target_revision = format!("revision:review-{sequence:06}");
+    let candidate_slug = options.candidate_id.trim_start_matches("candidate:");
+    let review_event_id = format!("review:{}:{candidate_slug}-{sequence:06}", options.outcome);
     let event = json!({
         "schema": REVIEW_EVENT_SCHEMA,
-        "review_event_id": format!("review:{}:{}-{sequence:06}", options.outcome, options.candidate_id.trim_start_matches("candidate:")),
+        "review_event_id": review_event_id,
         "engagement_id": "engagement:unknown",
         "target_ids": [options.candidate_id],
         "outcome": options.outcome,
@@ -106,11 +102,11 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
         &options.store,
         &json!({
             "schema": "advisorygraphen.case.log.entry.v1",
-            "case_space_id": space_id.as_deref().unwrap_or("space:unknown"),
+            "case_space_id": space_id.clone(),
             "sequence": sequence,
             "entry_id": format!("log:{sequence:06}"),
-            "morphism_id": format!("morphism:{}-{}", options.outcome, options.candidate_id.trim_start_matches("candidate:")),
-            "source_revision_id": head,
+            "morphism_id": format!("morphism:{}-{candidate_slug}", options.outcome),
+            "source_revision_id": head.clone(),
             "target_revision_id": target_revision.clone(),
             "actor": event["reviewer_id"],
             "recorded_at": Utc::now().to_rfc3339(),
@@ -119,8 +115,11 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
             "payload": event
         }),
     )?;
-    if let (Some(id), Some(_)) = (space_id.as_deref(), head.as_deref()) {
-        fs::write(space_dir(&options.store, id).join("HEAD"), &target_revision)?;
+    if head.is_some() {
+        fs::write(
+            space_dir(&options.store, &space_id).join("HEAD"),
+            &target_revision,
+        )?;
     }
     Ok(event)
 }

@@ -67,10 +67,10 @@ advisorygraphen completions reject \
   --format json
 ```
 
-When the source completion report is supplied, the event metadata includes the
-HigherGraphen `CompletionReviewRecord`. That record preserves the candidate
-snapshot and creates a separate accepted or rejected result; it does not mutate
-the candidate itself.
+The source completion report is required. The event metadata includes the
+HigherGraphen `CompletionReviewRecord`, preserving the candidate snapshot and
+creating a separate accepted or rejected result without mutating the candidate
+itself.
 
 ## Review event fields
 

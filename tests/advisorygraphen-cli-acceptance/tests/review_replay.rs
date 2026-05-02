@@ -66,6 +66,25 @@ fn rejected_candidate_survives_case_replay() {
         "json",
     ]));
 
+    let missing_report_reject = run_cli([
+        "completions",
+        "reject",
+        "--store",
+        path_str(&store),
+        "--candidate-id",
+        OWNER_CANDIDATE,
+        "--reviewer",
+        "reviewer:dogfood-agent",
+        "--reason",
+        "Reject without from-report should fail.",
+        "--base-revision",
+        REVISION_ID,
+        "--format",
+        "json",
+    ]);
+    assert_failure_code(&missing_report_reject, 1);
+    assert_output_contains(&missing_report_reject, "from-report is required");
+
     let missing_base_reject = run_cli([
         "completions",
         "reject",

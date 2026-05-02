@@ -106,10 +106,10 @@ advisorygraphen completions reject \
   --format json
 ```
 
-When `--from-report` is supplied, the review event embeds a HigherGraphen
+`--from-report` is required. The review event embeds a HigherGraphen
 `CompletionReviewRecord` built from the preserved candidate snapshot. The source
 candidate remains unmutated and unreviewed; the review event records the
-accepted or rejected outcome. The report `input.space_id` is required and must
+accepted or rejected outcome. The report `input.space_id` must
 match the candidate snapshot `higher_graphen.space_id`; missing values or
 mismatches are rejected as validation errors before any review event is
 appended.
