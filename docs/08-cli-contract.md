@@ -109,7 +109,9 @@ advisorygraphen completions reject \
 When `--from-report` is supplied, the review event embeds a HigherGraphen
 `CompletionReviewRecord` built from the preserved candidate snapshot. The source
 candidate remains unmutated and unreviewed; the review event records the
-accepted or rejected outcome.
+accepted or rejected outcome. The report `input.space_id` must match the
+candidate snapshot `higher_graphen.space_id`; mismatches are rejected as
+validation errors before any review event is appended.
 
 When the completion report identifies an imported `space_id` with a case-store
 `HEAD`, `--base-revision` is required and checked against that `HEAD`. A missing

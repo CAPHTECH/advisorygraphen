@@ -77,7 +77,32 @@ fn find_higher_graphen_candidate(
             "candidate {candidate_id} has no higher_graphen snapshot"
         ))
     })?;
+    validate_candidate_space(report, &higher_candidate, candidate_id)?;
     Ok(serde_json::from_value(higher_candidate)?)
+}
+
+fn validate_candidate_space(
+    report: &Value,
+    higher_candidate: &Value,
+    candidate_id: &str,
+) -> AdvisoryResult<()> {
+    let Some(report_space_id) = report.pointer("/input/space_id").and_then(Value::as_str) else {
+        return Ok(());
+    };
+    let candidate_space_id = higher_candidate
+        .get("space_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            AdvisoryError::Validation(format!(
+                "candidate {candidate_id} has no higher_graphen.space_id"
+            ))
+        })?;
+    if report_space_id != candidate_space_id {
+        return Err(AdvisoryError::Validation(format!(
+            "from-report input.space_id {report_space_id} does not match candidate {candidate_id} higher_graphen.space_id {candidate_space_id}"
+        )));
+    }
+    Ok(())
 }
 
 fn hg_runtime_err(error: higher_graphen_core::CoreError) -> AdvisoryError {

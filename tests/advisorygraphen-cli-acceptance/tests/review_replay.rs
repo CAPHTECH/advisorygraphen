@@ -1,6 +1,7 @@
 #[allow(dead_code)]
 mod support;
 use support::*;
+use std::fs;
 
 const FIXTURE: &str = "examples/dogfood/product-governance/advisory.input.json";
 const PACKAGE_NAME: &str = "technical_advisory";
@@ -84,6 +85,38 @@ fn rejected_candidate_survives_case_replay() {
     assert_failure_code(&missing_base_reject, 5);
     assert_output_contains(&missing_base_reject, "stale revision");
     assert_output_contains(&missing_base_reject, "<missing>");
+
+    let tampered_completions = dir.join("tampered.completions.report.json");
+    let mut tampered: serde_json::Value =
+        serde_json::from_slice(&fs::read(&completions).expect("completion report should exist"))
+            .expect("completion report should be valid json");
+    tampered["input"]["space_id"] = serde_json::json!("space:advisory:wrong-space");
+    fs::write(
+        &tampered_completions,
+        serde_json::to_vec_pretty(&tampered).expect("tampered report should serialize"),
+    )
+    .expect("tampered report should be writable");
+    let mismatched_space_reject = run_cli([
+        "completions",
+        "reject",
+        "--store",
+        path_str(&store),
+        "--candidate-id",
+        OWNER_CANDIDATE,
+        "--from-report",
+        path_str(&tampered_completions),
+        "--reviewer",
+        "reviewer:dogfood-agent",
+        "--reason",
+        "Reject with mismatched report space should fail.",
+        "--base-revision",
+        REVISION_ID,
+        "--format",
+        "json",
+    ]);
+    assert_failure_code(&mismatched_space_reject, 1);
+    assert_output_contains(&mismatched_space_reject, "does not match");
+    assert_output_contains(&mismatched_space_reject, "higher_graphen.space_id");
 
     let reject = run_cli([
         "completions",
