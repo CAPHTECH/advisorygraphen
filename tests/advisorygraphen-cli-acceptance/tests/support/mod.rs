@@ -279,6 +279,12 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
     assert_output_contains(&reason, "candidate_review_state");
     assert_output_contains(&reason, flow.expected_candidate_text);
     assert_output_contains(&reason, r#""review_status": "accepted""#);
+    assert_output_contains(&reason, "blocker_resolution_state");
+    assert_output_contains(&reason, "accepted_candidate_pending_application");
+    assert_output_contains(
+        &reason,
+        "does_not_clear_obstruction_until_structure_changes",
+    );
     assert_output_contains(&reason, "projection:ai-agent");
     for obstruction_id in flow.expected_obstructions {
         assert_output_contains(&reason, obstruction_id);

@@ -16,7 +16,7 @@ mod case_review;
 mod dogfood;
 mod projection_report;
 mod review;
-use case_review::apply_candidate_reviews;
+use case_review::{apply_candidate_reviews, blocker_resolution_state};
 pub use dogfood::{dogfood_repo_snapshot_workflow, DogfoodRepoSnapshotOptions};
 use projection_report::{attach_completion_report, read_projection_report};
 use review::higher_graphen_completion_review;
@@ -58,7 +58,6 @@ pub struct ReviewOptions {
     pub outcome: String,
     pub base_revision: Option<String>,
 }
-
 #[derive(Debug, Clone)]
 pub struct ProjectOptions {
     pub space: PathBuf,
@@ -68,7 +67,6 @@ pub struct ProjectOptions {
     pub format: OutputFormat,
     pub output: Option<PathBuf>,
 }
-
 #[derive(Debug, Clone)]
 pub struct CaseImportOptions {
     pub store: PathBuf,
@@ -253,6 +251,7 @@ pub fn case_reason_workflow(options: &CaseReasonOptions) -> AdvisoryResult<Value
         .unwrap_or_default();
     apply_candidate_reviews(&options.store, &options.space_id, &mut candidates)?;
     completions.result["completion_candidates"] = json!(candidates.clone());
+    let resolution_state = blocker_resolution_state(&blockers, &candidates);
     let agent_report = attach_completion_report(
         serde_json::to_value(&check)?,
         serde_json::to_value(&completions)?,
@@ -267,6 +266,7 @@ pub fn case_reason_workflow(options: &CaseReasonOptions) -> AdvisoryResult<Value
             "space_id": options.space_id,
             "blockers": blockers,
             "candidate_review_state": candidates,
+            "blocker_resolution_state": resolution_state,
             "close_status": close_status(&space, &check),
             "frontier_items": [],
             "waiting_items": []

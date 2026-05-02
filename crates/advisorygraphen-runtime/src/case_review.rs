@@ -28,6 +28,67 @@ pub fn apply_candidate_reviews(
     Ok(())
 }
 
+pub fn blocker_resolution_state(blockers: &[Value], candidates: &[Value]) -> Vec<Value> {
+    blockers
+        .iter()
+        .filter_map(|blocker| {
+            let obstruction_id = blocker.get("id").and_then(Value::as_str)?;
+            let resolving = resolving_candidates(obstruction_id, candidates);
+            let accepted = resolving
+                .iter()
+                .filter(|candidate| {
+                    candidate.get("review_status").and_then(Value::as_str) == Some("accepted")
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            let status = if !accepted.is_empty() {
+                "accepted_candidate_pending_application"
+            } else if resolving.is_empty() {
+                "no_candidate"
+            } else if resolving.iter().all(|candidate| {
+                candidate.get("review_status").and_then(Value::as_str) == Some("rejected")
+            }) {
+                "all_candidates_rejected"
+            } else {
+                "candidate_review_pending"
+            };
+            Some(json!({
+                "obstruction_id": obstruction_id,
+                "resolution_status": status,
+                "candidate_ids": ids(&resolving),
+                "accepted_candidate_ids": ids(&accepted),
+                "close_effect": "does_not_clear_obstruction_until_structure_changes"
+            }))
+        })
+        .collect()
+}
+
+fn resolving_candidates<'a>(obstruction_id: &str, candidates: &'a [Value]) -> Vec<&'a Value> {
+    candidates
+        .iter()
+        .filter(|candidate| {
+            candidate
+                .get("resolves_obstruction_ids")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .any(|id| id.as_str() == Some(obstruction_id))
+        })
+        .collect()
+}
+
+fn ids(candidates: &[&Value]) -> Vec<String> {
+    candidates
+        .iter()
+        .filter_map(|candidate| {
+            candidate
+                .get("id")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        })
+        .collect()
+}
+
 fn review_events(store: &Path, space_id: &str) -> AdvisoryResult<BTreeMap<String, Value>> {
     let mut reviews = BTreeMap::new();
     for log_path in [root_log_path(store), space_log_path(store, space_id)] {
