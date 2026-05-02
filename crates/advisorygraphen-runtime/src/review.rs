@@ -35,6 +35,20 @@ pub fn higher_graphen_completion_review(
     Ok(serde_json::to_value(record)?)
 }
 
+pub fn review_space_id(options: &ReviewOptions) -> AdvisoryResult<Option<String>> {
+    options
+        .from_report
+        .as_deref()
+        .map(|path| {
+            Ok(read_json(path)?
+                .pointer("/input/space_id")
+                .and_then(Value::as_str)
+                .map(str::to_owned))
+        })
+        .transpose()
+        .map(Option::flatten)
+}
+
 fn find_higher_graphen_candidate(
     report: &Value,
     candidate_id: &str,

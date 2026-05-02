@@ -19,7 +19,7 @@ mod review;
 use case_review::{apply_candidate_reviews, blocker_resolution_state, with_resolution};
 pub use dogfood::{dogfood_repo_snapshot_workflow, DogfoodRepoSnapshotOptions};
 use projection_report::{attach_completion_report, read_projection_report};
-use review::higher_graphen_completion_review;
+use review::{higher_graphen_completion_review, review_space_id};
 
 #[derive(Debug, Clone)]
 pub struct ValidateOptions {
@@ -78,21 +78,18 @@ pub struct CaseReasonOptions {
     pub store: PathBuf,
     pub space_id: String,
 }
-
 #[derive(Debug, Clone)]
 pub struct CaseCloseCheckOptions {
     pub store: PathBuf,
     pub space_id: String,
     pub base_revision: Option<String>,
 }
-
 pub fn validate_workflow(options: &ValidateOptions) -> AdvisoryResult<Value> {
     let value = read_json(&options.input)?;
     let schema = options.schema.as_deref().map(canonical_schema_name);
     let report = validate_document(&value, schema.as_deref())?;
     Ok(serde_json::to_value(report)?)
 }
-
 pub fn lift_workflow(options: &LiftOptions) -> AdvisoryResult<AdvisorySpaceEnvelope> {
     let snapshot = read_json(&options.input)?;
     let package = InterpretationPackage::load(&options.package)?;
@@ -131,7 +128,11 @@ pub fn completions_propose_workflow(
 
 pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
     fs::create_dir_all(&options.store)?;
-    let head = read_head_revision(&options.store).ok();
+    let space_id = review_space_id(options)?;
+    let head = space_id
+        .as_deref()
+        .and_then(|id| read_space_head_revision(&options.store, id).ok())
+        .or_else(|| read_head_revision(&options.store).ok());
     ensure_base_revision(head.as_deref(), options.base_revision.as_deref())?;
     let reviewed_at = Utc::now().to_rfc3339();
     let higher_graphen_review = match &options.from_report {
@@ -163,7 +164,7 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
         &options.store,
         &json!({
             "schema": "advisorygraphen.case.log.entry.v1",
-            "case_space_id": "space:unknown",
+            "case_space_id": space_id.as_deref().unwrap_or("space:unknown"),
             "sequence": next_sequence(&options.store),
             "entry_id": format!("log:{:06}", next_sequence(&options.store)),
             "morphism_id": format!("morphism:{}-{}", options.outcome, options.candidate_id.trim_start_matches("candidate:")),

@@ -54,7 +54,7 @@ AdvisoryGraphen should use file-based JSON for MVP. Durable case evolution shoul
 | `review_accept` | Accept candidate, evidence, claim, or waiver |
 | `review_reject` | Reject candidate or claim |
 | `evidence_attach` | Attach source-backed evidence |
-| `completion_accept` | Accept and optionally promote completion candidate |
+| `completion_accept` | Accept completion candidate by review event; structural promotion remains separate |
 | `completion_reject` | Reject completion candidate |
 | `projection` | Record generated projection |
 | `policy_update` | Update engagement policy |

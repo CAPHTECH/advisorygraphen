@@ -244,10 +244,12 @@ fn case_import_reason_and_close_check_report_unresolved_obstruction() {
     let dir = clean_case_dir("case-basics");
     let space = dir.join("advisory.space.json");
     let check = dir.join("advisory.check.report.json");
+    let completions = dir.join("advisory.completions.report.json");
     let store = dir.join("store");
 
     lift_fixture(&space);
     check_space(&space, &check);
+    propose_completions(&space, &check, &completions);
 
     let import = run_cli([
         "case",
@@ -277,6 +279,27 @@ fn case_import_reason_and_close_check_report_unresolved_obstruction() {
     assert_success(&reason);
     assert_output_contains(&reason, SPACE_ID);
     assert_output_contains(&reason, "blockers");
+
+    let stale_accept = run_cli([
+        "completions",
+        "accept",
+        "--store",
+        path_str(&store),
+        "--candidate-id",
+        "candidate:billing-status-api",
+        "--from-report",
+        path_str(&completions),
+        "--reviewer",
+        "reviewer:cto",
+        "--reason",
+        "stale base should fail",
+        "--base-revision",
+        "revision:stale",
+        "--format",
+        "json",
+    ]);
+    assert_failure_code(&stale_accept, 5);
+    assert_output_contains(&stale_accept, "stale revision");
 
     let close_check = run_cli([
         "case",

@@ -38,6 +38,17 @@ pub fn assert_success(output: &Output) {
     }
 }
 
+pub fn assert_failure_code(output: &Output, expected: i32) {
+    if output.status.code() != Some(expected) {
+        panic!(
+            "expected command to fail with {expected}, got {:?}\nstdout:\n{}\nstderr:\n{}",
+            output.status.code(),
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}
+
 pub fn assert_output_contains(output: &Output, needle: &str) {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);

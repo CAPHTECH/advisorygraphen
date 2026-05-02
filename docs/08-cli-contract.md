@@ -79,7 +79,9 @@ advisorygraphen completions propose \
 
 ### `completions accept`
 
-Append acceptance review event and optionally promote candidate.
+Append an acceptance review event. This command does not promote candidate
+structure into accepted cells or incidences; promotion is a separate
+review-gated transformation.
 
 ```sh
 advisorygraphen completions accept \
@@ -108,6 +110,10 @@ When `--from-report` is supplied, the review event embeds a HigherGraphen
 `CompletionReviewRecord` built from the preserved candidate snapshot. The source
 candidate remains unmutated and unreviewed; the review event records the
 accepted or rejected outcome.
+
+When the completion report identifies an imported `space_id`, `--base-revision`
+is checked against that space's case-store `HEAD`. A stale value fails with exit
+code `5`.
 
 ### `project`
 
