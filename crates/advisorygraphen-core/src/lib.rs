@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+mod higher;
 mod validation;
+pub use higher::HigherGraphenAdvisorySpace;
 pub use validation::{validate_document, validate_space};
 
 pub const TOOL_NAME: &str = "advisorygraphen";

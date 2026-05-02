@@ -13,8 +13,17 @@
     "ruleset": "technical_advisory_mvp"
   },
   "result": {
+    "higher_graphen": {
+      "engine": "higher-graphen",
+      "space_id": "space:advisory:technical-advisory-direct-db-access",
+      "materialized": true,
+      "cell_count": 7,
+      "incidence_count": 2,
+      "context_count": 2
+    },
     "invariant_results": [
       {
+        "id": "invariant:architecture_no_cross_context_direct_database_access",
         "invariant_id": "invariant:architecture_no_cross_context_direct_database_access",
         "status": "violated",
         "severity": "high",

@@ -1,9 +1,13 @@
 use advisorygraphen_core::{
-    json_id, optional_string_array, sorted_values_by_id, AdvisoryError, AdvisoryResult,
-    AdvisorySpaceEnvelope, ReportEnvelope, Severity,
+    json_id, sorted_values_by_id, AdvisoryError, AdvisoryResult, AdvisorySpaceEnvelope,
+    HigherGraphenAdvisorySpace, ReportEnvelope, Severity,
 };
 use advisorygraphen_interpretation::load_ruleset;
+use higher_graphen_core::Id as HigherId;
 use serde_json::{json, Value};
+
+mod completions;
+pub use completions::propose_completions;
 
 pub const BOUNDARY_INVARIANT: &str =
     "invariant:architecture_no_cross_context_direct_database_access";
@@ -18,13 +22,29 @@ pub fn check_space(
     command: Option<&str>,
 ) -> AdvisoryResult<ReportEnvelope> {
     let _package = load_ruleset(ruleset)?;
+    let higher_space = space.to_higher_graphen()?;
     let mut invariant_results = Vec::new();
     let mut obstructions = Vec::new();
 
-    evaluate_boundary(space, &mut invariant_results, &mut obstructions);
+    evaluate_boundary(
+        space,
+        &higher_space,
+        &mut invariant_results,
+        &mut obstructions,
+    );
     evaluate_recommendation_evidence(space, &mut invariant_results, &mut obstructions);
-    evaluate_action_owners(space, &mut invariant_results, &mut obstructions);
-    evaluate_required_verification(space, &mut invariant_results, &mut obstructions);
+    evaluate_action_owners(
+        space,
+        &higher_space,
+        &mut invariant_results,
+        &mut obstructions,
+    );
+    evaluate_required_verification(
+        space,
+        &higher_space,
+        &mut invariant_results,
+        &mut obstructions,
+    );
 
     invariant_results = sorted_values_by_id(invariant_results);
     obstructions = sorted_values_by_id(obstructions);
@@ -48,7 +68,8 @@ pub fn check_space(
         }),
         json!({
             "invariant_results": invariant_results,
-            "obstructions": obstructions
+            "obstructions": obstructions,
+            "higher_graphen": higher_space.summary_json()
         }),
     ))
 }
@@ -95,40 +116,6 @@ fn evaluate_recommendation_evidence(
         }));
     }
 }
-pub fn propose_completions(
-    space: &AdvisorySpaceEnvelope,
-    check_report: &ReportEnvelope,
-    from_report: &str,
-    command: Option<&str>,
-) -> AdvisoryResult<ReportEnvelope> {
-    let mut candidates = Vec::new();
-    let obstructions = check_report
-        .result
-        .get("obstructions")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    for obstruction in obstructions {
-        match obstruction.get("obstruction_type").and_then(Value::as_str) {
-            Some("boundary_violation") => candidates.extend(boundary_completion_candidates()),
-            Some("missing_owner") => candidates.push(owner_completion_candidate(&obstruction)),
-            Some("requirement_unverified") => {
-                candidates.push(verification_completion_candidate(&obstruction))
-            }
-            _ => {}
-        }
-    }
-    candidates = sorted_values_by_id(candidates);
-    Ok(ReportEnvelope::new(
-        "completion_proposal",
-        command,
-        json!({
-            "space_id": space.space_id,
-            "from_report": from_report
-        }),
-        json!({ "completion_candidates": candidates }),
-    ))
-}
 pub fn close_status(space: &AdvisorySpaceEnvelope, check_report: &ReportEnvelope) -> Value {
     let blocking = check_report
         .result
@@ -153,11 +140,15 @@ pub fn close_status(space: &AdvisorySpaceEnvelope, check_report: &ReportEnvelope
 }
 fn evaluate_boundary(
     space: &AdvisorySpaceEnvelope,
+    higher_space: &HigherGraphenAdvisorySpace,
     invariant_results: &mut Vec<Value>,
     obstructions: &mut Vec<Value>,
 ) {
     for incidence in &space.incidences {
-        if incidence.get("relation_type").and_then(Value::as_str) != Some("accesses") {
+        let Some(higher_incidence) = higher_space.incidence(json_id(incidence)) else {
+            continue;
+        };
+        if higher_incidence.relation_type != "accesses" {
             continue;
         }
         if incidence
@@ -167,29 +158,44 @@ fn evaluate_boundary(
         {
             continue;
         }
-        let Some(from) = find_cell(space, incidence.get("from_id").and_then(Value::as_str)) else {
+        let Some(from) = higher_space.cell(higher_incidence.from_cell_id.as_str()) else {
             continue;
         };
-        let Some(to) = find_cell(space, incidence.get("to_id").and_then(Value::as_str)) else {
+        let Some(to) = higher_space.cell(higher_incidence.to_cell_id.as_str()) else {
             continue;
         };
-        if to.get("cell_type").and_then(Value::as_str) != Some("data_store") {
+        if to.cell_type != "data_store" {
             continue;
         }
-        let from_contexts = optional_string_array(from, "context_ids");
-        let to_contexts = optional_string_array(to, "context_ids");
+        let from_contexts = from
+            .context_ids
+            .iter()
+            .map(HigherId::as_str)
+            .collect::<Vec<_>>();
+        let to_contexts = to
+            .context_ids
+            .iter()
+            .map(HigherId::as_str)
+            .collect::<Vec<_>>();
         if !is_cross_context(&from_contexts, &to_contexts) {
             continue;
         }
         let obstruction_id = "obstruction:order-service-direct-billing-db-access";
+        let Some(from_advisory) = find_cell(space, Some(higher_incidence.from_cell_id.as_str()))
+        else {
+            continue;
+        };
+        let Some(to_advisory) = find_cell(space, Some(higher_incidence.to_cell_id.as_str())) else {
+            continue;
+        };
         invariant_results.push(json!({
             "id": BOUNDARY_INVARIANT,
             "invariant_id": BOUNDARY_INVARIANT,
             "status": "violated",
             "severity": "high",
-            "witness_ids": [from["id"].clone(), to["id"].clone(), incidence["id"].clone()],
+            "witness_ids": [from_advisory["id"].clone(), to_advisory["id"].clone(), incidence["id"].clone()],
             "obstruction_ids": [obstruction_id],
-            "message": format!("{} accesses {} owned by Billing context.", title(from), title(to))
+            "message": format!("{} accesses {} owned by Billing context.", title(from_advisory), title(to_advisory))
         }));
         obstructions.push(json!({
             "id": obstruction_id,
@@ -200,13 +206,14 @@ fn evaluate_boundary(
             "evidence_ids": incidence.get("evidence_ids").cloned().unwrap_or_else(|| json!([])),
             "recommended_completion_types": ["proposed_interface", "proposed_refactor_action"],
             "review_status": "unreviewed",
-            "message": format!("{} directly reads {} across ownership boundary.", title(from), title(to))
+            "message": format!("{} directly reads {} across ownership boundary.", title(from_advisory), title(to_advisory))
         }));
     }
 }
 
 fn evaluate_action_owners(
     space: &AdvisorySpaceEnvelope,
+    higher_space: &HigherGraphenAdvisorySpace,
     invariant_results: &mut Vec<Value>,
     obstructions: &mut Vec<Value>,
 ) {
@@ -215,7 +222,7 @@ fn evaluate_action_owners(
         .iter()
         .filter(|cell| cell["cell_type"] == "action")
     {
-        if has_incoming_owner(space, json_id(action)) {
+        if has_incoming_owner(higher_space, json_id(action)) {
             continue;
         }
         let obstruction_id = format!(
@@ -247,6 +254,7 @@ fn evaluate_action_owners(
 
 fn evaluate_required_verification(
     space: &AdvisorySpaceEnvelope,
+    higher_space: &HigherGraphenAdvisorySpace,
     invariant_results: &mut Vec<Value>,
     obstructions: &mut Vec<Value>,
 ) {
@@ -255,7 +263,9 @@ fn evaluate_required_verification(
         .iter()
         .filter(|cell| cell["cell_type"] == "requirement")
     {
-        if !requires_verification(requirement) || has_verification(space, json_id(requirement)) {
+        if !requires_verification(requirement)
+            || has_verification(higher_space, json_id(requirement))
+        {
             continue;
         }
         let obstruction_id = format!(
@@ -285,71 +295,12 @@ fn evaluate_required_verification(
     }
 }
 
-fn boundary_completion_candidates() -> Vec<Value> {
-    vec![
-        json!({
-            "id": "candidate:billing-status-api",
-            "candidate_type": "proposed_interface",
-            "title": "Add Billing status query API",
-            "rationale": "Remove cross-context direct database access while preserving billing status check.",
-            "resolves_obstruction_ids": ["obstruction:order-service-direct-billing-db-access"],
-            "proposed_cell_ids": ["cell:billing-status-api"],
-            "source_ids": ["source:architecture-note"],
-            "confidence": 0.82,
-            "review_status": "unreviewed",
-            "metadata": {}
-        }),
-        json!({
-            "id": "candidate:replace-order-service-db-read",
-            "candidate_type": "proposed_refactor_action",
-            "title": "Replace Order Service direct DB read with Billing API call",
-            "rationale": "Order Service should depend on Billing Service interface instead of Billing DB ownership boundary.",
-            "resolves_obstruction_ids": ["obstruction:order-service-direct-billing-db-access"],
-            "proposed_cell_ids": ["cell:action-replace-direct-db-read"],
-            "source_ids": ["source:architecture-note"],
-            "confidence": 0.78,
-            "review_status": "unreviewed",
-            "metadata": {}
-        }),
-    ]
-}
-
-fn owner_completion_candidate(obstruction: &Value) -> Value {
-    json!({
-        "id": format!("candidate:{}-owner", json_id(obstruction).trim_start_matches("obstruction:")),
-        "candidate_type": "ownership_clarification",
-        "title": "Clarify action owner",
-        "rationale": obstruction.get("message").cloned().unwrap_or_else(|| json!("Action requires owner.")),
-        "resolves_obstruction_ids": [obstruction["id"].clone()],
-        "proposed_cell_ids": [],
-        "source_ids": [],
-        "confidence": 0.7,
-        "review_status": "unreviewed",
-        "metadata": {}
-    })
-}
-
-fn verification_completion_candidate(obstruction: &Value) -> Value {
-    json!({
-        "id": format!("candidate:{}-verification", json_id(obstruction).trim_start_matches("obstruction:")),
-        "candidate_type": "proposed_test",
-        "title": "Define verification method",
-        "rationale": obstruction.get("message").cloned().unwrap_or_else(|| json!("Requirement needs verification.")),
-        "resolves_obstruction_ids": [obstruction["id"].clone()],
-        "proposed_cell_ids": [],
-        "source_ids": [],
-        "confidence": 0.7,
-        "review_status": "unreviewed",
-        "metadata": {}
-    })
-}
-
 fn find_cell<'a>(space: &'a AdvisorySpaceEnvelope, id: Option<&str>) -> Option<&'a Value> {
     let id = id?;
     space.cells.iter().find(|cell| json_id(cell) == id)
 }
 
-fn is_cross_context(left: &[String], right: &[String]) -> bool {
+fn is_cross_context(left: &[&str], right: &[&str]) -> bool {
     !left.is_empty() && !right.is_empty() && left.iter().all(|id| !right.contains(id))
 }
 
@@ -360,20 +311,17 @@ fn title(value: &Value) -> &str {
         .unwrap_or_else(|| json_id(value))
 }
 
-fn has_incoming_owner(space: &AdvisorySpaceEnvelope, action_id: &str) -> bool {
-    space.incidences.iter().any(|incidence| {
-        incidence.get("relation_type").and_then(Value::as_str) == Some("owns")
-            && incidence.get("to_id").and_then(Value::as_str) == Some(action_id)
+fn has_incoming_owner(higher_space: &HigherGraphenAdvisorySpace, action_id: &str) -> bool {
+    higher_space.incidence_records().iter().any(|incidence| {
+        incidence.relation_type == "owns" && incidence.to_cell_id.as_str() == action_id
     })
 }
 
-fn has_verification(space: &AdvisorySpaceEnvelope, requirement_id: &str) -> bool {
-    space.incidences.iter().any(|incidence| {
-        matches!(
-            incidence.get("relation_type").and_then(Value::as_str),
-            Some("verifies" | "implements")
-        ) && (incidence.get("from_id").and_then(Value::as_str) == Some(requirement_id)
-            || incidence.get("to_id").and_then(Value::as_str) == Some(requirement_id))
+fn has_verification(higher_space: &HigherGraphenAdvisorySpace, requirement_id: &str) -> bool {
+    higher_space.incidence_records().iter().any(|incidence| {
+        matches!(incidence.relation_type.as_str(), "verifies" | "implements")
+            && (incidence.from_cell_id.as_str() == requirement_id
+                || incidence.to_cell_id.as_str() == requirement_id)
     })
 }
 

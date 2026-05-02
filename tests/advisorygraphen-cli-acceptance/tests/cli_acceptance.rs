@@ -52,6 +52,8 @@ fn direct_fixture_lift_check_completions_and_executive_projection() {
     );
     assert_file_contains(&check, "violated");
     assert_file_contains(&check, "obstruction:order-service-direct-billing-db-access");
+    assert_file_contains(&check, "higher_graphen");
+    assert_file_contains(&check, r#""materialized": true"#);
 
     propose_completions(&space, &check, &completions);
     assert_file_contains(&completions, "candidate:billing-status-api");

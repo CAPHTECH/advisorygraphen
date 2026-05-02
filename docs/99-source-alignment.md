@@ -28,4 +28,13 @@ This file records why AdvisoryGraphen is designed this way. It is a traceability
 
 ## Implementation caution
 
-The exact APIs of HigherGraphen crates should be verified against the selected release or path dependency before implementing code. AdvisoryGraphen docs define the product and integration contract, not a guarantee that every API sketch compiles without adjustment.
+The current MVP verifies the selected local HigherGraphen APIs through path
+dependencies on `higher-graphen-core` and `higher-graphen-structure`.
+`AdvisorySpaceEnvelope::to_higher_graphen()` materializes advisory cells,
+contexts, and incidences into HigherGraphen `InMemorySpaceStore`/`Context`
+records, and `advisorygraphen check` runs structural relationship checks against
+that materialized store. The check report includes `result.higher_graphen` so
+callers can see that the HigherGraphen store was built.
+
+APIs from the other HigherGraphen crates remain integration candidates, not
+compiled dependencies, until AdvisoryGraphen needs their concrete engines.
