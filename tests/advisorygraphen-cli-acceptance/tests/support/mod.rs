@@ -239,7 +239,8 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
     assert_file_contains(&ai_agent, "promote unreviewed candidate structure");
     assert_file_contains(&ai_agent, "open_obstructions");
     assert_file_contains(&ai_agent, "candidate_review_state");
-    assert_file_contains(&ai_agent, "blocker_resolution_state.application_requirements");
+    assert_file_contains(&ai_agent, r#""blocker_resolution_state": ["#);
+    assert_file_contains(&ai_agent, r#""application_requirements": ["#);
     assert_file_contains(&ai_agent, "inspect_application_requirements");
     assert_file_contains(&ai_agent, flow.expected_candidate_text);
     assert_file_contains(&ai_agent, r#""closeable": false"#);

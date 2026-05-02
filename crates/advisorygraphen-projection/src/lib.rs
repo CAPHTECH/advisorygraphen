@@ -3,6 +3,7 @@ use advisorygraphen_reasoning::close_status;
 use serde_json::{json, Value};
 
 mod higher;
+mod resolution;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum OutputFormat {
@@ -143,6 +144,9 @@ fn ai_agent_projection(
 ) -> AdvisoryResult<Value> {
     let represented_ids = represented_ids(report);
     let omitted_ids = source_ids(space);
+    let open_obstructions = obstructions(report);
+    let candidates = completion_candidates(report);
+    let resolution_state = resolution::blocker_resolution_state(&open_obstructions, &candidates);
     let higher_graphen = higher::projection_result_json(
         space,
         report,
@@ -194,8 +198,9 @@ fn ai_agent_projection(
                 "generate audit_trace before reporting final state"
             ]
         },
-        "open_obstructions": obstructions(report),
-        "candidate_review_state": completion_candidates(report),
+        "open_obstructions": open_obstructions,
+        "candidate_review_state": candidates,
+        "blocker_resolution_state": resolution_state,
         "next_safe_operations": [
             "review_obstructions",
             "inspect_application_requirements",

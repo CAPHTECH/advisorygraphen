@@ -129,7 +129,9 @@ Must include:
 The AI projection should make it hard for an agent to accidentally promote candidate structure.
 When a completion proposal report is available, the projection should be built
 with that report attached so `candidate_review_state` contains the current
-unreviewed candidates alongside `open_obstructions`.
+unreviewed candidates alongside `open_obstructions`. The same projection also
+includes `blocker_resolution_state`, so an AI agent can inspect required
+structural follow-up without first replaying the case log.
 
 Minimum operation model:
 
@@ -169,7 +171,20 @@ Minimum operation model:
       "propose missing owner or verification structure",
       "generate audit_trace before reporting final state"
     ]
-  }
+  },
+  "blocker_resolution_state": [
+    {
+      "obstruction_id": "obstruction:runtime-adoption-action-missing-owner",
+      "resolution_status": "candidate_review_pending",
+      "application_requirements": [
+        {
+          "candidate_type": "ownership_clarification",
+          "required_cell_types": ["owner"],
+          "required_relation_types": ["owns"]
+        }
+      ]
+    }
+  ]
 }
 ```
 
