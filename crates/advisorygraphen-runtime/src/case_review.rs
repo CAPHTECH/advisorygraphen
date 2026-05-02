@@ -62,10 +62,7 @@ pub fn blocker_resolution_state(blockers: &[Value], candidates: &[Value]) -> Vec
                 "resolution_status": status,
                 "candidate_ids": ids(&resolving),
                 "accepted_candidate_ids": ids(&accepted),
-                "application_requirements": application_requirements(
-                    blocker,
-                    if accepted.is_empty() { &resolving } else { &accepted },
-                ),
+                "application_requirements": application_requirements(blocker, &applicable_candidates(&accepted, &resolving)),
                 "close_effect": "does_not_clear_obstruction_until_structure_changes"
             }))
         })
@@ -94,6 +91,19 @@ fn ids(candidates: &[&Value]) -> Vec<String> {
                 .get("id")
                 .and_then(Value::as_str)
                 .map(str::to_owned)
+        })
+        .collect()
+}
+
+fn applicable_candidates<'a>(accepted: &[&'a Value], resolving: &[&'a Value]) -> Vec<&'a Value> {
+    if !accepted.is_empty() {
+        return accepted.to_vec();
+    }
+    resolving
+        .iter()
+        .copied()
+        .filter(|candidate| {
+            candidate.get("review_status").and_then(Value::as_str) != Some("rejected")
         })
         .collect()
 }

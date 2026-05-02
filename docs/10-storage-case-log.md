@@ -86,7 +86,7 @@ If cache and log disagree, log replay wins.
 | `waiting_items` | blocked only by external wait or missing owner |
 | `close_status` | close invariants satisfied and medium-or-higher obstructions resolved |
 | `candidate_review_state` | deterministic completion candidates derived from current blockers, overlaid with review events |
-| `blocker_resolution_state` | blocker candidate state plus `application_requirements` describing the cells/incidences an agent must add before the blocker can clear |
+| `blocker_resolution_state` | blocker candidate state plus `application_requirements` for accepted or still-reviewable candidates; rejected candidates are not application instructions |
 | `ai_agent projection` | resume contract combining blockers, candidates, close status, and projection loss |
 | `evolution_report` | differences between revisions |
 
