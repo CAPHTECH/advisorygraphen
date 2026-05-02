@@ -85,6 +85,10 @@ fn rejected_candidate_survives_case_replay() {
     ]);
     assert_success(&reject);
     assert_output_contains(&reject, "\"outcome_review_status\": \"rejected\"");
+    assert_output_contains(
+        &reject,
+        "review:rejected:enterprise-packaging-action-missing-owner-owner-000001",
+    );
 
     let reason = run_cli([
         "case",
@@ -121,6 +125,10 @@ fn rejected_candidate_survives_case_replay() {
     ]);
     assert_success(&accept);
     assert_output_contains(&accept, "\"outcome_review_status\": \"accepted\"");
+    assert_output_contains(
+        &accept,
+        "review:accepted:enterprise-packaging-action-missing-owner-owner-000002",
+    );
     let space_head = store
         .join("spaces")
         .join(SPACE_ID.replace([':', '/'], "-"))

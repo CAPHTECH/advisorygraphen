@@ -140,9 +140,11 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
         )?),
         None => None,
     };
+    let sequence = next_sequence(&options.store);
+    let target_revision = format!("revision:review-{sequence:06}");
     let event = json!({
         "schema": REVIEW_EVENT_SCHEMA,
-        "review_event_id": format!("review:{}:{}", options.outcome, options.candidate_id.trim_start_matches("candidate:")),
+        "review_event_id": format!("review:{}:{}-{sequence:06}", options.outcome, options.candidate_id.trim_start_matches("candidate:")),
         "engagement_id": "engagement:unknown",
         "target_ids": [options.candidate_id],
         "outcome": options.outcome,
@@ -157,8 +159,6 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
         }
     });
     validate_document(&event, Some(REVIEW_EVENT_SCHEMA))?;
-    let sequence = next_sequence(&options.store);
-    let target_revision = format!("revision:review-{sequence:06}");
     append_store_event(
         &options.store,
         &json!({
