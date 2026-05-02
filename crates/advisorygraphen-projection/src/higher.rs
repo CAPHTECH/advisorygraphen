@@ -5,6 +5,7 @@ use higher_graphen_projection::{
     ProjectionOutput, ProjectionPurpose, ProjectionResult, ProjectionSelector, RendererKind,
 };
 use serde_json::Value;
+use std::collections::BTreeSet;
 
 pub fn projection_result_json(
     space: &AdvisorySpaceEnvelope,
@@ -26,7 +27,7 @@ pub fn projection_result_json(
         selector(report)?,
         OutputSchema::key_value(["represented_ids", "omitted_ids", "report_type"])
             .map_err(hg_err)?,
-        [information_loss(&omitted_ids)?],
+        [information_loss(&omitted_ids, space)?],
     )
     .map_err(hg_err)?
     .with_renderer(renderer_for(audience)?);
@@ -84,10 +85,18 @@ fn selector(report: &Value) -> AdvisoryResult<ProjectionSelector> {
         .with_min_severity(Severity::Low))
 }
 
-fn information_loss(omitted_ids: &[String]) -> AdvisoryResult<InformationLoss> {
+fn information_loss(
+    omitted_ids: &[String],
+    space: &AdvisorySpaceEnvelope,
+) -> AdvisoryResult<InformationLoss> {
     let source_ids = source_ids_from_strings(omitted_ids)?;
     let source_ids = if source_ids.is_empty() {
-        vec![Id::new("source:unknown").expect("literal id is valid")]
+        let space_source_ids = source_ids_from_space(space)?;
+        if space_source_ids.is_empty() {
+            vec![id(&space.space_id)?]
+        } else {
+            space_source_ids
+        }
     } else {
         source_ids
     };
@@ -112,6 +121,23 @@ fn source_ids_for_result(
 
 fn source_ids_from_strings(values: &[String]) -> AdvisoryResult<Vec<Id>> {
     values.iter().map(|value| id(value)).collect()
+}
+
+fn source_ids_from_space(space: &AdvisorySpaceEnvelope) -> AdvisoryResult<Vec<Id>> {
+    space
+        .cells
+        .iter()
+        .flat_map(|cell| {
+            cell.get("source_ids")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .map(id)
+        .collect()
 }
 
 fn joined_value(values: &[String]) -> String {

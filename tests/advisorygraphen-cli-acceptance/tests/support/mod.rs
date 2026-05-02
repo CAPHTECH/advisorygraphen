@@ -57,6 +57,14 @@ pub fn assert_output_contains(output: &Output, needle: &str) {
     }
 }
 
+pub fn assert_output_not_contains(output: &Output, needle: &str) {
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if stdout.contains(needle) || stderr.contains(needle) {
+        panic!("expected command output not to contain {needle:?}\nstdout:\n{stdout}\nstderr:\n{stderr}");
+    }
+}
+
 pub fn assert_output_contains_any(output: &Output, needles: &[&str]) {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);

@@ -291,6 +291,8 @@ fn case_import_reason_and_close_check_report_unresolved_obstruction() {
         "obstruction:order-service-direct-billing-db-access",
     );
     assert_output_contains(&close_check, "incidence:order-service-accesses-billing-db");
+    assert_output_contains(&close_check, "source:architecture-note");
+    assert_output_not_contains(&close_check, "source:unknown");
 
     let accept = review_billing_candidate(&store, &completions, "advance case head", REVISION_ID);
     assert_success(&accept);
