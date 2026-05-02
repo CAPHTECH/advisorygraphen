@@ -281,6 +281,12 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
     assert_output_contains(&reason, r#""review_status": "accepted""#);
     assert_output_contains(&reason, "blocker_resolution_state");
     assert_output_contains(&reason, "accepted_candidate_pending_application");
+    assert_output_contains(&reason, "application_requirements");
+    assert_output_contains(&reason, "required_cell_types");
+    assert_output_contains(&reason, "owner");
+    assert_output_contains(&reason, "required_relation_types");
+    assert_output_contains(&reason, "owns");
+    assert_output_contains(&reason, "add owner cell and owns incidence");
     assert_output_contains(
         &reason,
         "does_not_clear_obstruction_until_structure_changes",

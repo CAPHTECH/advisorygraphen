@@ -2,6 +2,11 @@ use advisorygraphen_core::AdvisoryResult;
 use serde_json::{json, Value};
 use std::{collections::BTreeMap, fs, path::Path};
 
+pub fn with_resolution(mut projection: Value, state: &[Value]) -> Value {
+    projection["blocker_resolution_state"] = json!(state);
+    projection
+}
+
 pub fn apply_candidate_reviews(
     store: &Path,
     space_id: &str,
@@ -57,6 +62,10 @@ pub fn blocker_resolution_state(blockers: &[Value], candidates: &[Value]) -> Vec
                 "resolution_status": status,
                 "candidate_ids": ids(&resolving),
                 "accepted_candidate_ids": ids(&accepted),
+                "application_requirements": application_requirements(
+                    blocker,
+                    if accepted.is_empty() { &resolving } else { &accepted },
+                ),
                 "close_effect": "does_not_clear_obstruction_until_structure_changes"
             }))
         })
@@ -87,6 +96,63 @@ fn ids(candidates: &[&Value]) -> Vec<String> {
                 .map(str::to_owned)
         })
         .collect()
+}
+
+fn application_requirements(blocker: &Value, candidates: &[&Value]) -> Vec<Value> {
+    candidates
+        .iter()
+        .filter_map(|candidate| {
+            let candidate_id = candidate.get("id").and_then(Value::as_str)?;
+            let candidate_type = candidate.get("candidate_type").and_then(Value::as_str)?;
+            let review_status = candidate.get("review_status").and_then(Value::as_str);
+            let (cells, relations, next_step) = application_contract(candidate_type);
+            Some(json!({
+                "candidate_id": candidate_id,
+                "candidate_type": candidate_type,
+                "review_status": review_status.unwrap_or("unknown"),
+                "required_cell_types": cells,
+                "required_relation_types": relations,
+                "target_blocked_ids": blocker.get("blocked_ids").cloned().unwrap_or_else(|| json!([])),
+                "next_structural_step": next_step
+            }))
+        })
+        .collect()
+}
+
+fn application_contract(
+    candidate_type: &str,
+) -> (
+    &'static [&'static str],
+    &'static [&'static str],
+    &'static str,
+) {
+    match candidate_type {
+        "ownership_clarification" => (
+            &["owner"],
+            &["owns"],
+            "add owner cell and owns incidence to the blocked action, then rerun check and case reason",
+        ),
+        "proposed_test" | "define_metric" => (
+            &["test_or_verification"],
+            &["verifies"],
+            "add verification cell and verifies incidence to the blocked requirement, then rerun check and case reason",
+        ),
+        "proposed_interface" => (
+            &["interface"],
+            &["uses", "provides"],
+            "add interface cell and boundary-safe incidences, then rerun check and case reason",
+        ),
+        "proposed_refactor_action" => (
+            &["refactor_action"],
+            &["replaces"],
+            "add refactor action cell and replacement incidence, then rerun check and case reason",
+        ),
+        _ => (
+            &["reviewed_structure"],
+            &["resolves"],
+            "add reviewed structure linked to the obstruction, then rerun check and case reason",
+        ),
+    }
 }
 
 fn review_events(store: &Path, space_id: &str) -> AdvisoryResult<BTreeMap<String, Value>> {

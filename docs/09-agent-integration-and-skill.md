@@ -55,7 +55,7 @@ CLI command: `advisorygraphen`
 10. Keep candidates unreviewed unless the user explicitly reviews them.
 ```
 
-The agent should treat `ai_agent` projection as its resume protocol. It should use `open_obstructions`, `candidate_review_state`, `review_gated_commands`, and `forbidden_operations` before deciding the next command. `candidate_review_state` is populated when the agent supplies the completion proposal report to `project`, and `case reason` derives it for the current case state while overlaying recorded review events. The human does not need to edit HG directly; the human reviews projections and explicit accept/reject/waive events.
+The agent should treat `ai_agent` projection as its resume protocol. It should use `open_obstructions`, `candidate_review_state`, `blocker_resolution_state`, `review_gated_commands`, and `forbidden_operations` before deciding the next command. `candidate_review_state` is populated when the agent supplies the completion proposal report to `project`, and `case reason` derives it for the current case state while overlaying recorded review events. When a candidate is accepted, the agent must inspect `blocker_resolution_state.application_requirements` and create the required cells/incidences before treating the blocker as resolved. The human does not need to edit HG directly; the human reviews projections and explicit accept/reject/waive events.
 
 ## Minimal skill file
 

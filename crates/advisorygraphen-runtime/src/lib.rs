@@ -16,7 +16,7 @@ mod case_review;
 mod dogfood;
 mod projection_report;
 mod review;
-use case_review::{apply_candidate_reviews, blocker_resolution_state};
+use case_review::{apply_candidate_reviews, blocker_resolution_state, with_resolution};
 pub use dogfood::{dogfood_repo_snapshot_workflow, DogfoodRepoSnapshotOptions};
 use projection_report::{attach_completion_report, read_projection_report};
 use review::higher_graphen_completion_review;
@@ -73,7 +73,6 @@ pub struct CaseImportOptions {
     pub space: PathBuf,
     pub revision_id: String,
 }
-
 #[derive(Debug, Clone)]
 pub struct CaseReasonOptions {
     pub store: PathBuf,
@@ -271,7 +270,7 @@ pub fn case_reason_workflow(options: &CaseReasonOptions) -> AdvisoryResult<Value
             "frontier_items": [],
             "waiting_items": []
         },
-        "projection": build_projection(&space, &agent_report, "ai_agent")?,
+        "projection": with_resolution(build_projection(&space, &agent_report, "ai_agent")?, &resolution_state),
         "warnings": []
     }))
 }
