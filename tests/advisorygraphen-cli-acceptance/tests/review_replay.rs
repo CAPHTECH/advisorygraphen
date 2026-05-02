@@ -100,4 +100,44 @@ fn rejected_candidate_survives_case_replay() {
     assert_output_contains(&reason, OWNER_CANDIDATE);
     assert_output_contains(&reason, r#""review_status": "rejected""#);
     assert_output_contains(&reason, "all_candidates_rejected");
+
+    let accept = run_cli([
+        "completions",
+        "accept",
+        "--store",
+        path_str(&store),
+        "--candidate-id",
+        OWNER_CANDIDATE,
+        "--from-report",
+        path_str(&completions),
+        "--reviewer",
+        "reviewer:dogfood-agent",
+        "--reason",
+        "Accept owner candidate after rejection.",
+        "--base-revision",
+        "revision:review-000001",
+        "--format",
+        "json",
+    ]);
+    assert_success(&accept);
+    assert_output_contains(&accept, "\"outcome_review_status\": \"accepted\"");
+    let space_head = store
+        .join("spaces")
+        .join(SPACE_ID.replace([':', '/'], "-"))
+        .join("HEAD");
+    assert_file_contains(&space_head, "revision:review-000002");
+
+    let reason_after_accept = run_cli([
+        "case",
+        "reason",
+        "--store",
+        path_str(&store),
+        "--space-id",
+        SPACE_ID,
+        "--format",
+        "json",
+    ]);
+    assert_success(&reason_after_accept);
+    assert_output_contains(&reason_after_accept, r#""review_status": "accepted""#);
+    assert_output_contains(&reason_after_accept, "accepted_candidate_pending_application");
 }
