@@ -157,14 +157,15 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
         }
     });
     validate_document(&event, Some(REVIEW_EVENT_SCHEMA))?;
-    let target_revision = format!("revision:review-{}", Utc::now().timestamp());
+    let sequence = next_sequence(&options.store);
+    let target_revision = format!("revision:review-{sequence:06}");
     append_store_event(
         &options.store,
         &json!({
             "schema": "advisorygraphen.case.log.entry.v1",
             "case_space_id": space_id.as_deref().unwrap_or("space:unknown"),
-            "sequence": next_sequence(&options.store),
-            "entry_id": format!("log:{:06}", next_sequence(&options.store)),
+            "sequence": sequence,
+            "entry_id": format!("log:{sequence:06}"),
             "morphism_id": format!("morphism:{}-{}", options.outcome, options.candidate_id.trim_start_matches("candidate:")),
             "source_revision_id": head,
             "target_revision_id": target_revision.clone(),
@@ -187,7 +188,6 @@ pub fn project_workflow(options: &ProjectOptions) -> AdvisoryResult<String> {
     write_string_if_requested(&options.output, &rendered)?;
     Ok(rendered)
 }
-
 pub fn case_import_workflow(options: &CaseImportOptions) -> AdvisoryResult<Value> {
     let space = read_space(&options.space)?;
     let dir = space_dir(&options.store, &space.space_id);

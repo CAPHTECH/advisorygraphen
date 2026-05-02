@@ -313,7 +313,7 @@ fn case_import_reason_and_close_check_report_unresolved_obstruction() {
         .join("spaces")
         .join(SPACE_ID.replace([':', '/'], "-"))
         .join("HEAD");
-    assert_file_contains(&space_head, "revision:review-");
+    assert_file_contains(&space_head, "revision:review-000001");
 
     let stale_second_accept = review_billing_candidate(&store, &completions, "same base should now be stale", REVISION_ID);
     assert_failure_code(&stale_second_accept, 5);
