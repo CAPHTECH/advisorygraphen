@@ -258,6 +258,9 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
     assert_success(&reason);
     assert_output_contains_any(&reason, &[r#""closeable": false"#, r#""closeable":false"#]);
     assert_output_contains(&reason, r#""blocking_threshold": "medium""#);
+    assert_output_contains(&reason, "candidate_review_state");
+    assert_output_contains(&reason, flow.expected_candidate_text);
+    assert_output_contains(&reason, "projection:ai-agent");
     for obstruction_id in flow.expected_obstructions {
         assert_output_contains(&reason, obstruction_id);
     }

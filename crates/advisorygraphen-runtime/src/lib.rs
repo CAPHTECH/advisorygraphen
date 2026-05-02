@@ -16,7 +16,7 @@ mod dogfood;
 mod projection_report;
 mod review;
 pub use dogfood::{dogfood_repo_snapshot_workflow, DogfoodRepoSnapshotOptions};
-use projection_report::read_projection_report;
+use projection_report::{attach_completion_report, read_projection_report};
 use review::higher_graphen_completion_review;
 
 #[derive(Debug, Clone)]
@@ -240,9 +240,20 @@ pub fn case_import_workflow(options: &CaseImportOptions) -> AdvisoryResult<Value
 pub fn case_reason_workflow(options: &CaseReasonOptions) -> AdvisoryResult<Value> {
     let space = read_materialized_space(&options.store, &options.space_id)?;
     let check = check_space(&space, "technical_advisory_mvp", None, None)?;
+    let completions = propose_completions(&space, &check, "case_reason", None)?;
+    let agent_report = attach_completion_report(
+        serde_json::to_value(&check)?,
+        serde_json::to_value(&completions)?,
+    )?;
     let blockers = check
         .result
         .get("obstructions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let candidates = completions
+        .result
+        .get("completion_candidates")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
@@ -255,11 +266,12 @@ pub fn case_reason_workflow(options: &CaseReasonOptions) -> AdvisoryResult<Value
         "result": {
             "space_id": options.space_id,
             "blockers": blockers,
+            "candidate_review_state": candidates,
             "close_status": close_status(&space, &check),
             "frontier_items": [],
             "waiting_items": []
         },
-        "projection": {},
+        "projection": build_projection(&space, &agent_report, "ai_agent")?,
         "warnings": []
     }))
 }
