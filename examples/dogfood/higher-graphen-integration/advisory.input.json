@@ -212,6 +212,106 @@
       }
     },
     {
+      "id": "record:advisorygraphen-maintainers",
+      "record_type": "owner",
+      "title": "AdvisoryGraphen maintainers",
+      "summary": "Maintainers own post-MVP runtime adoption review and keep the current runtime facade decision explicit.",
+      "source_ids": [
+        "source:source-alignment",
+        "source:testing-acceptance"
+      ],
+      "context_hints": [
+        "advisorygraphen",
+        "runtime"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "owner_type": "team"
+      }
+    },
+    {
+      "id": "record:runtime-adoption-review-plan",
+      "record_type": "test_or_verification",
+      "title": "Post-MVP runtime adoption review plan",
+      "summary": "The source-alignment review and testing acceptance strategy define the verification path before replacing AdvisoryGraphen runtime orchestration with higher-graphen-runtime.",
+      "source_ids": [
+        "source:source-alignment",
+        "source:testing-acceptance"
+      ],
+      "context_hints": [
+        "higher-graphen",
+        "runtime"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "verification_type": "decision_review"
+      }
+    },
+    {
+      "id": "record:maintainers-own-runtime-adoption-action",
+      "record_type": "ownership_relation",
+      "title": "Maintainers own runtime adoption action",
+      "summary": "AdvisoryGraphen maintainers own the post-MVP higher-graphen-runtime adoption evaluation.",
+      "source_ids": [
+        "source:source-alignment",
+        "source:testing-acceptance"
+      ],
+      "context_hints": [
+        "advisorygraphen",
+        "runtime"
+      ],
+      "relation": {
+        "relation_type": "owns",
+        "from_record_id": "record:advisorygraphen-maintainers",
+        "to_record_id": "record:runtime-adoption-action"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:runtime-adoption-review-verifies-requirement",
+      "record_type": "verification_relation",
+      "title": "Runtime adoption review verifies decision requirement",
+      "summary": "The post-MVP runtime adoption review plan verifies the runtime adoption decision requirement.",
+      "source_ids": [
+        "source:source-alignment",
+        "source:testing-acceptance"
+      ],
+      "context_hints": [
+        "higher-graphen",
+        "runtime"
+      ],
+      "relation": {
+        "relation_type": "verifies",
+        "from_record_id": "record:runtime-adoption-review-plan",
+        "to_record_id": "record:runtime-adoption-requirement"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
       "id": "record:hg-boundary-requirement-verified-by-cli-acceptance",
       "record_type": "verification_relation",
       "title": "CLI acceptance verifies HG boundary outputs",

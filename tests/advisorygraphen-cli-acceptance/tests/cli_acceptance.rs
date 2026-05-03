@@ -86,8 +86,8 @@ fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
 
     check_space(&space, &check);
     assert_file_contains(&check, "higher_graphen");
-    assert_file_contains(&check, "obstruction:runtime-adoption-action-missing-owner");
-    assert_file_contains(
+    assert_file_not_contains(&check, "obstruction:runtime-adoption-action-missing-owner");
+    assert_file_not_contains(
         &check,
         "obstruction:runtime-adoption-requirement-missing-verification",
     );
@@ -109,8 +109,8 @@ fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
         "json",
     ]);
     assert_success(&reason);
-    assert_output_contains(&reason, "obstruction:runtime-adoption-action-missing-owner");
-    assert_output_contains_any(&reason, &[r#""closeable": false"#, r#""closeable":false"#]);
+    assert_output_not_contains(&reason, "obstruction:runtime-adoption-action-missing-owner");
+    assert_output_contains_any(&reason, &[r#""closeable": true"#, r#""closeable":true"#]);
     assert_output_contains(&reason, r#""blocking_threshold": "medium""#);
 
     let project = run_cli([
@@ -128,7 +128,7 @@ fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
     ]);
     assert_success(&project);
     assert_file_contains(&audit, "projection:higher:audit_trace");
-    assert_file_contains(&audit, "Evaluate higher-graphen-runtime adoption");
+    assert_file_contains(&audit, r#""obstructions": []"#);
     assert_file_contains(
         &audit,
         "Git history, issue tracker, pull request comments, CI run history, and the HigherGraphen workspace source body were not ingested.",
@@ -148,9 +148,8 @@ fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
         path_str(&executive),
     ]);
     assert_success(&executive_project);
-    assert_file_contains(&executive, "Closeable: `false`");
-    assert_file_contains(&executive, "## Medium-severity obstructions");
-    assert_file_contains(&executive, "Evaluate higher-graphen-runtime adoption");
+    assert_file_contains(&executive, "Closeable: `true`");
+    assert_file_contains(&executive, "medium: 0");
     assert_file_contains(&executive, "Included sources: 9");
 }
 
