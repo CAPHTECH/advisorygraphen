@@ -16,11 +16,13 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 mod case_review;
+mod code_snapshot;
 mod dogfood;
 mod options;
 mod projection_report;
 mod review;
 use case_review::apply_candidate_reviews;
+pub use code_snapshot::{code_repo_snapshot_workflow, CodeRepoSnapshotOptions};
 pub use dogfood::{dogfood_repo_snapshot_workflow, DogfoodRepoSnapshotOptions};
 pub use options::{
     CaseCloseCheckOptions, CaseImportOptions, CaseReasonOptions, CheckOptions,

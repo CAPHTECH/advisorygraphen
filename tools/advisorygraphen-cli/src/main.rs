@@ -2,10 +2,11 @@ use advisorygraphen_core::{AdvisoryError, Severity, TOOL_VERSION};
 use advisorygraphen_projection::OutputFormat;
 use advisorygraphen_runtime::{
     case_close_check_workflow, case_import_workflow, case_reason_workflow, check_workflow,
-    completions_propose_workflow, dogfood_repo_snapshot_workflow, lift_workflow, project_workflow,
-    review_workflow, validate_workflow, CaseCloseCheckOptions, CaseImportOptions,
-    CaseReasonOptions, CheckOptions, CompletionProposeOptions, DogfoodRepoSnapshotOptions,
-    LiftOptions, ProjectOptions, ReviewOptions, ValidateOptions,
+    code_repo_snapshot_workflow, completions_propose_workflow, dogfood_repo_snapshot_workflow,
+    lift_workflow, project_workflow, review_workflow, validate_workflow, CaseCloseCheckOptions,
+    CaseImportOptions, CaseReasonOptions, CheckOptions, CodeRepoSnapshotOptions,
+    CompletionProposeOptions, DogfoodRepoSnapshotOptions, LiftOptions, ProjectOptions,
+    ReviewOptions, ValidateOptions,
 };
 use clap::{Args, Parser, Subcommand};
 use serde::Serialize;
@@ -37,6 +38,10 @@ enum Command {
         #[command(subcommand)]
         command: DogfoodCommand,
     },
+    Code {
+        #[command(subcommand)]
+        command: CodeCommand,
+    },
     Case {
         #[command(subcommand)]
         command: CaseCommand,
@@ -60,6 +65,11 @@ enum CaseCommand {
 #[derive(Debug, Subcommand)]
 enum DogfoodCommand {
     RepoSnapshot(DogfoodRepoSnapshotArgs),
+}
+
+#[derive(Debug, Subcommand)]
+enum CodeCommand {
+    RepoSnapshot(CodeRepoSnapshotArgs),
 }
 
 #[derive(Debug, Args)]
@@ -146,6 +156,16 @@ struct ProjectArgs {
 
 #[derive(Debug, Args)]
 struct DogfoodRepoSnapshotArgs {
+    #[arg(long, default_value = ".")]
+    repo: PathBuf,
+    #[arg(long)]
+    output: Option<PathBuf>,
+    #[arg(long, default_value = "json")]
+    format: String,
+}
+
+#[derive(Debug, Args)]
+struct CodeRepoSnapshotArgs {
     #[arg(long, default_value = ".")]
     repo: PathBuf,
     #[arg(long)]
@@ -267,6 +287,15 @@ fn run() -> Result<(), AdvisoryError> {
                         output: args.output,
                     },
                 )?)
+            }
+        },
+        Command::Code { command } => match command {
+            CodeCommand::RepoSnapshot(args) => {
+                require_json_format(&args.format)?;
+                print_json(&code_repo_snapshot_workflow(&CodeRepoSnapshotOptions {
+                    repo: args.repo,
+                    output: args.output,
+                })?)
             }
         },
         Command::Case { command } => match command {

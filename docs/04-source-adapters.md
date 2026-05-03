@@ -25,6 +25,7 @@ pub trait SourceAdapter {
 | `architecture_json` | system/component/DB relation JSON | components, data stores, access relations |
 | `interview_excerpt` | interview summary JSON | claims, evidence, unknowns |
 | `issue_summary` | issue/PR summary JSON | actions, decisions, risks, evidence |
+| `code_repo_snapshot` | local TypeScript/JavaScript/Next.js repository | API route components, database access relations, env requirements, tests, coverage summary |
 
 ## Non-MVP adapters
 
@@ -33,7 +34,7 @@ pub trait SourceAdapter {
 - Slack adapter
 - Google Drive adapter
 - Notion adapter
-- Code parser
+- Deeper AST code parser
 - OpenAPI parser
 - Database schema parser
 - Metrics/log adapter
@@ -84,6 +85,7 @@ AI-generated or heuristic-created records start as `unreviewed`.
 - Full transcript omitted; only summary retained.
 - Source document contains ambiguous ownership; adapter selected no owner.
 - Code parser ignored dynamic runtime dependencies.
+- `code_repo_snapshot` used lexical detection and did not resolve TypeScript types.
 - PR summary omitted line-level diff.
 - Customer-sensitive names redacted.
 

@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::Path;
 
 mod support;
@@ -27,6 +28,89 @@ fn validate_accepts_direct_db_access_fixture() {
     let output = run_cli(["validate", "--input", FIXTURE, "--format", "json"]);
     assert_success(&output);
     assert_output_contains(&output, "advisorygraphen");
+}
+
+#[test]
+fn code_repo_snapshot_extracts_nextjs_route_signals() {
+    let dir = clean_case_dir("code-repo-snapshot");
+    let repo = dir.join("repo");
+    let route_dir = repo.join("src/app/api/upload");
+    let test_dir = repo.join("__tests__");
+    fs::create_dir_all(&route_dir).unwrap();
+    fs::create_dir_all(&test_dir).unwrap();
+    fs::write(
+        repo.join("package.json"),
+        r#"{"scripts":{"test":"vitest"},"dependencies":{"next":"latest"}}"#,
+    )
+    .unwrap();
+    fs::write(
+        route_dir.join("route.ts"),
+        r#"
+export async function POST(req: Request) {
+  const user = await auth();
+  await prisma.upload.create({ data: { ownerId: user.id } });
+  return Response.json({ bucket: process.env.S3_BUCKET });
+}
+"#,
+    )
+    .unwrap();
+    fs::write(
+        test_dir.join("upload.test.ts"),
+        "it('uploads', async () => expect(true).toBe(true));",
+    )
+    .unwrap();
+
+    let snapshot = dir.join("code.snapshot.json");
+    let space = dir.join("code.space.json");
+    let check = dir.join("code.check.json");
+    let output = run_cli([
+        "code",
+        "repo-snapshot",
+        "--repo",
+        path_str(&repo),
+        "--output",
+        path_str(&snapshot),
+        "--format",
+        "json",
+    ]);
+    assert_success(&output);
+    assert_file_contains(&snapshot, "code_repo_snapshot:0.1.0");
+    assert_file_contains(&snapshot, "record:api-route-src-app-api-upload-route-ts-");
+    assert_file_contains(&snapshot, r#""auth_detected": true"#);
+    assert_file_contains(&snapshot, r#""db_access_detected": true"#);
+    assert_file_contains(&snapshot, "record:env-s3-bucket-src-app-api-upload-route-ts-");
+    assert_file_contains(&snapshot, r#""api_route_files": 1"#);
+    assert_file_contains(&snapshot, r#""test_files": 1"#);
+
+    let validate = run_cli([
+        "validate",
+        "--input",
+        path_str(&snapshot),
+        "--format",
+        "json",
+    ]);
+    assert_success(&validate);
+
+    let lift = run_cli([
+        "lift",
+        "--input",
+        path_str(&snapshot),
+        "--package",
+        PACKAGE_NAME,
+        "--output",
+        path_str(&space),
+        "--format",
+        "json",
+    ]);
+    assert_success(&lift);
+    assert_file_contains(&space, "cell:api-route-src-app-api-upload-route-ts-");
+    assert_file_contains(&space, "accesses-application-database");
+
+    check_space(&space, &check);
+    assert_file_contains(
+        &check,
+        "s3-bucket-src-app-api-upload-route-ts",
+    );
 }
 
 #[test]

@@ -170,6 +170,26 @@ The generated snapshot can be passed through `lift`, `check`, and `project`.
 It is intentionally bounded: git history, issue tracker state, PR comments, and
 the full HigherGraphen workspace source body are outside this ingestion path.
 
+### `code repo-snapshot`
+
+Generate a bounded code-derived engagement snapshot from a local repository.
+The initial adapter targets deterministic TypeScript/JavaScript/Next.js signals:
+`package.json`, `tsconfig.json`, `app/api/**/route.*`,
+`src/app/api/**/route.*`, test/spec files, lexical database access, and
+`process.env.*` usage.
+
+```sh
+advisorygraphen code repo-snapshot \
+  --repo . \
+  --output advisorygraphen-code.input.json \
+  --format json
+```
+
+The generated snapshot includes `metadata.coverage_summary` with parsed files,
+skipped files, unsupported extensions, route/test/db/env counts, and the
+confidence model. The adapter is intentionally lexical and path-based; it does
+not resolve TypeScript types or runtime control flow.
+
 ### `case import`
 
 Import an advisory space into an append-only case store.
