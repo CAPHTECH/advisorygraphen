@@ -36,6 +36,7 @@ fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
     let space = dir.join("advisory.space.json");
     let check = dir.join("advisory.check.report.json");
     let audit = dir.join("audit-trace.json");
+    let executive = dir.join("executive-review.md");
     let store = dir.join("store");
 
     let validate = run_cli(["validate", "--input", DOGFOOD_FIXTURE, "--format", "json"]);
@@ -54,6 +55,8 @@ fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
     assert_success(&generate);
     assert_file_contains(&generated, "repo_snapshot:0.1.0");
     assert_file_contains(&generated, "source:workspace-manifest");
+    assert_file_contains(&generated, "source:cli-contract");
+    assert_file_contains(&generated, "source:reviewable-completions-adr");
 
     let validate_generated = run_cli([
         "validate",
@@ -128,8 +131,27 @@ fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
     assert_file_contains(&audit, "Evaluate higher-graphen-runtime adoption");
     assert_file_contains(
         &audit,
-        "Git history, issue tracker, pull request comments, and the HigherGraphen workspace source body were not ingested.",
+        "Git history, issue tracker, pull request comments, CI run history, and the HigherGraphen workspace source body were not ingested.",
     );
+
+    let executive_project = run_cli([
+        "project",
+        "--space",
+        path_str(&space),
+        "--report",
+        path_str(&check),
+        "--audience",
+        "executive",
+        "--format",
+        "markdown",
+        "--output",
+        path_str(&executive),
+    ]);
+    assert_success(&executive_project);
+    assert_file_contains(&executive, "Closeable: `false`");
+    assert_file_contains(&executive, "## Medium-severity obstructions");
+    assert_file_contains(&executive, "Evaluate higher-graphen-runtime adoption");
+    assert_file_contains(&executive, "Included sources: 9");
 }
 
 #[test]

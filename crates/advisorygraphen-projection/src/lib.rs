@@ -60,6 +60,9 @@ fn executive_projection(
     let obstructions = obstructions(report);
     let represented_ids = represented_ids(report);
     let omitted_ids = source_ids(space);
+    let high_severity_obstructions = obstructions_by_severity(&obstructions, "high");
+    let medium_severity_obstructions = obstructions_by_severity(&obstructions, "medium");
+    let close_status = close_status_value(space, report);
     let higher_graphen = higher::projection_result_json(
         space,
         report,
@@ -75,9 +78,15 @@ fn executive_projection(
         "represented_ids": represented_ids,
         "omitted_ids": omitted_ids,
         "summary": {
-            "high_severity_obstructions": obstructions.iter().filter(|item| item["severity"] == "high").cloned().collect::<Vec<_>>(),
+            "closeable": close_status["closeable"].clone(),
+            "blocking_threshold": close_status["blocking_threshold"].clone(),
+            "blocking_obstruction_ids": close_status["blocking_obstruction_ids"].clone(),
+            "obstruction_counts": obstruction_counts(&obstructions),
+            "high_severity_obstructions": high_severity_obstructions,
+            "medium_severity_obstructions": medium_severity_obstructions,
             "unreviewed_candidates_are_not_accepted": true
         },
+        "source_boundary": space.metadata.get("source_boundary").cloned().unwrap_or_else(|| json!({})),
         "projection_loss": projection_loss(space),
         "higher_graphen": higher_graphen
     }))
@@ -212,7 +221,7 @@ fn ai_agent_projection(
             "run_case_close_check_before_closure",
             "generate_audit_projection"
         ],
-        "close_status": close_status(space, &serde_json::from_value(report.clone()).unwrap_or_else(|_| advisorygraphen_core::ReportEnvelope::new("check", None, json!({}), json!({})))),
+        "close_status": close_status_value(space, report),
         "projection_loss": projection_loss(space),
         "higher_graphen": higher_graphen
     }))
@@ -235,6 +244,31 @@ fn render_markdown(audience: &str, projection: &Value) -> AdvisoryResult<String>
         .pointer("/summary/high_severity_obstructions")
         .and_then(Value::as_array)
     {
+        if let Some(closeable) = projection
+            .pointer("/summary/closeable")
+            .and_then(Value::as_bool)
+        {
+            lines.push("## Close status".to_string());
+            lines.push(format!("- Closeable: `{closeable}`"));
+            if let Some(blocking_ids) = projection
+                .pointer("/summary/blocking_obstruction_ids")
+                .and_then(Value::as_array)
+            {
+                lines.push(format!("- Blocking obstructions: {}", blocking_ids.len()));
+            }
+            lines.push(String::new());
+        }
+        if let Some(counts) = projection
+            .pointer("/summary/obstruction_counts")
+            .and_then(Value::as_object)
+        {
+            lines.push("## Obstruction summary".to_string());
+            for severity in ["high", "medium", "low", "unknown"] {
+                let count = counts.get(severity).and_then(Value::as_u64).unwrap_or(0);
+                lines.push(format!("- {severity}: {count}"));
+            }
+            lines.push(String::new());
+        }
         lines.push("## High-severity obstructions".to_string());
         if obstructions.is_empty() {
             lines.push("- None".to_string());
@@ -244,6 +278,42 @@ fn render_markdown(audience: &str, projection: &Value) -> AdvisoryResult<String>
                     "- `{}`: {}",
                     obstruction["id"].as_str().unwrap_or("unknown"),
                     obstruction["message"].as_str().unwrap_or("No message.")
+                ));
+            }
+        }
+        lines.push(String::new());
+    }
+    if let Some(obstructions) = projection
+        .pointer("/summary/medium_severity_obstructions")
+        .and_then(Value::as_array)
+    {
+        lines.push("## Medium-severity obstructions".to_string());
+        if obstructions.is_empty() {
+            lines.push("- None".to_string());
+        } else {
+            for obstruction in obstructions {
+                lines.push(format!(
+                    "- `{}`: {}",
+                    obstruction["id"].as_str().unwrap_or("unknown"),
+                    obstruction["message"].as_str().unwrap_or("No message.")
+                ));
+            }
+        }
+        lines.push(String::new());
+    }
+    if let Some(boundary) = projection.get("source_boundary") {
+        lines.push("## Source boundary".to_string());
+        if let Some(included) = boundary
+            .get("included_source_ids")
+            .and_then(Value::as_array)
+        {
+            lines.push(format!("- Included sources: {}", included.len()));
+        }
+        if let Some(excluded) = boundary.get("excluded_summary").and_then(Value::as_array) {
+            for item in excluded {
+                lines.push(format!(
+                    "- Excluded: {}",
+                    item.as_str().unwrap_or("unknown")
                 ));
             }
         }
@@ -316,4 +386,44 @@ fn completion_candidates(report: &Value) -> Vec<Value> {
             .unwrap_or_default(),
     );
     candidates
+}
+
+fn obstructions_by_severity(obstructions: &[Value], severity: &str) -> Vec<Value> {
+    obstructions
+        .iter()
+        .filter(|item| item["severity"] == severity)
+        .cloned()
+        .collect()
+}
+
+fn obstruction_counts(obstructions: &[Value]) -> Value {
+    let mut high = 0_u64;
+    let mut medium = 0_u64;
+    let mut low = 0_u64;
+    let mut unknown = 0_u64;
+    for obstruction in obstructions {
+        match obstruction
+            .get("severity")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown")
+        {
+            "high" => high += 1,
+            "medium" => medium += 1,
+            "low" => low += 1,
+            _ => unknown += 1,
+        }
+    }
+    json!({
+        "high": high,
+        "medium": medium,
+        "low": low,
+        "unknown": unknown
+    })
+}
+
+fn close_status_value(space: &AdvisorySpaceEnvelope, report: &Value) -> Value {
+    let envelope = serde_json::from_value(report.clone()).unwrap_or_else(|_| {
+        advisorygraphen_core::ReportEnvelope::new("check", None, json!({}), json!({}))
+    });
+    close_status(space, &envelope)
 }
