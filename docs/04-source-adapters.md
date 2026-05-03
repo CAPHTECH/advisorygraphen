@@ -86,6 +86,8 @@ AI-generated or heuristic-created records start as `unreviewed`.
 - Source document contains ambiguous ownership; adapter selected no owner.
 - Code parser ignored dynamic runtime dependencies.
 - `code_repo_snapshot` used lexical detection and did not resolve TypeScript types.
+- `code_repo_snapshot` detected route-level auth tokens lexically and may miss
+  shared middleware or project-specific wrappers.
 - PR summary omitted line-level diff.
 - Customer-sensitive names redacted.
 

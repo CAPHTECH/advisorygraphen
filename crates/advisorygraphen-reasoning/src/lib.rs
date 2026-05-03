@@ -18,6 +18,8 @@ pub const BOUNDARY_INVARIANT: &str =
 pub const EVIDENCE_INVARIANT: &str = "invariant:recommendation_requires_evidence";
 pub const OWNER_INVARIANT: &str = "invariant:action_requires_owner";
 pub const REQUIREMENT_VERIFICATION_INVARIANT: &str = "invariant:requirement_requires_verification";
+pub const API_ROUTE_AUTH_INVARIANT: &str =
+    "invariant:api_route_database_access_requires_auth_guard";
 
 pub fn check_space(
     space: &AdvisorySpaceEnvelope,
@@ -49,6 +51,7 @@ pub fn check_space(
         &mut invariant_results,
         &mut obstructions,
     )?;
+    evaluate_api_route_auth(space, &mut invariant_results, &mut obstructions)?;
 
     invariant_results = sorted_values_by_id(invariant_results);
     obstructions = sorted_values_by_id(obstructions);
@@ -120,7 +123,7 @@ fn evaluate_recommendation_evidence(
             metadata: json!({
                 "rule_precision": "review_status_and_supporting_evidence",
                 "evidence_strength": "cell_source_ids",
-                "specificity": "source_backed_when_source_ids_present"
+                "specificity": "source_derived"
             }),
         })?;
         invariant_results.push(finding.invariant_result);
@@ -293,7 +296,7 @@ fn evaluate_action_owners(
             metadata: json!({
                 "rule_precision": "action_cell_without_incoming_owns_relation",
                 "evidence_strength": "cell_source_ids",
-                "specificity": "generic_unless_action_metadata_names_owner"
+                "specificity": "generic"
             }),
         })?;
         invariant_results.push(finding.invariant_result);
@@ -346,6 +349,85 @@ fn evaluate_required_verification(
                 "rule_precision": "requirement_marked_verification_required_without_verifies_or_implements_relation",
                 "evidence_strength": "cell_source_ids",
                 "specificity": "requirement_derived"
+            }),
+        })?;
+        invariant_results.push(finding.invariant_result);
+        obstructions.push(finding.obstruction);
+    }
+    Ok(())
+}
+
+fn evaluate_api_route_auth(
+    space: &AdvisorySpaceEnvelope,
+    invariant_results: &mut Vec<Value>,
+    obstructions: &mut Vec<Value>,
+) -> AdvisoryResult<()> {
+    for route in space.cells.iter().filter(|cell| {
+        cell["cell_type"] == "component"
+            && cell
+                .pointer("/metadata/component_type")
+                .and_then(Value::as_str)
+                == Some("api_endpoint")
+    }) {
+        if route
+            .pointer("/metadata/db_access_detected")
+            .and_then(Value::as_bool)
+            != Some(true)
+            || route
+                .pointer("/metadata/auth_detected")
+                .and_then(Value::as_bool)
+                == Some(true)
+            || route
+                .pointer("/metadata/public_endpoint")
+                .and_then(Value::as_bool)
+                == Some(true)
+            || route
+                .pointer("/metadata/anonymous_allowed")
+                .and_then(Value::as_bool)
+                == Some(true)
+        {
+            continue;
+        }
+        let obstruction_id = format!(
+            "obstruction:{}-missing-auth-guard",
+            json_id(route).trim_start_matches("cell:")
+        );
+        let route_path = route
+            .pointer("/metadata/route_path")
+            .and_then(Value::as_str)
+            .unwrap_or_else(|| title(route));
+        let finding = violation_finding(FindingInput {
+            space_id: &space.space_id,
+            invariant_id: API_ROUTE_AUTH_INVARIANT,
+            obstruction_id: &obstruction_id,
+            obstruction_type: "api_route_missing_auth",
+            severity: "high",
+            message: format!(
+                "{} touches the database without a detected authentication guard.",
+                title(route)
+            ),
+            witness_ids: vec![json_id(route).to_string()],
+            blocked_ids: vec![route["id"].clone()],
+            evidence_ids: route
+                .get("source_ids")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
+            recommended_completion_types: vec![
+                "proposed_auth_guard",
+                "route_security_review",
+                "source_backed_evidence",
+            ],
+            resolution: "add an authentication guard, explicitly mark the endpoint public, or attach reviewed evidence explaining the exception",
+            metadata: json!({
+                "rule_precision": "api_endpoint_with_db_access_without_detected_auth_guard",
+                "evidence_strength": "code_source_ids",
+                "specificity": "code_derived",
+                "precision_note": "Derived from lexical code snapshot metadata; review is required for dynamic auth wrappers or route-level public exceptions.",
+                "route_path": route_path,
+                "http_methods": route.pointer("/metadata/http_methods").cloned().unwrap_or_else(|| json!([])),
+                "db_access_detected": true,
+                "auth_detected": false
             }),
         })?;
         invariant_results.push(finding.invariant_result);

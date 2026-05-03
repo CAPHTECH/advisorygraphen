@@ -31,6 +31,9 @@ pub fn propose_completions(
             Some("requirement_unverified") => {
                 candidates.push(verification_completion_candidate(space, &obstruction)?)
             }
+            Some("api_route_missing_auth") => {
+                candidates.push(auth_guard_completion_candidate(space, &obstruction)?)
+            }
             _ => {}
         }
     }
@@ -202,6 +205,49 @@ fn verification_completion_candidate(
             "specificity": "requirement_derived",
             "evidence_strength": "obstruction_message",
             "precision_note": "Identifies the verification gap but does not infer a concrete test implementation."
+        }),
+    })
+}
+
+fn auth_guard_completion_candidate(
+    space: &AdvisorySpaceEnvelope,
+    obstruction: &Value,
+) -> AdvisoryResult<Value> {
+    let route_path = obstruction
+        .pointer("/metadata/route_path")
+        .and_then(Value::as_str)
+        .unwrap_or("API route");
+    let source_ids = completion_source_ids(space, obstruction);
+    let evidence_strength = if source_ids.is_empty() {
+        "rule_derived_without_source_ids"
+    } else {
+        "source_backed_obstruction"
+    };
+    completion_candidate(CandidateSpec {
+        space,
+        id: format!(
+            "candidate:{}-auth-guard",
+            json_id(obstruction).trim_start_matches("obstruction:")
+        ),
+        candidate_type: "proposed_auth_guard",
+        title: format!("Add authentication guard to {route_path}"),
+        rationale: obstruction
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or("Database-touching API route requires authentication.")
+            .to_string(),
+        resolves_obstruction_ids: vec![json_id(obstruction).to_string()],
+        proposed_cell_ids: Vec::new(),
+        source_ids,
+        confidence: 0.72,
+        missing_type: MissingType::Cell,
+        suggested_structure_type: "auth_guard_cell",
+        metadata: json!({
+            "specificity": "code_derived",
+            "evidence_strength": evidence_strength,
+            "precision_note": "Derived from code snapshot route metadata. The candidate must be reviewed because lexical detection can miss shared middleware or dynamic auth wrappers.",
+            "route_path": route_path,
+            "http_methods": obstruction.pointer("/metadata/http_methods").cloned().unwrap_or_else(|| json!([]))
         }),
     })
 }

@@ -167,9 +167,18 @@ Boundary obstruction IDs are derived from the witness cells, for example
 }
 ```
 
-Completion candidates must disclose whether they are source-derived,
-requirement-derived, or generic. Generic candidates are review prompts, not
-specific implementation recommendations.
+Completion candidates must disclose whether they are `source_derived`,
+`requirement_derived`, `code_derived`, or `generic`. Obstructions use the same
+`metadata.specificity` enum so that downstream summaries can bucket findings
+consistently. Generic candidates are review prompts, not specific
+implementation recommendations. Code-derived findings come from lexical code
+snapshots and trigger a `lexical_detection_caveat` entry in
+`projection_loss` to disclose that shared middleware, dynamic wrappers, and
+framework conventions can require review.
+
+Obstruction confidence is not a numeric field. Obstructions describe whether a
+rule fired; uncertainty is carried by `metadata.specificity`, `precision_note`,
+and `evidence_strength`. Numeric `confidence` is a candidate-only attribute.
 
 ## Report envelope
 

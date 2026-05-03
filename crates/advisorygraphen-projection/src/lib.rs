@@ -89,7 +89,7 @@ fn executive_projection(
             "candidate_quality": candidate_quality
         },
         "source_boundary": space.metadata.get("source_boundary").cloned().unwrap_or_else(|| json!({})),
-        "projection_loss": projection_loss(space),
+        "projection_loss": projection_loss(space, report),
         "higher_graphen": higher_graphen
     }))
 }
@@ -116,7 +116,7 @@ fn developer_projection(
         "represented_ids": represented_ids,
         "omitted_ids": omitted_ids,
         "actions": completion_candidates(report),
-        "projection_loss": projection_loss(space),
+        "projection_loss": projection_loss(space, report),
         "higher_graphen": higher_graphen
     }))
 }
@@ -144,7 +144,7 @@ fn audit_projection(
         "omitted_ids": omitted_ids,
         "source_boundary": space.metadata.get("source_boundary").cloned().unwrap_or_else(|| json!({})),
         "report": report,
-        "projection_loss": projection_loss(space),
+        "projection_loss": projection_loss(space, report),
         "higher_graphen": higher_graphen
     }))
 }
@@ -226,7 +226,7 @@ fn ai_agent_projection(
             "generate_audit_projection"
         ],
         "close_status": close_status_value(space, report),
-        "projection_loss": projection_loss(space),
+        "projection_loss": projection_loss(space, report),
         "higher_graphen": higher_graphen
     }))
 }
@@ -278,6 +278,14 @@ fn render_markdown(audience: &str, projection: &Value) -> AdvisoryResult<String>
             lines.push(format!(
                 "- Source-derived: {}",
                 quality["source_derived"].as_u64().unwrap_or(0)
+            ));
+            lines.push(format!(
+                "- Requirement-derived: {}",
+                quality["requirement_derived"].as_u64().unwrap_or(0)
+            ));
+            lines.push(format!(
+                "- Code-derived: {}",
+                quality["code_derived"].as_u64().unwrap_or(0)
             ));
             lines.push(format!(
                 "- Generic: {}",
@@ -375,13 +383,32 @@ fn source_ids(space: &AdvisorySpaceEnvelope) -> Vec<String> {
     ids
 }
 
-fn projection_loss(space: &AdvisorySpaceEnvelope) -> Vec<Value> {
-    vec![json!({
+fn projection_loss(space: &AdvisorySpaceEnvelope, report: &Value) -> Vec<Value> {
+    let mut entries = vec![json!({
         "loss_type": "omitted_source_text",
         "description": "Source material is represented by structured records and summarized for this projection.",
         "omitted_ids": source_ids(space),
         "severity": "low"
-    })]
+    })];
+    let code_derived_obstruction_ids: Vec<Value> = obstructions(report)
+        .into_iter()
+        .filter(|obstruction| {
+            obstruction
+                .pointer("/metadata/specificity")
+                .and_then(Value::as_str)
+                == Some("code_derived")
+        })
+        .filter_map(|obstruction| obstruction.get("id").cloned())
+        .collect();
+    if !code_derived_obstruction_ids.is_empty() {
+        entries.push(json!({
+            "loss_type": "lexical_detection_caveat",
+            "description": "Code-derived findings are produced by lexical analysis and may miss shared middleware, dynamic wrappers, or framework-specific conventions; review is required before treating them as accepted fact.",
+            "omitted_ids": code_derived_obstruction_ids,
+            "severity": "medium"
+        }));
+    }
+    entries
 }
 
 fn obstructions(report: &Value) -> Vec<Value> {
@@ -444,6 +471,7 @@ fn obstruction_counts(obstructions: &[Value]) -> Value {
 fn candidate_quality_summary(candidates: &[Value]) -> Value {
     let mut source_derived = 0_u64;
     let mut requirement_derived = 0_u64;
+    let mut code_derived = 0_u64;
     let mut generic = 0_u64;
     let mut missing_precision_metadata = 0_u64;
     let mut source_backed = 0_u64;
@@ -455,6 +483,7 @@ fn candidate_quality_summary(candidates: &[Value]) -> Value {
         {
             "source_derived" => source_derived += 1,
             "requirement_derived" => requirement_derived += 1,
+            "code_derived" => code_derived += 1,
             "generic" => generic += 1,
             _ => missing_precision_metadata += 1,
         }
@@ -473,6 +502,7 @@ fn candidate_quality_summary(candidates: &[Value]) -> Value {
         "total": candidates.len(),
         "source_derived": source_derived,
         "requirement_derived": requirement_derived,
+        "code_derived": code_derived,
         "generic": generic,
         "source_backed": source_backed,
         "missing_precision_metadata": missing_precision_metadata

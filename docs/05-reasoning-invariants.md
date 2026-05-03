@@ -85,6 +85,27 @@ Violation creates:
   fallback `decision:approve-current-architecture` blocked ID is only used when
   the source incidence does not provide explicit `metadata.blocked_ids`.
 
+### `api_route_database_access_requires_auth_guard`
+
+A code-derived API route component that touches the database must have a
+detected authentication guard, unless the route is explicitly marked public or
+anonymous by reviewed metadata.
+
+Violation creates:
+
+- `obstruction_type = api_route_missing_auth`
+- severity: `high`
+- recommended completion: `proposed_auth_guard`, `route_security_review`, or
+  `source_backed_evidence`
+- obstruction IDs are derived from the API route cell, and evidence IDs come
+  from the code source IDs attached by `code_repo_snapshot`.
+
+This invariant uses lexical route metadata (`component_type = api_endpoint`,
+`db_access_detected`, `auth_detected`, `route_path`, `http_methods`). It is
+therefore precise enough to block unreviewed recommendations, but projections
+must disclose that shared middleware, dynamic wrappers, and framework-specific
+auth conventions can require review.
+
 ### `projection_loss_declared`
 
 Every projection must declare omitted source IDs, compressed structures, hidden internal policy, and summarized evidence when applicable.

@@ -190,6 +190,11 @@ skipped files, unsupported extensions, route/test/db/env counts, and the
 confidence model. The adapter is intentionally lexical and path-based; it does
 not resolve TypeScript types or runtime control flow.
 
+After lift, `advisorygraphen check` uses these code-derived route signals for
+security-oriented design review. A database-touching API route with
+`auth_detected = false` emits `api_route_missing_auth` unless reviewed metadata
+explicitly marks the endpoint public or anonymous.
+
 ### `case import`
 
 Import an advisory space into an append-only case store.

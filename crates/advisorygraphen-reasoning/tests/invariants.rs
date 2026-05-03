@@ -105,6 +105,60 @@ fn boundary_completion_candidates_are_derived_from_witness_cells() {
 }
 
 #[test]
+fn database_touching_api_route_without_auth_emits_obstruction_and_completion() {
+    let route = api_route_cell(
+        "cell:api-route-src-app-api-public-data-route-ts-abc123",
+        "/api/public-data",
+        true,
+        false,
+        false,
+    );
+    let space = base_space(vec![route], vec![]);
+
+    let check_report = check_space(&space, "technical_advisory_mvp", None, None).unwrap();
+    let completion_report =
+        propose_completions(&space, &check_report, "check-report.json", None).unwrap();
+    let obstructions = check_report.result["obstructions"].as_array().unwrap();
+    let candidates = completion_report.result["completion_candidates"]
+        .as_array()
+        .unwrap();
+
+    assert!(obstructions.iter().any(|item| {
+        item["obstruction_type"] == "api_route_missing_auth"
+            && item["severity"] == "high"
+            && item["metadata"]["specificity"] == "code_derived"
+            && item["metadata"]["route_path"] == "/api/public-data"
+            && item["evidence_ids"] == json!(["source:route"])
+            && item["metadata"].get("confidence").is_none()
+    }));
+    assert!(candidates.iter().any(|item| {
+        item["candidate_type"] == "proposed_auth_guard"
+            && item["metadata"]["specificity"] == "code_derived"
+            && item["source_ids"] == json!(["source:route"])
+    }));
+}
+
+#[test]
+fn explicitly_public_database_route_does_not_emit_auth_obstruction() {
+    let route = api_route_cell(
+        "cell:api-route-src-app-api-public-feed-route-ts-abc123",
+        "/api/public-feed",
+        true,
+        false,
+        true,
+    );
+    let space = base_space(vec![route], vec![]);
+
+    let report = check_space(&space, "technical_advisory_mvp", None, None).unwrap();
+
+    assert!(!report.result["obstructions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item["obstruction_type"] == "api_route_missing_auth"));
+}
+
+#[test]
 fn blocker_resolution_excludes_rejected_candidates_from_application_requirements() {
     let blockers = vec![json!({
         "id": "obstruction:missing-owner",
@@ -256,6 +310,33 @@ fn component_cell(id: &str, title: &str, context_id: &str) -> Value {
         "structure_refs": [],
         "provenance": provenance("source_backed", "accepted"),
         "metadata": {}
+    })
+}
+
+fn api_route_cell(
+    id: &str,
+    route_path: &str,
+    db_access_detected: bool,
+    auth_detected: bool,
+    public_endpoint: bool,
+) -> Value {
+    json!({
+        "id": id,
+        "cell_type": "component",
+        "title": format!("API route {route_path}"),
+        "summary": null,
+        "context_ids": ["context:application"],
+        "source_ids": ["source:route"],
+        "structure_refs": [],
+        "provenance": provenance("source_backed", "accepted"),
+        "metadata": {
+            "component_type": "api_endpoint",
+            "route_path": route_path,
+            "http_methods": ["GET"],
+            "db_access_detected": db_access_detected,
+            "auth_detected": auth_detected,
+            "public_endpoint": public_endpoint
+        }
     })
 }
 

@@ -35,8 +35,10 @@ fn code_repo_snapshot_extracts_nextjs_route_signals() {
     let dir = clean_case_dir("code-repo-snapshot");
     let repo = dir.join("repo");
     let route_dir = repo.join("src/app/api/upload");
+    let public_route_dir = repo.join("src/app/api/public-data");
     let test_dir = repo.join("__tests__");
     fs::create_dir_all(&route_dir).unwrap();
+    fs::create_dir_all(&public_route_dir).unwrap();
     fs::create_dir_all(&test_dir).unwrap();
     fs::write(
         repo.join("package.json"),
@@ -50,6 +52,16 @@ export async function POST(req: Request) {
   const user = await auth();
   await prisma.upload.create({ data: { ownerId: user.id } });
   return Response.json({ bucket: process.env.S3_BUCKET });
+}
+"#,
+    )
+    .unwrap();
+    fs::write(
+        public_route_dir.join("route.ts"),
+        r#"
+export async function GET() {
+  const rows = await prisma.publicData.findMany();
+  return Response.json(rows);
 }
 "#,
     )
@@ -78,8 +90,9 @@ export async function POST(req: Request) {
     assert_file_contains(&snapshot, "record:api-route-src-app-api-upload-route-ts-");
     assert_file_contains(&snapshot, r#""auth_detected": true"#);
     assert_file_contains(&snapshot, r#""db_access_detected": true"#);
+    assert_file_contains(&snapshot, r#""auth_detected": false"#);
     assert_file_contains(&snapshot, "record:env-s3-bucket-src-app-api-upload-route-ts-");
-    assert_file_contains(&snapshot, r#""api_route_files": 1"#);
+    assert_file_contains(&snapshot, r#""api_route_files": 2"#);
     assert_file_contains(&snapshot, r#""test_files": 1"#);
 
     let validate = run_cli([
@@ -111,6 +124,32 @@ export async function POST(req: Request) {
         &check,
         "s3-bucket-src-app-api-upload-route-ts",
     );
+    assert_file_contains(&check, "api_route_missing_auth");
+    assert_file_contains(&check, "public-data");
+
+    let completions = dir.join("code.completions.json");
+    let exec = dir.join("code.executive.json");
+    propose_completions(&space, &check, &completions);
+    assert_file_contains(&completions, r#""specificity": "code_derived""#);
+    let project = run_cli([
+        "project",
+        "--space",
+        path_str(&space),
+        "--report",
+        path_str(&check),
+        "--completions-report",
+        path_str(&completions),
+        "--audience",
+        "executive",
+        "--format",
+        "json",
+        "--output",
+        path_str(&exec),
+    ]);
+    assert_success(&project);
+    assert_file_contains(&exec, r#""code_derived": 1"#);
+    assert_file_contains(&exec, r#""missing_precision_metadata": 0"#);
+    assert_file_contains(&exec, "lexical_detection_caveat");
 }
 
 #[test]
