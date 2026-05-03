@@ -56,6 +56,8 @@ Must include:
 - high-severity obstructions
 - top completion candidates
 - evidence confidence and review status summary
+- candidate quality summary (`source_derived`, `requirement_derived`,
+  `generic`, `source_backed`, and missing precision metadata counts)
 - items not safe to decide yet
 - projection loss
 
@@ -123,6 +125,8 @@ Must include:
 - missing evidence
 - frontier work
 - hard blockers
+- candidate quality metadata so agents can distinguish specific source-derived
+  proposals from generic review prompts
 - policy requirements
 - IDs required for follow-up commands
 

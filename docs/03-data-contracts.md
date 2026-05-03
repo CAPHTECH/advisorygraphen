@@ -131,9 +131,20 @@ Required top-level shape:
   "evidence_ids": ["cell:evidence-architecture-note-1"],
   "recommended_completion_types": ["proposed_interface", "proposed_refactor_action"],
   "review_status": "unreviewed",
-  "message": "Order Service directly reads Billing DB across ownership boundary."
+  "message": "Order Service directly reads Billing DB across ownership boundary.",
+  "metadata": {
+    "rule_precision": "cross_context_accesses_data_store_with_direct_database_read",
+    "specificity": "source_derived",
+    "from_cell_id": "cell:order-service",
+    "to_cell_id": "cell:billing-db"
+  }
 }
 ```
+
+Boundary obstruction IDs are derived from the witness cells, for example
+`obstruction:{from}-direct-{to}-access`. Input metadata may supply
+`blocked_ids`; otherwise the compatibility default is
+`decision:approve-current-architecture`.
 
 ## Completion candidate contract
 
@@ -148,9 +159,17 @@ Required top-level shape:
   "source_ids": ["source:architecture-note"],
   "confidence": 0.82,
   "review_status": "unreviewed",
-  "metadata": {}
+  "metadata": {
+    "specificity": "source_derived",
+    "evidence_strength": "source_backed_obstruction",
+    "precision_note": "Derived from boundary violation witness cells and obstruction evidence_ids."
+  }
 }
 ```
+
+Completion candidates must disclose whether they are source-derived,
+requirement-derived, or generic. Generic candidates are review prompts, not
+specific implementation recommendations.
 
 ## Report envelope
 

@@ -63,6 +63,7 @@ fn executive_projection(
     let high_severity_obstructions = obstructions_by_severity(&obstructions, "high");
     let medium_severity_obstructions = obstructions_by_severity(&obstructions, "medium");
     let close_status = close_status_value(space, report);
+    let candidate_quality = candidate_quality_summary(&completion_candidates(report));
     let higher_graphen = higher::projection_result_json(
         space,
         report,
@@ -84,7 +85,8 @@ fn executive_projection(
             "obstruction_counts": obstruction_counts(&obstructions),
             "high_severity_obstructions": high_severity_obstructions,
             "medium_severity_obstructions": medium_severity_obstructions,
-            "unreviewed_candidates_are_not_accepted": true
+            "unreviewed_candidates_are_not_accepted": true,
+            "candidate_quality": candidate_quality
         },
         "source_boundary": space.metadata.get("source_boundary").cloned().unwrap_or_else(|| json!({})),
         "projection_loss": projection_loss(space),
@@ -157,6 +159,7 @@ fn ai_agent_projection(
     let open_obstructions = obstructions(report);
     let candidates = completion_candidates(report);
     let resolution_state = blocker_resolution_state(&open_obstructions, &candidates);
+    let candidate_quality = candidate_quality_summary(&candidates);
     let higher_graphen = higher::projection_result_json(
         space,
         report,
@@ -211,6 +214,7 @@ fn ai_agent_projection(
         },
         "open_obstructions": open_obstructions,
         "candidate_review_state": candidates,
+        "candidate_quality": candidate_quality,
         "blocker_resolution_state": resolution_state,
         "frontier_items": frontier_items(&resolution_state),
         "waiting_items": waiting_items(&resolution_state),
@@ -267,6 +271,22 @@ fn render_markdown(audience: &str, projection: &Value) -> AdvisoryResult<String>
                 let count = counts.get(severity).and_then(Value::as_u64).unwrap_or(0);
                 lines.push(format!("- {severity}: {count}"));
             }
+            lines.push(String::new());
+        }
+        if let Some(quality) = projection.pointer("/summary/candidate_quality") {
+            lines.push("## Candidate quality".to_string());
+            lines.push(format!(
+                "- Source-derived: {}",
+                quality["source_derived"].as_u64().unwrap_or(0)
+            ));
+            lines.push(format!(
+                "- Generic: {}",
+                quality["generic"].as_u64().unwrap_or(0)
+            ));
+            lines.push(format!(
+                "- Missing precision metadata: {}",
+                quality["missing_precision_metadata"].as_u64().unwrap_or(0)
+            ));
             lines.push(String::new());
         }
         lines.push("## High-severity obstructions".to_string());
@@ -418,6 +438,44 @@ fn obstruction_counts(obstructions: &[Value]) -> Value {
         "medium": medium,
         "low": low,
         "unknown": unknown
+    })
+}
+
+fn candidate_quality_summary(candidates: &[Value]) -> Value {
+    let mut source_derived = 0_u64;
+    let mut requirement_derived = 0_u64;
+    let mut generic = 0_u64;
+    let mut missing_precision_metadata = 0_u64;
+    let mut source_backed = 0_u64;
+    for candidate in candidates {
+        match candidate
+            .pointer("/metadata/specificity")
+            .and_then(Value::as_str)
+            .unwrap_or("missing")
+        {
+            "source_derived" => source_derived += 1,
+            "requirement_derived" => requirement_derived += 1,
+            "generic" => generic += 1,
+            _ => missing_precision_metadata += 1,
+        }
+        if candidate
+            .get("source_ids")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .next()
+            .is_some()
+        {
+            source_backed += 1;
+        }
+    }
+    json!({
+        "total": candidates.len(),
+        "source_derived": source_derived,
+        "requirement_derived": requirement_derived,
+        "generic": generic,
+        "source_backed": source_backed,
+        "missing_precision_metadata": missing_precision_metadata
     })
 }
 

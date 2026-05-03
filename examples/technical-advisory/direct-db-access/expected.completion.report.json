@@ -38,7 +38,13 @@
           }
         },
         "id": "candidate:billing-status-api",
-        "metadata": {},
+        "metadata": {
+          "evidence_strength": "source_backed_obstruction",
+          "from_cell_id": "cell:order-service",
+          "precision_note": "Derived from boundary violation witness cells and obstruction evidence_ids.",
+          "specificity": "source_derived",
+          "to_cell_id": "cell:billing-db"
+        },
         "proposed_cell_ids": [
           "cell:billing-status-api"
         ],
@@ -68,17 +74,23 @@
           "suggested_structure": {
             "related_ids": [
               "obstruction:order-service-direct-billing-db-access",
-              "cell:action-replace-direct-db-read"
+              "cell:action-replace-order-service-direct-db-read"
             ],
-            "structure_id": "cell:action-replace-direct-db-read",
+            "structure_id": "cell:action-replace-order-service-direct-db-read",
             "structure_type": "refactor_action_cell",
             "summary": "Replace Order Service direct DB read with Billing API call"
           }
         },
         "id": "candidate:replace-order-service-db-read",
-        "metadata": {},
+        "metadata": {
+          "evidence_strength": "source_backed_obstruction",
+          "from_cell_id": "cell:order-service",
+          "precision_note": "Derived from boundary violation witness cells and obstruction evidence_ids.",
+          "specificity": "source_derived",
+          "to_cell_id": "cell:billing-db"
+        },
         "proposed_cell_ids": [
-          "cell:action-replace-direct-db-read"
+          "cell:action-replace-order-service-direct-db-read"
         ],
         "rationale": "Order Service should depend on Billing Service interface instead of Billing DB ownership boundary.",
         "resolves_obstruction_ids": [
@@ -126,9 +138,9 @@
           "suggested_structure": {
             "related_ids": [
               "obstruction:order-service-direct-billing-db-access",
-              "cell:action-replace-direct-db-read"
+              "cell:action-replace-order-service-direct-db-read"
             ],
-            "structure_id": "cell:action-replace-direct-db-read",
+            "structure_id": "cell:action-replace-order-service-direct-db-read",
             "structure_type": "refactor_action_cell",
             "summary": "Replace Order Service direct DB read with Billing API call"
           }

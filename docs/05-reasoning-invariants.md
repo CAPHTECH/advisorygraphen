@@ -80,6 +80,10 @@ Violation creates:
 
 - `obstruction_type = boundary_violation`
 - recommended completion: `proposed_interface`, `proposed_refactor_action`, or `exception_review`
+- obstruction IDs and completion candidates are derived from the violating
+  `from` cell, `to` data store, incidence evidence, and source IDs. The
+  fallback `decision:approve-current-architecture` blocked ID is only used when
+  the source incidence does not provide explicit `metadata.blocked_ids`.
 
 ### `projection_loss_declared`
 

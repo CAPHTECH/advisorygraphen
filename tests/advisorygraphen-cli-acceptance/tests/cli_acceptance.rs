@@ -189,6 +189,9 @@ fn direct_fixture_lift_check_completions_and_executive_projection() {
 
     propose_completions(&space, &check, &completions);
     assert_file_contains(&completions, "candidate:billing-status-api");
+    assert_file_contains(&completions, r#""specificity": "source_derived""#);
+    assert_file_contains(&completions, r#""precision_note""#);
+    assert_file_contains(&completions, "source:architecture-note");
     assert_file_contains(&completions, "unreviewed");
     assert_file_contains(&completions, "higher_graphen");
     assert_file_contains(&completions, "\"missing_type\": \"cell\"");
@@ -223,6 +226,8 @@ fn direct_fixture_lift_check_completions_and_executive_projection() {
         path_str(&space),
         "--report",
         path_str(&check),
+        "--completions-report",
+        path_str(&completions),
         "--audience",
         "executive",
         "--format",
@@ -232,6 +237,8 @@ fn direct_fixture_lift_check_completions_and_executive_projection() {
     ]);
     assert_success(&output);
     assert_file_contains(&executive, "Billing DB");
+    assert_file_contains(&executive, "Candidate quality");
+    assert_file_contains(&executive, "Source-derived: 2");
     assert_file_contains(&executive, "boundary");
     assert_file_contains(&executive, "projection");
 
@@ -241,6 +248,8 @@ fn direct_fixture_lift_check_completions_and_executive_projection() {
         path_str(&space),
         "--report",
         path_str(&check),
+        "--completions-report",
+        path_str(&completions),
         "--audience",
         "executive",
         "--format",
@@ -249,6 +258,9 @@ fn direct_fixture_lift_check_completions_and_executive_projection() {
         path_str(&executive_json),
     ]);
     assert_success(&output);
+    assert_file_contains(&executive_json, "candidate_quality");
+    assert_file_contains(&executive_json, r#""source_derived": 2"#);
+    assert_file_contains(&executive_json, r#""source_backed": 2"#);
     assert_file_contains(&executive_json, "higher_graphen");
     assert_file_contains(&executive_json, "projection:higher:executive");
 }

@@ -1,6 +1,6 @@
 use advisorygraphen_core::AdvisorySpaceEnvelope;
 use advisorygraphen_reasoning::{
-    blocker_resolution_state, check_space, frontier_items, waiting_items,
+    blocker_resolution_state, check_space, frontier_items, propose_completions, waiting_items,
 };
 use serde_json::{json, Value};
 
@@ -51,6 +51,57 @@ fn accepted_inferred_action_emits_insufficient_evidence() {
     let report = check_space(&space, "technical_advisory_mvp", None, None).unwrap();
 
     assert_obstruction(&report.result, "insufficient_evidence");
+}
+
+#[test]
+fn boundary_completion_candidates_are_derived_from_witness_cells() {
+    let mut space = base_space(
+        vec![
+            component_cell(
+                "cell:inventory-service",
+                "Inventory Service",
+                "context:inventory",
+            ),
+            data_store_cell("cell:pricing-db", "Pricing DB", "context:pricing"),
+        ],
+        vec![json!({
+            "id": "incidence:inventory-service-accesses-pricing-db",
+            "relation_type": "accesses",
+            "from_id": "cell:inventory-service",
+            "to_id": "cell:pricing-db",
+            "source_ids": ["source:pricing-note"],
+            "evidence_ids": ["source:pricing-note"],
+            "provenance": provenance("source_backed", "accepted"),
+            "metadata": { "access_type": "direct_database_read" }
+        })],
+    );
+    space.contexts = vec![
+        context("context:inventory", "Inventory"),
+        context("context:pricing", "Pricing"),
+    ];
+
+    let check_report = check_space(&space, "technical_advisory_mvp", None, None).unwrap();
+    let completion_report =
+        propose_completions(&space, &check_report, "check-report.json", None).unwrap();
+    let candidates = completion_report.result["completion_candidates"]
+        .as_array()
+        .unwrap();
+
+    assert!(check_report.result["obstructions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item["id"] == "obstruction:inventory-service-direct-pricing-db-access"));
+    assert!(candidates
+        .iter()
+        .any(|item| item["id"] == "candidate:pricing-status-api"));
+    assert!(candidates.iter().any(|item| {
+        item["metadata"]["specificity"] == "source_derived"
+            && item["source_ids"] == json!(["source:pricing-note"])
+    }));
+    assert!(!candidates
+        .iter()
+        .any(|item| item["id"] == "candidate:billing-status-api"));
 }
 
 #[test]
@@ -189,6 +240,44 @@ fn action_cell(id: &str) -> Value {
         "context_ids": [],
         "source_ids": ["source:test"],
         "structure_refs": [],
+        "provenance": provenance("source_backed", "accepted"),
+        "metadata": {}
+    })
+}
+
+fn component_cell(id: &str, title: &str, context_id: &str) -> Value {
+    json!({
+        "id": id,
+        "cell_type": "component",
+        "title": title,
+        "summary": null,
+        "context_ids": [context_id],
+        "source_ids": ["source:test"],
+        "structure_refs": [],
+        "provenance": provenance("source_backed", "accepted"),
+        "metadata": {}
+    })
+}
+
+fn data_store_cell(id: &str, title: &str, context_id: &str) -> Value {
+    json!({
+        "id": id,
+        "cell_type": "data_store",
+        "title": title,
+        "summary": null,
+        "context_ids": [context_id],
+        "source_ids": ["source:test"],
+        "structure_refs": [],
+        "provenance": provenance("source_backed", "accepted"),
+        "metadata": {}
+    })
+}
+
+fn context(id: &str, title: &str) -> Value {
+    json!({
+        "id": id,
+        "context_type": "bounded_context",
+        "title": title,
         "provenance": provenance("source_backed", "accepted"),
         "metadata": {}
     })

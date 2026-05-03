@@ -3,89 +3,63 @@
   "report_type": "check",
   "report_version": 1,
   "tool": {
+    "command": "advisorygraphen check --space advisory.space.json --ruleset technical_advisory_mvp --output expected.check.report.json --format json",
+    "git_revision": null,
     "name": "advisorygraphen",
-    "version": "0.1.0",
-    "command": "advisorygraphen check --space advisory.space.json --ruleset technical_advisory_mvp --format json",
-    "git_revision": null
+    "version": "0.1.0"
   },
   "input": {
-    "space_id": "space:advisory:technical-advisory-direct-db-access",
-    "ruleset": "technical_advisory_mvp"
+    "ruleset": "technical_advisory_mvp",
+    "space_id": "space:advisory:technical-advisory-direct-db-access"
   },
   "result": {
     "higher_graphen": {
-      "engine": "higher-graphen",
-      "space_id": "space:advisory:technical-advisory-direct-db-access",
-      "materialized": true,
       "cell_count": 7,
+      "context_count": 2,
+      "engine": "higher-graphen",
       "incidence_count": 2,
-      "context_count": 2
+      "materialized": true,
+      "space_id": "space:advisory:technical-advisory-direct-db-access"
     },
     "invariant_results": [
       {
+        "higher_graphen": {
+          "status": "violated",
+          "target_id": "invariant:architecture_no_cross_context_direct_database_access",
+          "target_kind": "invariant",
+          "violation": {
+            "location_cell_ids": [
+              "cell:order-service",
+              "cell:billing-db"
+            ],
+            "message": "Order Service directly reads Billing DB across ownership boundary.",
+            "severity": "high"
+          }
+        },
         "id": "invariant:architecture_no_cross_context_direct_database_access",
         "invariant_id": "invariant:architecture_no_cross_context_direct_database_access",
-        "status": "violated",
+        "message": "Order Service directly reads Billing DB across ownership boundary.",
+        "obstruction_ids": [
+          "obstruction:order-service-direct-billing-db-access"
+        ],
         "severity": "high",
+        "status": "violated",
         "witness_ids": [
           "cell:order-service",
           "cell:billing-db",
           "incidence:order-service-accesses-billing-db"
-        ],
-        "obstruction_ids": [
-          "obstruction:order-service-direct-billing-db-access"
-        ],
-        "message": "Order Service directly reads Billing DB across ownership boundary.",
-        "higher_graphen": {
-          "target_kind": "invariant",
-          "target_id": "invariant:architecture_no_cross_context_direct_database_access",
-          "status": "violated",
-          "violation": {
-            "message": "Order Service directly reads Billing DB across ownership boundary.",
-            "severity": "high",
-            "location_cell_ids": [
-              "cell:order-service",
-              "cell:billing-db"
-            ]
-          }
-        }
+        ]
       }
     ],
     "obstructions": [
       {
-        "id": "obstruction:order-service-direct-billing-db-access",
-        "obstruction_type": "boundary_violation",
-        "severity": "high",
         "blocked_ids": [
           "decision:approve-current-architecture"
-        ],
-        "witness_ids": [
-          "cell:order-service",
-          "cell:billing-db",
-          "incidence:order-service-accesses-billing-db"
         ],
         "evidence_ids": [
           "cell:evidence-architecture-note"
         ],
-        "recommended_completion_types": [
-          "proposed_interface",
-          "proposed_refactor_action"
-        ],
-        "review_status": "unreviewed",
-        "message": "Order Service directly reads Billing DB across ownership boundary.",
         "higher_graphen": {
-          "id": "obstruction:order-service-direct-billing-db-access",
-          "space_id": "space:advisory:technical-advisory-direct-db-access",
-          "obstruction_type": "custom:boundary_violation",
-          "location_cell_ids": [
-            "cell:order-service",
-            "cell:billing-db"
-          ],
-          "location_context_ids": [],
-          "related_morphisms": [],
-          "explanation": {
-            "summary": "Order Service directly reads Billing DB across ownership boundary."
-          },
           "counterexample": {
             "description": "Order Service directly reads Billing DB across ownership boundary.",
             "path_cell_ids": [
@@ -93,7 +67,24 @@
               "cell:billing-db"
             ]
           },
-          "severity": "high",
+          "explanation": {
+            "summary": "Order Service directly reads Billing DB across ownership boundary."
+          },
+          "id": "obstruction:order-service-direct-billing-db-access",
+          "location_cell_ids": [
+            "cell:order-service",
+            "cell:billing-db"
+          ],
+          "location_context_ids": [],
+          "obstruction_type": "custom:boundary_violation",
+          "provenance": {
+            "confidence": 1.0,
+            "review_status": "unreviewed",
+            "source": {
+              "kind": "code"
+            }
+          },
+          "related_morphisms": [],
           "required_resolution": {
             "summary": "replace cross-context direct database access with an explicit interface",
             "target_cell_ids": [
@@ -103,14 +94,37 @@
             "target_context_ids": [],
             "target_morphism_ids": []
           },
-          "provenance": {
-            "source": {
-              "kind": "code"
-            },
-            "confidence": 1.0,
-            "review_status": "unreviewed"
-          }
-        }
+          "severity": "high",
+          "space_id": "space:advisory:technical-advisory-direct-db-access"
+        },
+        "id": "obstruction:order-service-direct-billing-db-access",
+        "message": "Order Service directly reads Billing DB across ownership boundary.",
+        "metadata": {
+          "evidence_strength": "source_backed_incidence_when_evidence_ids_present",
+          "from_cell_id": "cell:order-service",
+          "from_context_ids": [
+            "context:orders"
+          ],
+          "incidence_id": "incidence:order-service-accesses-billing-db",
+          "rule_precision": "cross_context_accesses_data_store_with_direct_database_read",
+          "specificity": "source_derived",
+          "to_cell_id": "cell:billing-db",
+          "to_context_ids": [
+            "context:billing"
+          ]
+        },
+        "obstruction_type": "boundary_violation",
+        "recommended_completion_types": [
+          "proposed_interface",
+          "proposed_refactor_action"
+        ],
+        "review_status": "unreviewed",
+        "severity": "high",
+        "witness_ids": [
+          "cell:order-service",
+          "cell:billing-db",
+          "incidence:order-service-accesses-billing-db"
+        ]
       }
     ]
   },

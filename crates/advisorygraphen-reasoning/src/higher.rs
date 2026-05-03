@@ -29,6 +29,7 @@ pub struct FindingInput<'a> {
     pub evidence_ids: Vec<Value>,
     pub recommended_completion_types: Vec<&'a str>,
     pub resolution: &'a str,
+    pub metadata: Value,
 }
 
 pub fn violation_finding(input: FindingInput<'_>) -> AdvisoryResult<AdvisoryFinding> {
@@ -162,6 +163,7 @@ fn advisory_obstruction(
         "recommended_completion_types": input.recommended_completion_types.clone(),
         "review_status": "unreviewed",
         "message": obstruction.explanation.summary,
+        "metadata": input.metadata.clone(),
         "higher_graphen": serde_json::to_value(obstruction)?
     }))
 }

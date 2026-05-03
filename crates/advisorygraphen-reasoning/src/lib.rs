@@ -117,6 +117,11 @@ fn evaluate_recommendation_evidence(
                 .unwrap_or_default(),
             recommended_completion_types: vec!["review_promote_evidence", "source_backed_evidence"],
             resolution: "attach source-backed or review-promoted evidence",
+            metadata: json!({
+                "rule_precision": "review_status_and_supporting_evidence",
+                "evidence_strength": "cell_source_ids",
+                "specificity": "source_backed_when_source_ids_present"
+            }),
         })?;
         invariant_results.push(finding.invariant_result);
         obstructions.push(finding.obstruction);
@@ -190,7 +195,6 @@ fn evaluate_boundary(
         if !is_cross_context(&from_contexts, &to_contexts) {
             continue;
         }
-        let obstruction_id = "obstruction:order-service-direct-billing-db-access";
         let Some(from_advisory) = find_cell(space, Some(higher_incidence.from_cell_id.as_str()))
         else {
             continue;
@@ -198,10 +202,23 @@ fn evaluate_boundary(
         let Some(to_advisory) = find_cell(space, Some(higher_incidence.to_cell_id.as_str())) else {
             continue;
         };
+        let obstruction_id = boundary_obstruction_id(
+            json_id(from_advisory),
+            json_id(to_advisory),
+            incidence
+                .pointer("/metadata/access_type")
+                .and_then(Value::as_str)
+                .unwrap_or("access"),
+        );
+        let blocked_ids = incidence
+            .pointer("/metadata/blocked_ids")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_else(|| vec![json!("decision:approve-current-architecture")]);
         let finding = violation_finding(FindingInput {
             space_id: &space.space_id,
             invariant_id: BOUNDARY_INVARIANT,
-            obstruction_id,
+            obstruction_id: &obstruction_id,
             obstruction_type: "boundary_violation",
             severity: "high",
             message: format!(
@@ -214,7 +231,7 @@ fn evaluate_boundary(
                 json_id(to_advisory).to_string(),
                 json_id(incidence).to_string(),
             ],
-            blocked_ids: vec![json!("decision:approve-current-architecture")],
+            blocked_ids,
             evidence_ids: incidence
                 .get("evidence_ids")
                 .and_then(Value::as_array)
@@ -222,6 +239,16 @@ fn evaluate_boundary(
                 .unwrap_or_default(),
             recommended_completion_types: vec!["proposed_interface", "proposed_refactor_action"],
             resolution: "replace cross-context direct database access with an explicit interface",
+            metadata: json!({
+                "rule_precision": "cross_context_accesses_data_store_with_direct_database_read",
+                "evidence_strength": "source_backed_incidence_when_evidence_ids_present",
+                "specificity": "source_derived",
+                "from_cell_id": json_id(from_advisory),
+                "to_cell_id": json_id(to_advisory),
+                "incidence_id": json_id(incidence),
+                "from_context_ids": from_contexts,
+                "to_context_ids": to_contexts
+            }),
         })?;
         invariant_results.push(finding.invariant_result);
         obstructions.push(finding.obstruction);
@@ -263,6 +290,11 @@ fn evaluate_action_owners(
                 .unwrap_or_default(),
             recommended_completion_types: vec!["ownership_clarification"],
             resolution: "clarify the action owner",
+            metadata: json!({
+                "rule_precision": "action_cell_without_incoming_owns_relation",
+                "evidence_strength": "cell_source_ids",
+                "specificity": "generic_unless_action_metadata_names_owner"
+            }),
         })?;
         invariant_results.push(finding.invariant_result);
         obstructions.push(finding.obstruction);
@@ -310,6 +342,11 @@ fn evaluate_required_verification(
                 "requirement_review",
             ],
             resolution: "define a test, metric, or review path for the requirement",
+            metadata: json!({
+                "rule_precision": "requirement_marked_verification_required_without_verifies_or_implements_relation",
+                "evidence_strength": "cell_source_ids",
+                "specificity": "requirement_derived"
+            }),
         })?;
         invariant_results.push(finding.invariant_result);
         obstructions.push(finding.obstruction);
@@ -326,11 +363,38 @@ fn is_cross_context(left: &[&str], right: &[&str]) -> bool {
     !left.is_empty() && !right.is_empty() && left.iter().all(|id| !right.contains(id))
 }
 
+fn boundary_obstruction_id(from_id: &str, to_id: &str, access_type: &str) -> String {
+    let access = match access_type {
+        "direct_database_read" => "direct".to_string(),
+        other => id_suffix(other),
+    };
+    format!(
+        "obstruction:{}-{access}-{}-access",
+        id_suffix(from_id),
+        id_suffix(to_id)
+    )
+}
+
 fn title(value: &Value) -> &str {
     value
         .get("title")
         .and_then(Value::as_str)
         .unwrap_or_else(|| json_id(value))
+}
+
+fn id_suffix(id: &str) -> String {
+    id.rsplit_once(':')
+        .map(|(_, suffix)| suffix)
+        .unwrap_or(id)
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || character == '-' {
+                character
+            } else {
+                '-'
+            }
+        })
+        .collect()
 }
 
 fn has_incoming_owner(higher_space: &HigherGraphenAdvisorySpace, action_id: &str) -> bool {
