@@ -399,14 +399,8 @@ fn evaluate_api_route_auth(
                 .pointer("/metadata/auth_detected")
                 .and_then(Value::as_bool)
                 == Some(true)
-            || route
-                .pointer("/metadata/public_endpoint")
-                .and_then(Value::as_bool)
-                == Some(true)
-            || route
-                .pointer("/metadata/anonymous_allowed")
-                .and_then(Value::as_bool)
-                == Some(true)
+            || trusted_route_exception(route, "/metadata/public_endpoint")
+            || trusted_route_exception(route, "/metadata/anonymous_allowed")
         {
             continue;
         }
@@ -456,6 +450,15 @@ fn evaluate_api_route_auth(
         obstructions.push(finding.obstruction);
     }
     Ok(())
+}
+
+fn trusted_route_exception(route: &Value, pointer: &str) -> bool {
+    route.pointer(pointer).and_then(Value::as_bool) == Some(true)
+        && route
+            .pointer("/provenance/review_status")
+            .and_then(Value::as_str)
+            == Some("accepted")
+        && route.pointer("/provenance/origin").and_then(Value::as_str) != Some("inferred")
 }
 
 fn find_cell<'a>(space: &'a AdvisorySpaceEnvelope, id: Option<&str>) -> Option<&'a Value> {

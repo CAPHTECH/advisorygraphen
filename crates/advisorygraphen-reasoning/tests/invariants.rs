@@ -159,6 +159,27 @@ fn explicitly_public_database_route_does_not_emit_auth_obstruction() {
 }
 
 #[test]
+fn inferred_public_database_route_still_requires_reviewed_resolution() {
+    let mut route = api_route_cell(
+        "cell:api-route-src-app-api-public-feed-route-ts-abc123",
+        "/api/public-feed",
+        true,
+        false,
+        true,
+    );
+    route["provenance"] = provenance("inferred", "unreviewed");
+    let space = base_space(vec![route], vec![]);
+
+    let report = check_space(&space, "technical_advisory_mvp", None, None).unwrap();
+
+    assert!(report.result["obstructions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item["obstruction_type"] == "api_route_missing_auth"));
+}
+
+#[test]
 fn directed_dependency_cycle_emits_circular_dependency_obstruction() {
     let cells = vec![
         component_cell("cell:service-a", "Service A", "context:platform"),

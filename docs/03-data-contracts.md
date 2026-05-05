@@ -180,6 +180,74 @@ Obstruction confidence is not a numeric field. Obstructions describe whether a
 rule fired; uncertainty is carried by `metadata.specificity`, `precision_note`,
 and `evidence_strength`. Numeric `confidence` is a candidate-only attribute.
 
+## Agent observation records
+
+AI agents may add observations to a bounded snapshot as ordinary records and
+relations. These observations are structural input, not accepted fact, unless a
+review event or source adapter has explicitly promoted them.
+
+Example:
+
+```json
+{
+  "id": "record:agent-observation-route-auth",
+  "record_type": "claim",
+  "title": "Agent observed route authentication",
+  "summary": "The agent read the route and observed a framework authentication context before database access.",
+  "source_ids": ["source:api-route"],
+  "context_hints": ["code", "api"],
+  "provenance": {
+    "origin": "inferred",
+    "actor": "ai-agent",
+    "confidence": 0.72,
+    "review_status": "unreviewed"
+  },
+  "metadata": {
+    "supports_hypothesis_type": "shared_middleware_auth"
+  }
+}
+```
+
+Connect the observation to the structure it describes with a `supports`
+relation:
+
+```json
+{
+  "id": "record:agent-observation-supports-route",
+  "record_type": "support_relation",
+  "title": "Agent observation supports route auth hypothesis",
+  "source_ids": ["source:api-route"],
+  "context_hints": ["code", "api"],
+  "relation": {
+    "relation_type": "supports",
+    "from_record_id": "record:agent-observation-route-auth",
+    "to_record_id": "record:api-route-example"
+  },
+  "provenance": {
+    "origin": "inferred",
+    "actor": "ai-agent",
+    "confidence": 0.72,
+    "review_status": "unreviewed"
+  },
+  "metadata": {}
+}
+```
+
+For API route authentication review, supported `metadata.supports_hypothesis_type`
+values are:
+
+- `shared_middleware_auth` or `auth_present`: supports the hypothesis that auth
+  exists but deterministic extraction missed it.
+- `intentionally_public` or `public_endpoint`: supports the hypothesis that the
+  endpoint is intentionally anonymous/public.
+
+Unreviewed inferred observations do not suppress obstructions. They are attached
+to the relevant hypothesis through `metadata.supported_by` and a soft
+`supported_by` argumentation incidence. A reviewed/source-backed route exception
+may suppress an obstruction only when the route structure itself has
+`public_endpoint` or `anonymous_allowed` and trusted, non-inferred accepted
+provenance.
+
 ## Report envelope
 
 All report-producing commands must return a stable envelope.

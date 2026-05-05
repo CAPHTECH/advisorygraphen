@@ -34,7 +34,7 @@ pub fn build_hypotheses(
         };
         match obstruction_type {
             "boundary_violation" => boundary::emit(space, obstruction, &mut bundle)?,
-            "api_route_missing_auth" => api_route::emit(obstruction, &mut bundle)?,
+            "api_route_missing_auth" => api_route::emit(space, obstruction, &mut bundle)?,
             "missing_owner" => owner::emit(space, obstruction, &mut bundle)?,
             "requirement_unverified" => requirement::emit(space, obstruction, &mut bundle)?,
             "insufficient_evidence" => evidence::emit(space, obstruction, &mut bundle)?,
@@ -184,4 +184,12 @@ pub(super) fn obstruction_id_str(obstruction: &Value) -> &str {
         .get("id")
         .and_then(Value::as_str)
         .unwrap_or("obstruction:unknown")
+}
+
+pub(super) fn trusted_reviewed_structure(value: &Value) -> bool {
+    value
+        .pointer("/provenance/review_status")
+        .and_then(Value::as_str)
+        == Some("accepted")
+        && value.pointer("/provenance/origin").and_then(Value::as_str) != Some("inferred")
 }

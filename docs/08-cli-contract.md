@@ -195,6 +195,18 @@ security-oriented design review. A database-touching API route with
 `auth_detected = false` emits `api_route_missing_auth` unless reviewed metadata
 explicitly marks the endpoint public or anonymous.
 
+AI agents should not compensate for framework diversity by extending lexical
+detectors for every local convention. When an agent reads source and observes
+auth coverage, shared middleware, or an intentionally public route, it should
+register that observation as an inferred, unreviewed snapshot record plus a
+`supports` relation to the relevant route record. `check` keeps the obstruction
+open, but attaches the observation to the competing route-auth hypothesis via
+`metadata.supported_by` and a soft `supported_by` argumentation incidence.
+
+Reviewed/source-backed `public_endpoint` or `anonymous_allowed` metadata on the
+route structure can suppress the obstruction. Inferred/unreviewed metadata
+cannot.
+
 ### `case import`
 
 Import an advisory space into an append-only case store.
