@@ -1,6 +1,7 @@
 use advisorygraphen_core::AdvisorySpaceEnvelope;
 use advisorygraphen_reasoning::{
-    blocker_resolution_state, check_space, frontier_items, propose_completions, waiting_items,
+    blocker_resolution_state, check_space, frontier_items, propose_completions,
+    propose_hypothesis_lifecycle, waiting_items,
 };
 use serde_json::{json, Value};
 
@@ -325,6 +326,53 @@ fn waiting_items_preserve_rejected_candidate_completion_hints() {
     assert_eq!(
         waiting[0]["recommended_completion_types"],
         json!(["ownership_clarification"])
+    );
+}
+
+#[test]
+fn hypothesis_lifecycle_proposal_uses_agent_observation_without_applying_event() {
+    let action = action_cell("cell:ship-action");
+    let check_space_without_observation = base_space(vec![action.clone()], vec![]);
+    let check_report = check_space(
+        &check_space_without_observation,
+        "technical_advisory_mvp",
+        None,
+        None,
+    )
+    .unwrap();
+    let hypothesis_id = "hypothesis:ship-action-missing-owner-no-team-holds-action";
+    let observation = json!({
+        "id": "cell:owner-observation",
+        "cell_type": "evidence",
+        "title": "Agent observed no owner metadata",
+        "summary": "An AI agent inspected the action record and found no owner cell or owns incidence.",
+        "context_ids": [],
+        "source_ids": [],
+        "structure_refs": [],
+        "provenance": provenance("inferred", "unreviewed"),
+        "metadata": {
+            "supports_hypothesis_id": hypothesis_id
+        }
+    });
+    let space_with_observation = base_space(vec![action, observation], vec![]);
+
+    let proposal = propose_hypothesis_lifecycle(
+        &space_with_observation,
+        &check_report,
+        "check-report.json",
+        None,
+    )
+    .unwrap();
+    let proposals = proposal.result["lifecycle_proposals"].as_array().unwrap();
+
+    assert_eq!(proposal.report_type, "hypothesis_lifecycle_proposal");
+    assert_eq!(proposals.len(), 1);
+    assert_eq!(proposals[0]["target_hypothesis_id"], hypothesis_id);
+    assert_eq!(proposals[0]["proposed_outcome"], "supported");
+    assert_eq!(proposals[0]["review_status"], "unreviewed");
+    assert_eq!(
+        proposal.result["authority_boundary"]["may_apply_events"],
+        json!(false)
     );
 }
 

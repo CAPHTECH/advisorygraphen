@@ -127,6 +127,46 @@ export async function GET() {
     assert_file_contains(&check, "api_route_missing_auth");
     assert_file_contains(&check, "public-data");
 
+    let hypothesis_id = first_hypothesis_id(&check);
+    let mut space_json: serde_json::Value = serde_json::from_slice(&fs::read(&space).unwrap()).unwrap();
+    space_json["cells"].as_array_mut().unwrap().push(serde_json::json!({
+        "id": "cell:agent-route-observation",
+        "cell_type": "evidence",
+        "title": "Agent route observation",
+        "summary": "Agent observed a lifecycle signal for the selected hypothesis.",
+        "context_ids": [],
+        "source_ids": [],
+        "structure_refs": [],
+        "provenance": {
+            "origin": "inferred",
+            "actor": "ai-agent:acceptance-test",
+            "confidence": 0.62,
+            "review_status": "unreviewed"
+        },
+        "metadata": {
+            "supports_hypothesis_id": hypothesis_id
+        }
+    }));
+    let observed_space = dir.join("code.observed.space.json");
+    fs::write(&observed_space, serde_json::to_vec_pretty(&space_json).unwrap()).unwrap();
+    let lifecycle = dir.join("code.hypothesis-lifecycle.json");
+    let lifecycle_output = run_cli([
+        "hypothesis",
+        "propose",
+        "--space",
+        path_str(&observed_space),
+        "--from-report",
+        path_str(&check),
+        "--output",
+        path_str(&lifecycle),
+        "--format",
+        "json",
+    ]);
+    assert_success(&lifecycle_output);
+    assert_file_contains(&lifecycle, "hypothesis_lifecycle_proposal");
+    assert_file_contains(&lifecycle, r#""proposed_outcome": "supported""#);
+    assert_file_contains(&lifecycle, r#""may_apply_events": false"#);
+
     let completions = dir.join("code.completions.json");
     let exec = dir.join("code.executive.json");
     propose_completions(&space, &check, &completions);
@@ -506,6 +546,14 @@ fn propose_completions(space_path: &Path, check_path: &Path, output_path: &Path)
         "json",
     ]);
     assert_success(&output);
+}
+
+fn first_hypothesis_id(path: &Path) -> String {
+    let report: serde_json::Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+    report["result"]["hypotheses"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_string()
 }
 
 fn review_billing_candidate(

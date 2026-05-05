@@ -10,6 +10,7 @@ mod completions;
 mod cycles;
 mod higher;
 mod hypotheses;
+mod hypothesis_lifecycle;
 mod resolution;
 pub use completions::propose_completions;
 use cycles::evaluate_dependency_cycles;
@@ -20,6 +21,7 @@ pub use hypotheses::{
     HYPOTHESIS_LIFECYCLE_ACCEPTED, HYPOTHESIS_LIFECYCLE_CANDIDATE, HYPOTHESIS_LIFECYCLE_FALSIFIED,
     HYPOTHESIS_LIFECYCLE_REJECTED, HYPOTHESIS_LIFECYCLE_SUPPORTED,
 };
+pub use hypothesis_lifecycle::propose_hypothesis_lifecycle;
 pub use resolution::{blocker_resolution_state, frontier_items, waiting_items};
 
 pub const BOUNDARY_INVARIANT: &str =

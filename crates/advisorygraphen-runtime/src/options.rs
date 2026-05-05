@@ -34,6 +34,14 @@ pub struct CompletionProposeOptions {
 }
 
 #[derive(Debug, Clone)]
+pub struct HypothesisProposeOptions {
+    pub space: PathBuf,
+    pub from_report: PathBuf,
+    pub output: Option<PathBuf>,
+    pub command: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct ReviewOptions {
     pub store: PathBuf,
     pub candidate_id: String,

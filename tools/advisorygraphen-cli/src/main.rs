@@ -3,11 +3,12 @@ use advisorygraphen_projection::OutputFormat;
 use advisorygraphen_runtime::{
     case_close_check_workflow, case_import_workflow, case_reason_workflow, check_workflow,
     code_repo_snapshot_workflow, completions_propose_workflow, dogfood_repo_snapshot_workflow,
-    hypothesis_accept_workflow, hypothesis_falsify_workflow, hypothesis_reject_workflow,
-    hypothesis_support_workflow, lift_workflow, project_workflow, review_workflow,
-    validate_workflow, CaseCloseCheckOptions, CaseImportOptions, CaseReasonOptions, CheckOptions,
-    CodeRepoSnapshotOptions, CompletionProposeOptions, DogfoodRepoSnapshotOptions,
-    HypothesisFalsifyOptions, LiftOptions, ProjectOptions, ReviewOptions, ValidateOptions,
+    hypothesis_accept_workflow, hypothesis_falsify_workflow, hypothesis_propose_workflow,
+    hypothesis_reject_workflow, hypothesis_support_workflow, lift_workflow, project_workflow,
+    review_workflow, validate_workflow, CaseCloseCheckOptions, CaseImportOptions,
+    CaseReasonOptions, CheckOptions, CodeRepoSnapshotOptions, CompletionProposeOptions,
+    DogfoodRepoSnapshotOptions, HypothesisFalsifyOptions, HypothesisProposeOptions, LiftOptions,
+    ProjectOptions, ReviewOptions, ValidateOptions,
 };
 use clap::{Args, Parser, Subcommand};
 use serde::Serialize;
@@ -55,10 +56,23 @@ enum Command {
 
 #[derive(Debug, Subcommand)]
 enum HypothesisCommand {
+    Propose(HypothesisProposeArgs),
     Falsify(HypothesisFalsifyArgs),
     Support(HypothesisFalsifyArgs),
     Accept(HypothesisFalsifyArgs),
     Reject(HypothesisFalsifyArgs),
+}
+
+#[derive(Debug, Args)]
+struct HypothesisProposeArgs {
+    #[arg(long)]
+    space: PathBuf,
+    #[arg(long = "from-report")]
+    from_report: PathBuf,
+    #[arg(long)]
+    output: Option<PathBuf>,
+    #[arg(long, default_value = "json")]
+    format: String,
 }
 
 #[derive(Debug, Args)]
@@ -332,6 +346,15 @@ fn run() -> Result<(), AdvisoryError> {
             }
         },
         Command::Hypothesis { command } => match command {
+            HypothesisCommand::Propose(args) => {
+                require_json_format(&args.format)?;
+                print_json(&hypothesis_propose_workflow(&HypothesisProposeOptions {
+                    space: args.space,
+                    from_report: args.from_report,
+                    output: args.output,
+                    command: Some(command_string()),
+                })?)
+            }
             HypothesisCommand::Falsify(args) => run_hypothesis_event(args, "falsify"),
             HypothesisCommand::Support(args) => run_hypothesis_event(args, "support"),
             HypothesisCommand::Accept(args) => run_hypothesis_event(args, "accept"),

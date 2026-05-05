@@ -86,3 +86,10 @@ Updated 2026-05-05 after finishing priorities A-E.
 - The three signal-bearing dogfood fixtures now produce 6 hypotheses each: 3 for the ownership obstruction and 3 for the verification obstruction.
 - `hypothesis support|falsify|accept|reject` remains review-event driven. Deterministic propagation can reframe candidates and obstructions after those events, but agents do not autonomously propose lifecycle transitions.
 - F, the LLM agent closed-loop for proposing hypothesis lifecycle changes, remains deferred until operational evidence from 1-2 real customer engagements clarifies authority boundaries, rollback behavior, and the human-review split.
+
+Updated 2026-05-05 after the first F implementation.
+
+- `hypothesis propose` now implements the closed-loop proposal half without auto-promotion.
+- AI/agent observations can be registered as generic structure, for example with `metadata.supports_hypothesis_id` or `metadata.falsifies_hypothesis_id`.
+- `hypothesis propose` reads the advisory space plus check report and emits unreviewed lifecycle proposals (`supported`, `falsified`, or `review_conflict`).
+- The authority boundary is explicit in the report: proposals cannot apply events. The existing review-gated `hypothesis support|falsify|accept|reject` commands remain the only mutation path.

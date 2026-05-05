@@ -77,6 +77,47 @@ advisorygraphen completions propose \
   --output advisory.completions.report.json
 ```
 
+### `hypothesis propose`
+
+Generate reviewable hypothesis lifecycle proposals from a check report and the
+current advisory space. This command is read-only: it does not write a
+hypothesis event and does not change case state.
+
+```sh
+advisorygraphen hypothesis propose \
+  --space advisory.space.json \
+  --from-report advisory.check.report.json \
+  --format json \
+  --output advisory.hypothesis-lifecycle.report.json
+```
+
+The report may propose `supported` or `falsified` when it finds explicit
+agent-observed lifecycle signals, such as cells with
+`metadata.supports_hypothesis_id`, cells with
+`metadata.falsifies_hypothesis_id`, or matching support/falsify incidences.
+Conflicting support and falsify signals are emitted as `review_conflict`.
+
+All proposals are `review_status: unreviewed`. Applying a lifecycle transition
+still requires the review-gated commands below.
+
+### `hypothesis support|falsify|accept|reject`
+
+Append a hypothesis lifecycle review event. These commands require an imported
+case store and a current `--base-revision`; they are the only CLI path that
+mutates hypothesis lifecycle state.
+
+```sh
+advisorygraphen hypothesis support \
+  --store .advisorygraphen/store \
+  --from-report advisory.check.report.json \
+  --hypothesis-id hypothesis:billing-route-shared-middleware-auth \
+  --evidence cell:agent-auth-observation \
+  --reviewer reviewer:tech-lead \
+  --reason "Agent observation reviewed; shared middleware covers route" \
+  --base-revision revision:technical-advisory-smoke-1 \
+  --format json
+```
+
 ### `completions accept`
 
 Append an acceptance review event. This command does not promote candidate

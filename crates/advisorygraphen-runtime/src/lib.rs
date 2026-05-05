@@ -7,7 +7,7 @@ use advisorygraphen_lift::lift_snapshot;
 use advisorygraphen_projection::{build_projection, project};
 use advisorygraphen_reasoning::{
     blocker_resolution_state, check_space, close_status, frontier_items, propose_completions,
-    waiting_items,
+    propose_hypothesis_lifecycle, waiting_items,
 };
 use chrono::Utc;
 use serde_json::{json, Value};
@@ -32,8 +32,8 @@ use hypothesis_propagation::{
 use hypothesis_review::apply_hypothesis_events;
 pub use options::{
     CaseCloseCheckOptions, CaseImportOptions, CaseReasonOptions, CheckOptions,
-    CompletionProposeOptions, HypothesisFalsifyOptions, LiftOptions, ProjectOptions, ReviewOptions,
-    ValidateOptions,
+    CompletionProposeOptions, HypothesisFalsifyOptions, HypothesisProposeOptions, LiftOptions,
+    ProjectOptions, ReviewOptions, ValidateOptions,
 };
 use projection_report::{attach_completion_report, read_projection_report};
 use review::{higher_graphen_completion_review, review_report_path, review_space_id};
@@ -68,6 +68,21 @@ pub fn completions_propose_workflow(
     let space = read_space(&options.space)?;
     let check_report: ReportEnvelope = serde_json::from_value(read_json(&options.from_report)?)?;
     let report = propose_completions(
+        &space,
+        &check_report,
+        file_name(&options.from_report),
+        options.command.as_deref(),
+    )?;
+    write_json_if_requested(&options.output, &report)?;
+    Ok(report)
+}
+
+pub fn hypothesis_propose_workflow(
+    options: &HypothesisProposeOptions,
+) -> AdvisoryResult<ReportEnvelope> {
+    let space = read_space(&options.space)?;
+    let check_report: ReportEnvelope = serde_json::from_value(read_json(&options.from_report)?)?;
+    let report = propose_hypothesis_lifecycle(
         &space,
         &check_report,
         file_name(&options.from_report),
