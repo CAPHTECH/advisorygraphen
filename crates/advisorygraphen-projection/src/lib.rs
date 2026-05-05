@@ -66,7 +66,9 @@ fn executive_projection(
     let high_severity_obstructions = obstructions_by_severity(&obstructions, "high");
     let medium_severity_obstructions = obstructions_by_severity(&obstructions, "medium");
     let close_status = close_status_value(space, report);
-    let candidate_quality = candidate_quality_summary(&completion_candidates(report));
+    let candidates = completion_candidates(report);
+    let candidate_quality = candidate_quality_summary(&candidates);
+    let proposal_content_summary = proposal_content_summary(&candidates);
     let hypotheses = hypotheses(report);
     let falsifiers = falsifiers(report);
     let hypothesis_summary = hypothesis_summary(&hypotheses);
@@ -93,6 +95,7 @@ fn executive_projection(
             "medium_severity_obstructions": medium_severity_obstructions,
             "unreviewed_candidates_are_not_accepted": true,
             "candidate_quality": candidate_quality,
+            "proposal_content_summary": proposal_content_summary,
             "hypothesis_summary": hypothesis_summary
         },
         "hypotheses": hypotheses,
@@ -169,6 +172,7 @@ fn ai_agent_projection(
     let candidates = completion_candidates(report);
     let resolution_state = blocker_resolution_state(&open_obstructions, &candidates);
     let candidate_quality = candidate_quality_summary(&candidates);
+    let proposal_content_summary = proposal_content_summary(&candidates);
     let (live_candidates, superseded_candidates) = partition_candidates(&candidates);
     let hypotheses = hypotheses(report);
     let falsifiers = falsifiers(report);
@@ -241,6 +245,7 @@ fn ai_agent_projection(
         "live_candidates": live_candidates,
         "superseded_candidates": superseded_candidates,
         "candidate_quality": candidate_quality,
+        "proposal_content_summary": proposal_content_summary,
         "blocker_resolution_state": resolution_state,
         "frontier_items": frontier_items(&resolution_state),
         "waiting_items": waiting_items(&resolution_state),
@@ -320,6 +325,22 @@ fn render_markdown(audience: &str, projection: &Value) -> AdvisoryResult<String>
             lines.push(format!(
                 "- Missing precision metadata: {}",
                 quality["missing_precision_metadata"].as_u64().unwrap_or(0)
+            ));
+            lines.push(String::new());
+        }
+        if let Some(summary) = projection.pointer("/summary/proposal_content_summary") {
+            lines.push("## Proposal content".to_string());
+            lines.push(format!(
+                "- With structured content: {}",
+                summary["with_structured_content"].as_u64().unwrap_or(0)
+            ));
+            lines.push(format!(
+                "- Blocked content: {}",
+                summary["blocked_content"].as_u64().unwrap_or(0)
+            ));
+            lines.push(format!(
+                "- Content obstructions: {}",
+                summary["content_obstruction_count"].as_u64().unwrap_or(0)
             ));
             lines.push(String::new());
         }
@@ -611,6 +632,56 @@ fn candidate_quality_summary(candidates: &[Value]) -> Value {
         "generic": generic,
         "source_backed": source_backed,
         "missing_precision_metadata": missing_precision_metadata
+    })
+}
+
+fn proposal_content_summary(candidates: &[Value]) -> Value {
+    let mut with_structured_content = 0_u64;
+    let mut blocked_content = 0_u64;
+    let mut candidate_content = 0_u64;
+    let mut content_obstruction_count = 0_u64;
+    let mut obstruction_types = serde_json::Map::new();
+
+    for candidate in candidates {
+        let Some(content) = candidate.get("proposal_content") else {
+            continue;
+        };
+        with_structured_content += 1;
+        match content
+            .pointer("/scenario/status")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown")
+        {
+            "blocked" => blocked_content += 1,
+            "candidate" => candidate_content += 1,
+            _ => {}
+        }
+        for obstruction in content
+            .get("content_obstructions")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            content_obstruction_count += 1;
+            let key = obstruction
+                .get("obstruction_type")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown");
+            let count = obstruction_types
+                .get(key)
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                + 1;
+            obstruction_types.insert(key.to_string(), json!(count));
+        }
+    }
+
+    json!({
+        "with_structured_content": with_structured_content,
+        "candidate_content": candidate_content,
+        "blocked_content": blocked_content,
+        "content_obstruction_count": content_obstruction_count,
+        "content_obstruction_types": obstruction_types
     })
 }
 

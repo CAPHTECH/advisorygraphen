@@ -59,6 +59,31 @@ fn projection_loss_omits_lexical_caveat_when_no_code_derived_finding() {
         .all(|entry| entry["loss_type"] != "lexical_detection_caveat"));
 }
 
+#[test]
+fn proposal_content_summary_counts_blocked_content_obstructions() {
+    let space = empty_space();
+    let report = check_report(
+        vec![],
+        vec![
+            source_derived_candidate(),
+            blocked_proposal_content_candidate(),
+        ],
+    );
+
+    let projection = build_projection(&space, &report, "ai_agent").unwrap();
+
+    let summary = projection
+        .pointer("/proposal_content_summary")
+        .expect("proposal_content_summary present");
+    assert_eq!(summary["with_structured_content"], json!(1));
+    assert_eq!(summary["blocked_content"], json!(1));
+    assert_eq!(summary["content_obstruction_count"], json!(1));
+    assert_eq!(
+        summary["content_obstruction_types"]["proposal_content_underspecified"],
+        json!(1)
+    );
+}
+
 fn empty_space() -> AdvisorySpaceEnvelope {
     from_value(json!({
         "schema": "advisorygraphen.space.v1",
@@ -109,6 +134,22 @@ fn source_derived_candidate() -> Value {
         "confidence": 0.82,
         "source_ids": ["source:architecture"],
         "metadata": { "specificity": "source_derived" }
+    })
+}
+
+fn blocked_proposal_content_candidate() -> Value {
+    json!({
+        "id": "candidate:missing-owner-owner",
+        "candidate_type": "ownership_clarification",
+        "confidence": 0.7,
+        "source_ids": ["source:runbook"],
+        "metadata": { "specificity": "generic" },
+        "proposal_content": {
+            "scenario": { "status": "blocked" },
+            "content_obstructions": [
+                { "obstruction_type": "proposal_content_underspecified" }
+            ]
+        }
     })
 }
 

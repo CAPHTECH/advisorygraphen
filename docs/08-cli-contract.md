@@ -67,7 +67,39 @@ Without `--fail-on`, high-severity findings still exit `0`.
 
 ### `completions propose`
 
-Generate reviewable completion candidates from obstructions.
+Generate reviewable completion candidates from obstructions. Each candidate is
+still unreviewed, but its proposed content is also shaped as HigherGraphen
+structure so reviewers can inspect the proposal itself, not only the fact that a
+candidate exists.
+
+Candidate `proposal_content` includes:
+
+- `scenario`: the planned world created by the candidate, changed structures,
+  affected invariants, expected obstructions, and required witnesses.
+- `morphism`: the As-Is to proposed structure mapping, preserved invariants,
+  distortion, and composition constraints.
+- `invariant_checks`: candidate-level repair or review-gate checks.
+- `derivation`: why the candidate follows from obstructions, witnesses, and
+  source material.
+- `witnesses`: known source or structure references supporting the proposal.
+- `valuation`: criteria, values, trade-offs, and confidence for comparing the
+  proposal with alternatives.
+- `policy`: the review gate that prevents proposal content from becoming
+  accepted structure without explicit review and materialization.
+- `content_obstructions`: missing proposal details, such as absent concrete
+  structures or source-backed witnesses.
+
+For `missing_owner` and `requirement_unverified`, the generator first searches
+the current advisory space for related `owner`, `test_or_verification`, or
+`metric` cells using shared context and source IDs. When it finds one, it emits
+a concrete relation candidate with `proposed_incidence_ids`
+(`owner_assignment` or `lift_verification_link`) instead of a generic
+placeholder. If no related structure is found, the candidate remains
+underspecified and records that in `content_obstructions`.
+
+AI-agent and executive projections include `proposal_content_summary` so agents
+and reviewers can see how many candidates have structured proposal content, how
+many remain blocked, and which content obstruction types remain.
 
 ```sh
 advisorygraphen completions propose \

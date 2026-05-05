@@ -4,6 +4,20 @@
 
 Completion candidates are proposals for missing or corrective structure. They are not accepted changes, approved tasks, or facts.
 
+Each generated candidate also carries `proposal_content` so the substance of the
+proposal can be inspected before review. The content is represented as a planned
+`scenario`, an As-Is to proposed `morphism`, candidate-level
+`invariant_checks`, a `derivation`, known `witnesses`, a `valuation`, a
+review-gate `policy`, and any `content_obstructions` that keep the proposal
+underspecified. This makes the proposal itself critiqueable without promoting
+it to accepted structure.
+
+When an owner, test, metric, or verification cell already exists in the same
+context or source neighborhood as a blocker, completion generation proposes the
+missing relation (`owns` or `verifies`) through `proposed_incidence_ids`. When
+no related structure exists, it keeps the candidate conservative and reports a
+proposal-content obstruction instead of inventing a concrete owner or test.
+
 ## Candidate types
 
 | Candidate type | Description |

@@ -100,6 +100,38 @@ fn boundary_completion_candidates_are_derived_from_witness_cells() {
         item["metadata"]["specificity"] == "source_derived"
             && item["source_ids"] == json!(["source:pricing-note"])
     }));
+    let status_api = candidates
+        .iter()
+        .find(|item| item["id"] == "candidate:pricing-status-api")
+        .expect("pricing status API candidate");
+    assert_eq!(
+        status_api["proposal_content"]["scenario"]["scenario_kind"],
+        "planned"
+    );
+    assert_eq!(
+        status_api["proposal_content"]["morphism"]["morphism_type"],
+        "as_is_to_to_be"
+    );
+    assert_eq!(
+        status_api["proposal_content"]["scenario"]["affected_invariants"],
+        json!(["invariant:architecture_no_cross_context_direct_database_access"])
+    );
+    assert_eq!(
+        status_api["proposal_content"]["derivation"]["verification_status"],
+        "unverified"
+    );
+    assert_eq!(
+        status_api["proposal_content"]["valuation"]["order_type"],
+        "partial_order"
+    );
+    assert_eq!(
+        status_api["proposal_content"]["policy"]["policy_type"],
+        "completion_review_gate"
+    );
+    assert!(status_api["proposal_content"]["content_obstructions"]
+        .as_array()
+        .unwrap()
+        .is_empty());
     assert!(!candidates
         .iter()
         .any(|item| item["id"] == "candidate:billing-status-api"));
@@ -137,6 +169,127 @@ fn database_touching_api_route_without_auth_emits_obstruction_and_completion() {
             && item["metadata"]["specificity"] == "code_derived"
             && item["source_ids"] == json!(["source:route"])
     }));
+}
+
+#[test]
+fn generic_completion_content_records_missing_structure_obstructions() {
+    let space = base_space(vec![action_cell("cell:ship-action")], vec![]);
+    let check_report = check_space(&space, "technical_advisory_mvp", None, None).unwrap();
+    let completion_report =
+        propose_completions(&space, &check_report, "check-report.json", None).unwrap();
+    let candidate = completion_report.result["completion_candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["candidate_type"] == "ownership_clarification")
+        .expect("ownership clarification candidate");
+
+    assert_eq!(
+        candidate["proposal_content"]["scenario"]["status"],
+        "blocked"
+    );
+    assert!(candidate["proposal_content"]["content_obstructions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item["obstruction_type"] == "proposal_content_underspecified"));
+    assert!(!candidate["proposal_content"]["content_obstructions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item["obstruction_type"] == "proposal_content_missing_source_witness"));
+    assert_eq!(candidate["source_ids"], json!(["source:test"]));
+    assert!(candidate["proposal_content"]["policy"]["rules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|rule| rule
+            .as_str()
+            .unwrap()
+            .contains("must not accept it as current state")));
+}
+
+#[test]
+fn owner_completion_uses_related_owner_cell_when_available() {
+    let mut action = action_cell("cell:ship-action");
+    action["context_ids"] = json!(["context:release"]);
+    let owner = owner_cell("cell:release-team", "Release Team", "context:release");
+    let space = base_space(vec![action, owner], vec![]);
+
+    let check_report = check_space(&space, "technical_advisory_mvp", None, None).unwrap();
+    let completion_report =
+        propose_completions(&space, &check_report, "check-report.json", None).unwrap();
+    let candidate = completion_report.result["completion_candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["candidate_type"] == "owner_assignment")
+        .expect("owner assignment candidate");
+
+    assert_eq!(candidate["metadata"]["owner_cell_id"], "cell:release-team");
+    assert_eq!(
+        candidate["proposal_content"]["scenario"]["status"],
+        "candidate"
+    );
+    assert!(candidate["proposed_incidence_ids"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|id| id.as_str().unwrap().contains("-owns-")));
+    assert!(candidate["proposal_content"]["content_obstructions"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
+fn verification_completion_links_related_test_when_available() {
+    let mut requirement = json!({
+        "id": "cell:requirement",
+        "cell_type": "requirement",
+        "title": "Requirement",
+        "summary": null,
+        "context_ids": ["context:release"],
+        "source_ids": ["source:test"],
+        "structure_refs": [],
+        "provenance": provenance("source_backed", "accepted"),
+        "metadata": { "require_verification": true }
+    });
+    requirement["context_ids"] = json!(["context:release"]);
+    let verification = verification_cell(
+        "cell:release-smoke-test",
+        "Release smoke test",
+        "context:release",
+    );
+    let space = base_space(vec![requirement, verification], vec![]);
+
+    let check_report = check_space(&space, "technical_advisory_mvp", None, None).unwrap();
+    let completion_report =
+        propose_completions(&space, &check_report, "check-report.json", None).unwrap();
+    let candidate = completion_report.result["completion_candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["candidate_type"] == "lift_verification_link")
+        .expect("verification link candidate");
+
+    assert_eq!(
+        candidate["metadata"]["verification_cell_id"],
+        "cell:release-smoke-test"
+    );
+    assert_eq!(
+        candidate["proposal_content"]["scenario"]["status"],
+        "candidate"
+    );
+    assert!(candidate["proposed_incidence_ids"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|id| id.as_str().unwrap().contains("-verifies-")));
+    assert!(candidate["proposal_content"]["content_obstructions"]
+        .as_array()
+        .unwrap()
+        .is_empty());
 }
 
 #[test]
@@ -435,6 +588,34 @@ fn component_cell(id: &str, title: &str, context_id: &str) -> Value {
     json!({
         "id": id,
         "cell_type": "component",
+        "title": title,
+        "summary": null,
+        "context_ids": [context_id],
+        "source_ids": ["source:test"],
+        "structure_refs": [],
+        "provenance": provenance("source_backed", "accepted"),
+        "metadata": {}
+    })
+}
+
+fn owner_cell(id: &str, title: &str, context_id: &str) -> Value {
+    json!({
+        "id": id,
+        "cell_type": "owner",
+        "title": title,
+        "summary": null,
+        "context_ids": [context_id],
+        "source_ids": ["source:test"],
+        "structure_refs": [],
+        "provenance": provenance("source_backed", "accepted"),
+        "metadata": {}
+    })
+}
+
+fn verification_cell(id: &str, title: &str, context_id: &str) -> Value {
+    json!({
+        "id": id,
+        "cell_type": "test_or_verification",
         "title": title,
         "summary": null,
         "context_ids": [context_id],

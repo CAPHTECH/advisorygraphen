@@ -39,15 +39,247 @@
         },
         "id": "candidate:billing-status-api",
         "metadata": {
+          "derived_from_hypothesis_id": "hypothesis:order-service-direct-billing-db-access-implicit-interface",
           "evidence_strength": "source_backed_obstruction",
           "from_cell_id": "cell:order-service",
           "precision_note": "Derived from boundary violation witness cells and obstruction evidence_ids.",
           "specificity": "source_derived",
           "to_cell_id": "cell:billing-db"
         },
+        "proposal_content": {
+          "content_obstructions": [],
+          "derivation": {
+            "conclusion": "candidate:billing-status-api",
+            "counterexamples": [],
+            "excluded_premises": [],
+            "failure_mode": "none",
+            "id": "derivation:billing-status-api-proposal",
+            "inference_rule": {
+              "id": "rule:completion-proposed_interface",
+              "interpretation_package": "technical_advisory_mvp",
+              "name": "Generate proposed_interface completion candidate from obstruction"
+            },
+            "premises": [
+              "cell:billing-db",
+              "cell:billing-status-api",
+              "cell:order-service",
+              "incidence:order-service-accesses-billing-db",
+              "obstruction:order-service-direct-billing-db-access",
+              "source:architecture-note"
+            ],
+            "rationale": "Remove cross-context direct database access while preserving billing status check.",
+            "review_status": "candidate",
+            "verification_status": "unverified",
+            "verifier": null,
+            "warrants": [
+              "cell:billing-db",
+              "cell:order-service",
+              "incidence:order-service-accesses-billing-db",
+              "source:architecture-note"
+            ]
+          },
+          "invariant_checks": [
+            {
+              "invariant_id": "invariant:architecture_no_cross_context_direct_database_access",
+              "review_status": "unreviewed",
+              "status": "candidate_repair",
+              "target_candidate_id": "candidate:billing-status-api"
+            },
+            {
+              "invariant_id": "invariant:completion-candidate-review-gated",
+              "review_status": "unreviewed",
+              "status": "preserved",
+              "target_candidate_id": "candidate:billing-status-api"
+            }
+          ],
+          "morphism": {
+            "changed_cell_ids": [
+              "cell:billing-status-api"
+            ],
+            "changed_incidence_ids": [],
+            "composition_constraints": [
+              "candidate_to_accepted_structure requires an explicit completion review event",
+              "accepted completion must be materialized before the blocker is treated as resolved"
+            ],
+            "distortion": [],
+            "id": "morphism:billing-status-api-as-is-to-proposed",
+            "morphism_type": "as_is_to_to_be",
+            "preserved_invariants": [
+              "invariant:architecture_no_cross_context_direct_database_access"
+            ],
+            "repairs_obstructions": [
+              "obstruction:order-service-direct-billing-db-access"
+            ],
+            "review_status": "unreviewed",
+            "source_space": "space:advisory:technical-advisory-direct-db-access",
+            "target_scenario": "scenario:billing-status-api-planned"
+          },
+          "policy": {
+            "id": "policy:billing-status-api-review-gate",
+            "policy_type": "completion_review_gate",
+            "required_witnesses": [
+              "witness:billing-status-api-review",
+              "witness:billing-status-api-interface-contract"
+            ],
+            "review_status": "candidate",
+            "rules": [
+              "AI agents may propose this content but must not accept it as current state",
+              "Acceptance requires explicit review and blocker application requirements",
+              "Missing required witnesses remain proposal-content obstructions"
+            ],
+            "target": {
+              "id": "candidate:billing-status-api",
+              "object_type": "completion_candidate"
+            }
+          },
+          "review_status": "unreviewed",
+          "scenario": {
+            "affected_invariants": [
+              "invariant:architecture_no_cross_context_direct_database_access"
+            ],
+            "assumptions": [
+              "hypothesis:order-service-direct-billing-db-access-implicit-interface"
+            ],
+            "base_space": "space:advisory:technical-advisory-direct-db-access",
+            "changed_structures": {
+              "added": [
+                "cell:billing-status-api"
+              ],
+              "modified": [
+                "decision:approve-current-architecture"
+              ],
+              "removed": []
+            },
+            "expected_obstructions": [
+              "obstruction:order-service-direct-billing-db-access"
+            ],
+            "id": "scenario:billing-status-api-planned",
+            "reachable_from": {
+              "ref": "space:advisory:technical-advisory-direct-db-access",
+              "via_morphisms": [
+                "morphism:billing-status-api-as-is-to-proposed"
+              ]
+            },
+            "required_witnesses": [
+              "witness:billing-status-api-review",
+              "witness:billing-status-api-interface-contract"
+            ],
+            "review_status": "candidate",
+            "scenario_kind": "planned",
+            "status": "candidate",
+            "valuations": [
+              "valuation:billing-status-api-proposal"
+            ]
+          },
+          "schema": "advisorygraphen.proposal_content.v1",
+          "valuation": {
+            "confidence": 0.82,
+            "criteria": [
+              {
+                "criterion_id": "obstruction_resolution",
+                "direction": "maximize",
+                "name": "Obstruction resolution",
+                "required": true
+              },
+              {
+                "criterion_id": "evidence_backing",
+                "direction": "maximize",
+                "name": "Evidence backing",
+                "required": true
+              },
+              {
+                "criterion_id": "review_safety",
+                "direction": "preserve",
+                "name": "Review safety",
+                "required": true
+              }
+            ],
+            "id": "valuation:billing-status-api-proposal",
+            "order_type": "partial_order",
+            "review_status": "candidate",
+            "target": {
+              "id": "candidate:billing-status-api",
+              "object_type": "completion_candidate"
+            },
+            "tradeoffs": [
+              {
+                "affected_invariants": [
+                  "invariant:architecture_no_cross_context_direct_database_access"
+                ],
+                "gains": "Replaces direct ownership-boundary access with an explicit interface.",
+                "losses": "Adds an interface contract that still needs owner, compatibility, and verification witnesses."
+              }
+            ],
+            "valuation_context": "space:advisory:technical-advisory-direct-db-access",
+            "values": [
+              {
+                "criterion_id": "obstruction_resolution",
+                "evidence": "cell:billing-db",
+                "value": 1
+              },
+              {
+                "criterion_id": "evidence_backing",
+                "evidence": "cell:billing-db",
+                "value": 1
+              },
+              {
+                "criterion_id": "review_safety",
+                "evidence": "policy:billing-status-api-review-gate",
+                "value": true
+              }
+            ]
+          },
+          "witnesses": [
+            {
+              "id": "cell:billing-db",
+              "review_status": "candidate",
+              "supports": [
+                "candidate:billing-status-api"
+              ],
+              "validity_contexts": [
+                "space:advisory:technical-advisory-direct-db-access"
+              ],
+              "witness_type": "structure_reference"
+            },
+            {
+              "id": "cell:order-service",
+              "review_status": "candidate",
+              "supports": [
+                "candidate:billing-status-api"
+              ],
+              "validity_contexts": [
+                "space:advisory:technical-advisory-direct-db-access"
+              ],
+              "witness_type": "structure_reference"
+            },
+            {
+              "id": "incidence:order-service-accesses-billing-db",
+              "review_status": "candidate",
+              "supports": [
+                "candidate:billing-status-api"
+              ],
+              "validity_contexts": [
+                "space:advisory:technical-advisory-direct-db-access"
+              ],
+              "witness_type": "structure_reference"
+            },
+            {
+              "id": "source:architecture-note",
+              "review_status": "candidate",
+              "supports": [
+                "candidate:billing-status-api"
+              ],
+              "validity_contexts": [
+                "space:advisory:technical-advisory-direct-db-access"
+              ],
+              "witness_type": "source_reference"
+            }
+          ]
+        },
         "proposed_cell_ids": [
           "cell:billing-status-api"
         ],
+        "proposed_incidence_ids": [],
         "rationale": "Remove cross-context direct database access while preserving billing status check.",
         "resolves_obstruction_ids": [
           "obstruction:order-service-direct-billing-db-access"
@@ -83,15 +315,247 @@
         },
         "id": "candidate:replace-order-service-db-read",
         "metadata": {
+          "derived_from_hypothesis_id": "hypothesis:order-service-direct-billing-db-access-implicit-interface",
           "evidence_strength": "source_backed_obstruction",
           "from_cell_id": "cell:order-service",
           "precision_note": "Derived from boundary violation witness cells and obstruction evidence_ids.",
           "specificity": "source_derived",
           "to_cell_id": "cell:billing-db"
         },
+        "proposal_content": {
+          "content_obstructions": [],
+          "derivation": {
+            "conclusion": "candidate:replace-order-service-db-read",
+            "counterexamples": [],
+            "excluded_premises": [],
+            "failure_mode": "none",
+            "id": "derivation:replace-order-service-db-read-proposal",
+            "inference_rule": {
+              "id": "rule:completion-proposed_refactor_action",
+              "interpretation_package": "technical_advisory_mvp",
+              "name": "Generate proposed_refactor_action completion candidate from obstruction"
+            },
+            "premises": [
+              "cell:action-replace-order-service-direct-db-read",
+              "cell:billing-db",
+              "cell:order-service",
+              "incidence:order-service-accesses-billing-db",
+              "obstruction:order-service-direct-billing-db-access",
+              "source:architecture-note"
+            ],
+            "rationale": "Order Service should depend on Billing Service interface instead of Billing DB ownership boundary.",
+            "review_status": "candidate",
+            "verification_status": "unverified",
+            "verifier": null,
+            "warrants": [
+              "cell:billing-db",
+              "cell:order-service",
+              "incidence:order-service-accesses-billing-db",
+              "source:architecture-note"
+            ]
+          },
+          "invariant_checks": [
+            {
+              "invariant_id": "invariant:architecture_no_cross_context_direct_database_access",
+              "review_status": "unreviewed",
+              "status": "candidate_repair",
+              "target_candidate_id": "candidate:replace-order-service-db-read"
+            },
+            {
+              "invariant_id": "invariant:completion-candidate-review-gated",
+              "review_status": "unreviewed",
+              "status": "preserved",
+              "target_candidate_id": "candidate:replace-order-service-db-read"
+            }
+          ],
+          "morphism": {
+            "changed_cell_ids": [
+              "cell:action-replace-order-service-direct-db-read"
+            ],
+            "changed_incidence_ids": [],
+            "composition_constraints": [
+              "candidate_to_accepted_structure requires an explicit completion review event",
+              "accepted completion must be materialized before the blocker is treated as resolved"
+            ],
+            "distortion": [],
+            "id": "morphism:replace-order-service-db-read-as-is-to-proposed",
+            "morphism_type": "as_is_to_to_be",
+            "preserved_invariants": [
+              "invariant:architecture_no_cross_context_direct_database_access"
+            ],
+            "repairs_obstructions": [
+              "obstruction:order-service-direct-billing-db-access"
+            ],
+            "review_status": "unreviewed",
+            "source_space": "space:advisory:technical-advisory-direct-db-access",
+            "target_scenario": "scenario:replace-order-service-db-read-planned"
+          },
+          "policy": {
+            "id": "policy:replace-order-service-db-read-review-gate",
+            "policy_type": "completion_review_gate",
+            "required_witnesses": [
+              "witness:replace-order-service-db-read-review",
+              "witness:replace-order-service-db-read-migration-plan"
+            ],
+            "review_status": "candidate",
+            "rules": [
+              "AI agents may propose this content but must not accept it as current state",
+              "Acceptance requires explicit review and blocker application requirements",
+              "Missing required witnesses remain proposal-content obstructions"
+            ],
+            "target": {
+              "id": "candidate:replace-order-service-db-read",
+              "object_type": "completion_candidate"
+            }
+          },
+          "review_status": "unreviewed",
+          "scenario": {
+            "affected_invariants": [
+              "invariant:architecture_no_cross_context_direct_database_access"
+            ],
+            "assumptions": [
+              "hypothesis:order-service-direct-billing-db-access-implicit-interface"
+            ],
+            "base_space": "space:advisory:technical-advisory-direct-db-access",
+            "changed_structures": {
+              "added": [
+                "cell:action-replace-order-service-direct-db-read"
+              ],
+              "modified": [
+                "decision:approve-current-architecture"
+              ],
+              "removed": []
+            },
+            "expected_obstructions": [
+              "obstruction:order-service-direct-billing-db-access"
+            ],
+            "id": "scenario:replace-order-service-db-read-planned",
+            "reachable_from": {
+              "ref": "space:advisory:technical-advisory-direct-db-access",
+              "via_morphisms": [
+                "morphism:replace-order-service-db-read-as-is-to-proposed"
+              ]
+            },
+            "required_witnesses": [
+              "witness:replace-order-service-db-read-review",
+              "witness:replace-order-service-db-read-migration-plan"
+            ],
+            "review_status": "candidate",
+            "scenario_kind": "planned",
+            "status": "candidate",
+            "valuations": [
+              "valuation:replace-order-service-db-read-proposal"
+            ]
+          },
+          "schema": "advisorygraphen.proposal_content.v1",
+          "valuation": {
+            "confidence": 0.78,
+            "criteria": [
+              {
+                "criterion_id": "obstruction_resolution",
+                "direction": "maximize",
+                "name": "Obstruction resolution",
+                "required": true
+              },
+              {
+                "criterion_id": "evidence_backing",
+                "direction": "maximize",
+                "name": "Evidence backing",
+                "required": true
+              },
+              {
+                "criterion_id": "review_safety",
+                "direction": "preserve",
+                "name": "Review safety",
+                "required": true
+              }
+            ],
+            "id": "valuation:replace-order-service-db-read-proposal",
+            "order_type": "partial_order",
+            "review_status": "candidate",
+            "target": {
+              "id": "candidate:replace-order-service-db-read",
+              "object_type": "completion_candidate"
+            },
+            "tradeoffs": [
+              {
+                "affected_invariants": [
+                  "invariant:architecture_no_cross_context_direct_database_access"
+                ],
+                "gains": "Moves the violating caller toward the proposed boundary-preserving structure.",
+                "losses": "Requires migration sequencing and regression evidence before acceptance."
+              }
+            ],
+            "valuation_context": "space:advisory:technical-advisory-direct-db-access",
+            "values": [
+              {
+                "criterion_id": "obstruction_resolution",
+                "evidence": "cell:billing-db",
+                "value": 1
+              },
+              {
+                "criterion_id": "evidence_backing",
+                "evidence": "cell:billing-db",
+                "value": 1
+              },
+              {
+                "criterion_id": "review_safety",
+                "evidence": "policy:replace-order-service-db-read-review-gate",
+                "value": true
+              }
+            ]
+          },
+          "witnesses": [
+            {
+              "id": "cell:billing-db",
+              "review_status": "candidate",
+              "supports": [
+                "candidate:replace-order-service-db-read"
+              ],
+              "validity_contexts": [
+                "space:advisory:technical-advisory-direct-db-access"
+              ],
+              "witness_type": "structure_reference"
+            },
+            {
+              "id": "cell:order-service",
+              "review_status": "candidate",
+              "supports": [
+                "candidate:replace-order-service-db-read"
+              ],
+              "validity_contexts": [
+                "space:advisory:technical-advisory-direct-db-access"
+              ],
+              "witness_type": "structure_reference"
+            },
+            {
+              "id": "incidence:order-service-accesses-billing-db",
+              "review_status": "candidate",
+              "supports": [
+                "candidate:replace-order-service-db-read"
+              ],
+              "validity_contexts": [
+                "space:advisory:technical-advisory-direct-db-access"
+              ],
+              "witness_type": "structure_reference"
+            },
+            {
+              "id": "source:architecture-note",
+              "review_status": "candidate",
+              "supports": [
+                "candidate:replace-order-service-db-read"
+              ],
+              "validity_contexts": [
+                "space:advisory:technical-advisory-direct-db-access"
+              ],
+              "witness_type": "source_reference"
+            }
+          ]
+        },
         "proposed_cell_ids": [
           "cell:action-replace-order-service-direct-db-read"
         ],
+        "proposed_incidence_ids": [],
         "rationale": "Order Service should depend on Billing Service interface instead of Billing DB ownership boundary.",
         "resolves_obstruction_ids": [
           "obstruction:order-service-direct-billing-db-access"
