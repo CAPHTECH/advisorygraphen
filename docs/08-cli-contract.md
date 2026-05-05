@@ -118,6 +118,48 @@ advisorygraphen hypothesis support \
   --format json
 ```
 
+### `hypothesis apply-proposals`
+
+Apply policy-allowed lifecycle proposals as append-only hypothesis events. This
+is the first autonomy step: it can apply `supported` / `falsified` only when the
+proposal passes the autonomy policy. It cannot apply `accept` / `reject`, cannot
+apply `review_conflict`, and cannot change source material.
+
+```sh
+advisorygraphen hypothesis apply-proposals \
+  --store .advisorygraphen/store \
+  --from-report advisory.hypothesis-lifecycle.report.json \
+  --reviewer ai-agent:codex \
+  --reason "Source-backed observation matched conservative autonomy policy" \
+  --base-revision revision:technical-advisory-smoke-1 \
+  --format json
+```
+
+Default conservative policy:
+
+```json
+{
+  "allowed_outcomes": ["supported", "falsified"],
+  "min_confidence": 0.7,
+  "allowed_trust_levels": [
+    "reviewed_or_source_backed",
+    "test_passed",
+    "runtime_observed"
+  ],
+  "max_events": 3,
+  "require_candidate_status": true,
+  "allow_review_conflict": false
+}
+```
+
+Callers may pass `--policy policy.json` to override these values. Use
+`--dry-run` to report which proposals would be applied without writing case-log
+events or moving `HEAD`.
+
+When events are written, the result includes `post_apply_case_reason` so agents
+can inspect the updated case head, close status, frontier items, and waiting
+items before deciding whether another loop is allowed by policy.
+
 ### `completions accept`
 
 Append an acceptance review event. This command does not promote candidate

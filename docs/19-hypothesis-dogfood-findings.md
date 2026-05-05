@@ -93,3 +93,10 @@ Updated 2026-05-05 after the first F implementation.
 - AI/agent observations can be registered as generic structure, for example with `metadata.supports_hypothesis_id` or `metadata.falsifies_hypothesis_id`.
 - `hypothesis propose` reads the advisory space plus check report and emits unreviewed lifecycle proposals (`supported`, `falsified`, or `review_conflict`).
 - The authority boundary is explicit in the report: proposals cannot apply events. The existing review-gated `hypothesis support|falsify|accept|reject` commands remain the only mutation path.
+
+Updated 2026-05-05 after adding the first autonomy gate.
+
+- `hypothesis apply-proposals` can append `supported` / `falsified` events when a lifecycle proposal passes a conservative autonomy policy.
+- The default policy requires candidate hypotheses, confidence >= 0.7, and at least one reviewed/source-backed, test-passed, or runtime-observed signal.
+- `review_conflict`, `accept`, and `reject` remain outside autonomous application.
+- `--dry-run` reports policy decisions without writing events or moving case `HEAD`.

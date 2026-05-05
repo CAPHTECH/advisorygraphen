@@ -42,6 +42,17 @@ pub struct HypothesisProposeOptions {
 }
 
 #[derive(Debug, Clone)]
+pub struct HypothesisApplyProposalsOptions {
+    pub store: PathBuf,
+    pub from_report: PathBuf,
+    pub policy: Option<PathBuf>,
+    pub reviewer: String,
+    pub reason: String,
+    pub base_revision: Option<String>,
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Clone)]
 pub struct ReviewOptions {
     pub store: PathBuf,
     pub candidate_id: String,

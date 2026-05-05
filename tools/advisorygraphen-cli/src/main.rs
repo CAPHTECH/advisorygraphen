@@ -3,12 +3,13 @@ use advisorygraphen_projection::OutputFormat;
 use advisorygraphen_runtime::{
     case_close_check_workflow, case_import_workflow, case_reason_workflow, check_workflow,
     code_repo_snapshot_workflow, completions_propose_workflow, dogfood_repo_snapshot_workflow,
-    hypothesis_accept_workflow, hypothesis_falsify_workflow, hypothesis_propose_workflow,
-    hypothesis_reject_workflow, hypothesis_support_workflow, lift_workflow, project_workflow,
-    review_workflow, validate_workflow, CaseCloseCheckOptions, CaseImportOptions,
-    CaseReasonOptions, CheckOptions, CodeRepoSnapshotOptions, CompletionProposeOptions,
-    DogfoodRepoSnapshotOptions, HypothesisFalsifyOptions, HypothesisProposeOptions, LiftOptions,
-    ProjectOptions, ReviewOptions, ValidateOptions,
+    hypothesis_accept_workflow, hypothesis_apply_proposals_workflow, hypothesis_falsify_workflow,
+    hypothesis_propose_workflow, hypothesis_reject_workflow, hypothesis_support_workflow,
+    lift_workflow, project_workflow, review_workflow, validate_workflow, CaseCloseCheckOptions,
+    CaseImportOptions, CaseReasonOptions, CheckOptions, CodeRepoSnapshotOptions,
+    CompletionProposeOptions, DogfoodRepoSnapshotOptions, HypothesisApplyProposalsOptions,
+    HypothesisFalsifyOptions, HypothesisProposeOptions, LiftOptions, ProjectOptions, ReviewOptions,
+    ValidateOptions,
 };
 use clap::{Args, Parser, Subcommand};
 use serde::Serialize;
@@ -57,6 +58,7 @@ enum Command {
 #[derive(Debug, Subcommand)]
 enum HypothesisCommand {
     Propose(HypothesisProposeArgs),
+    ApplyProposals(HypothesisApplyProposalsArgs),
     Falsify(HypothesisFalsifyArgs),
     Support(HypothesisFalsifyArgs),
     Accept(HypothesisFalsifyArgs),
@@ -71,6 +73,26 @@ struct HypothesisProposeArgs {
     from_report: PathBuf,
     #[arg(long)]
     output: Option<PathBuf>,
+    #[arg(long, default_value = "json")]
+    format: String,
+}
+
+#[derive(Debug, Args)]
+struct HypothesisApplyProposalsArgs {
+    #[arg(long)]
+    store: PathBuf,
+    #[arg(long = "from-report")]
+    from_report: PathBuf,
+    #[arg(long)]
+    policy: Option<PathBuf>,
+    #[arg(long)]
+    reviewer: String,
+    #[arg(long)]
+    reason: String,
+    #[arg(long = "base-revision")]
+    base_revision: Option<String>,
+    #[arg(long)]
+    dry_run: bool,
     #[arg(long, default_value = "json")]
     format: String,
 }
@@ -354,6 +376,20 @@ fn run() -> Result<(), AdvisoryError> {
                     output: args.output,
                     command: Some(command_string()),
                 })?)
+            }
+            HypothesisCommand::ApplyProposals(args) => {
+                require_json_format(&args.format)?;
+                print_json(&hypothesis_apply_proposals_workflow(
+                    &HypothesisApplyProposalsOptions {
+                        store: args.store,
+                        from_report: args.from_report,
+                        policy: args.policy,
+                        reviewer: args.reviewer,
+                        reason: args.reason,
+                        base_revision: args.base_revision,
+                        dry_run: args.dry_run,
+                    },
+                )?)
             }
             HypothesisCommand::Falsify(args) => run_hypothesis_event(args, "falsify"),
             HypothesisCommand::Support(args) => run_hypothesis_event(args, "support"),

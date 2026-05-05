@@ -166,6 +166,40 @@ export async function GET() {
     assert_file_contains(&lifecycle, "hypothesis_lifecycle_proposal");
     assert_file_contains(&lifecycle, r#""proposed_outcome": "supported""#);
     assert_file_contains(&lifecycle, r#""may_apply_events": false"#);
+    let lifecycle_store = dir.join("hypothesis-store");
+    let hypothesis_import = run_cli([
+        "case",
+        "import",
+        "--store",
+        path_str(&lifecycle_store),
+        "--space",
+        path_str(&observed_space),
+        "--revision-id",
+        "revision:hypothesis-apply-smoke",
+        "--format",
+        "json",
+    ]);
+    assert_success(&hypothesis_import);
+    let apply_lifecycle = run_cli([
+        "hypothesis",
+        "apply-proposals",
+        "--store",
+        path_str(&lifecycle_store),
+        "--from-report",
+        path_str(&lifecycle),
+        "--reviewer",
+        "ai-agent:acceptance-test",
+        "--reason",
+        "Default conservative policy should skip inferred-only evidence.",
+        "--base-revision",
+        "revision:hypothesis-apply-smoke",
+        "--dry-run",
+        "--format",
+        "json",
+    ]);
+    assert_success(&apply_lifecycle);
+    assert_output_contains(&apply_lifecycle, r#""applied_count": 0"#);
+    assert_output_contains(&apply_lifecycle, "below policy minimum");
 
     let completions = dir.join("code.completions.json");
     let exec = dir.join("code.executive.json");

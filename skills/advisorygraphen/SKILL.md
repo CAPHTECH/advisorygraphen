@@ -15,6 +15,7 @@ Use this skill when a task asks for evidence-backed consulting, technical adviso
 - Do not collapse context-specific terms into one meaning without a mapping.
 - Do not present unsupported claims as evidence-backed conclusions.
 - Do not treat accepted completion review as structural application; inspect `blocker_resolution_state.application_requirements` first.
+- Do not autonomously apply hypothesis lifecycle proposals unless a policy allows the outcome and evidence trust level.
 
 ## Workflow
 
@@ -50,6 +51,8 @@ advisorygraphen case reason --store STORE --space-id SPACE_ID --format json
 advisorygraphen case close-check --store STORE --space-id SPACE_ID --base-revision REVISION --format json
 advisorygraphen completions accept --store STORE --candidate-id CANDIDATE --from-report COMPLETIONS.json --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
 advisorygraphen completions reject --store STORE --candidate-id CANDIDATE --from-report COMPLETIONS.json --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
+advisorygraphen hypothesis propose --space SPACE.json --from-report CHECK.json --output HYPOTHESIS_PROPOSALS.json --format json
+advisorygraphen hypothesis apply-proposals --store STORE --from-report HYPOTHESIS_PROPOSALS.json --reviewer ai-agent:codex --reason REASON --base-revision REVISION --format json
 advisorygraphen hypothesis falsify --store STORE --from-report CHECK.json --hypothesis-id HYPOTHESIS --evidence EVIDENCE_ID --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
 advisorygraphen hypothesis support --store STORE --from-report CHECK.json --hypothesis-id HYPOTHESIS --evidence EVIDENCE_ID --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
 advisorygraphen hypothesis accept  --store STORE --from-report CHECK.json --hypothesis-id HYPOTHESIS --evidence EVIDENCE_ID --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
@@ -68,6 +71,7 @@ advisorygraphen hypothesis reject  --store STORE --from-report CHECK.json --hypo
 - `case_head_revision` from `case reason` is the base revision for the next `case close-check`.
 - Run `case close-check` before reporting a case as closeable.
 - `review_gated_commands` require explicit human review before accept/reject events.
+- `hypothesis apply-proposals` can apply only policy-allowed `supported` / `falsified` proposal events; it must skip inferred-only evidence under the default conservative policy.
 - For imported case stores, `completions accept` and `completions reject` require `--base-revision`; missing or stale base revision is a stale-write error.
 - `projection_loss` must be disclosed when summarizing the projection.
 - `evidence_origin: inferred` cannot satisfy hard evidence requirements by default.

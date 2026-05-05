@@ -32,8 +32,8 @@ use hypothesis_propagation::{
 use hypothesis_review::apply_hypothesis_events;
 pub use options::{
     CaseCloseCheckOptions, CaseImportOptions, CaseReasonOptions, CheckOptions,
-    CompletionProposeOptions, HypothesisFalsifyOptions, HypothesisProposeOptions, LiftOptions,
-    ProjectOptions, ReviewOptions, ValidateOptions,
+    CompletionProposeOptions, HypothesisApplyProposalsOptions, HypothesisFalsifyOptions,
+    HypothesisProposeOptions, LiftOptions, ProjectOptions, ReviewOptions, ValidateOptions,
 };
 use projection_report::{attach_completion_report, read_projection_report};
 use review::{higher_graphen_completion_review, review_report_path, review_space_id};
@@ -90,6 +90,139 @@ pub fn hypothesis_propose_workflow(
     )?;
     write_json_if_requested(&options.output, &report)?;
     Ok(report)
+}
+
+pub fn hypothesis_apply_proposals_workflow(
+    options: &HypothesisApplyProposalsOptions,
+) -> AdvisoryResult<Value> {
+    fs::create_dir_all(&options.store)?;
+    let proposal_report = read_json(&options.from_report)?;
+    if proposal_report.get("report_type").and_then(Value::as_str)
+        != Some("hypothesis_lifecycle_proposal")
+    {
+        return Err(AdvisoryError::Validation(
+            "from-report must be a hypothesis_lifecycle_proposal report".to_string(),
+        ));
+    }
+    let space_id = proposal_report
+        .pointer("/input/space_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            AdvisoryError::Validation(
+                "from-report must contain input.space_id for hypothesis proposal application"
+                    .to_string(),
+            )
+        })?
+        .to_string();
+    let policy = read_autonomy_policy(options.policy.as_deref())?;
+    let initial_head = read_imported_space_head(&options.store, &space_id)?;
+    let materialized_space = read_materialized_space(&options.store, &space_id)?;
+    ensure_base_revision(Some(&initial_head), options.base_revision.as_deref())?;
+
+    let proposals = proposal_report
+        .pointer("/result/lifecycle_proposals")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut applied = Vec::new();
+    let mut skipped = Vec::new();
+    let mut current_head = initial_head.clone();
+
+    for proposal in proposals {
+        let decision = autonomy_decision(&proposal, &policy);
+        if !decision.allowed {
+            skipped.push(application_skip(&proposal, decision.reason));
+            continue;
+        }
+        if applied.len() >= policy.max_events {
+            skipped.push(application_skip(
+                &proposal,
+                format!("policy max_events {} reached", policy.max_events),
+            ));
+            continue;
+        }
+        let event = hypothesis_event_from_proposal(
+            &materialized_space.engagement_id,
+            &proposal,
+            &options.reviewer,
+            &options.reason,
+            &options.from_report,
+            Some(&current_head),
+            applied.len() + 1,
+        )?;
+        if !options.dry_run {
+            let sequence = next_sequence(&options.store, &space_id);
+            let target_revision = format!("revision:hypothesis-auto-{sequence:06}");
+            let hypothesis_slug = event["target_hypothesis_id"]
+                .as_str()
+                .unwrap_or("hypothesis:unknown")
+                .trim_start_matches("hypothesis:")
+                .to_string();
+            append_store_event(
+                &options.store,
+                &json!({
+                    "schema": "advisorygraphen.case.log.entry.v1",
+                    "case_space_id": space_id.clone(),
+                    "sequence": sequence,
+                    "entry_id": format!("log:{sequence:06}"),
+                    "morphism_id": format!("morphism:hypothesis-auto-{}-{hypothesis_slug}", event["outcome"].as_str().unwrap_or("unknown")),
+                    "source_revision_id": current_head,
+                    "target_revision_id": target_revision.clone(),
+                    "actor": event["reviewer_id"],
+                    "recorded_at": Utc::now().to_rfc3339(),
+                    "previous_entry_hash": null,
+                    "entry_hash": null,
+                    "payload": event
+                }),
+            )?;
+            fs::write(
+                space_dir(&options.store, &space_id).join("HEAD"),
+                &target_revision,
+            )?;
+            current_head = target_revision;
+        }
+        applied.push(event);
+    }
+    let post_apply_case_reason = if options.dry_run || applied.is_empty() {
+        json!(null)
+    } else {
+        let reasoned = case_reason_workflow(&CaseReasonOptions {
+            store: options.store.clone(),
+            space_id: space_id.clone(),
+        })?;
+        json!({
+            "case_head_revision": reasoned.pointer("/result/case_head_revision"),
+            "close_status": reasoned.pointer("/result/close_status"),
+            "frontier_items": reasoned.pointer("/result/frontier_items"),
+            "waiting_items": reasoned.pointer("/result/waiting_items")
+        })
+    };
+
+    Ok(json!({
+        "schema": "advisorygraphen.report.v1",
+        "report_type": "hypothesis_lifecycle_apply_proposals",
+        "report_version": 1,
+        "tool": advisorygraphen_core::tool_metadata(None),
+        "input": {
+            "space_id": space_id,
+            "from_report": options.from_report,
+            "policy": options.policy,
+            "base_revision": options.base_revision,
+            "dry_run": options.dry_run
+        },
+        "result": {
+            "applied_count": applied.len(),
+            "skipped_count": skipped.len(),
+            "applied_events": applied,
+            "skipped_proposals": skipped,
+            "initial_head_revision": initial_head,
+            "case_head_revision": current_head,
+            "policy": policy.as_json(),
+            "post_apply_case_reason": post_apply_case_reason
+        },
+        "projection": {},
+        "warnings": []
+    }))
 }
 pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
     fs::create_dir_all(&options.store)?;
@@ -159,6 +292,237 @@ pub fn hypothesis_accept_workflow(options: &HypothesisFalsifyOptions) -> Advisor
 
 pub fn hypothesis_reject_workflow(options: &HypothesisFalsifyOptions) -> AdvisoryResult<Value> {
     hypothesis_lifecycle_event(options, "rejected")
+}
+
+#[derive(Debug, Clone)]
+struct HypothesisAutonomyPolicy {
+    allowed_outcomes: Vec<String>,
+    min_confidence: f64,
+    allowed_trust_levels: Vec<String>,
+    max_events: usize,
+    require_candidate_status: bool,
+    allow_review_conflict: bool,
+}
+
+impl HypothesisAutonomyPolicy {
+    fn default_conservative() -> Self {
+        Self {
+            allowed_outcomes: vec!["supported".to_string(), "falsified".to_string()],
+            min_confidence: 0.7,
+            allowed_trust_levels: vec![
+                "reviewed_or_source_backed".to_string(),
+                "test_passed".to_string(),
+                "runtime_observed".to_string(),
+            ],
+            max_events: 3,
+            require_candidate_status: true,
+            allow_review_conflict: false,
+        }
+    }
+
+    fn as_json(&self) -> Value {
+        json!({
+            "allowed_outcomes": self.allowed_outcomes,
+            "min_confidence": self.min_confidence,
+            "allowed_trust_levels": self.allowed_trust_levels,
+            "max_events": self.max_events,
+            "require_candidate_status": self.require_candidate_status,
+            "allow_review_conflict": self.allow_review_conflict
+        })
+    }
+}
+
+struct AutonomyDecision {
+    allowed: bool,
+    reason: String,
+}
+
+fn read_autonomy_policy(path: Option<&Path>) -> AdvisoryResult<HypothesisAutonomyPolicy> {
+    let Some(path) = path else {
+        return Ok(HypothesisAutonomyPolicy::default_conservative());
+    };
+    let value = read_json(path)?;
+    let default = HypothesisAutonomyPolicy::default_conservative();
+    Ok(HypothesisAutonomyPolicy {
+        allowed_outcomes: optional_string_vec(&value, "allowed_outcomes")
+            .unwrap_or(default.allowed_outcomes),
+        min_confidence: value
+            .get("min_confidence")
+            .and_then(Value::as_f64)
+            .unwrap_or(default.min_confidence),
+        allowed_trust_levels: optional_string_vec(&value, "allowed_trust_levels")
+            .unwrap_or(default.allowed_trust_levels),
+        max_events: value
+            .get("max_events")
+            .and_then(Value::as_u64)
+            .map(|value| value as usize)
+            .unwrap_or(default.max_events),
+        require_candidate_status: value
+            .get("require_candidate_status")
+            .and_then(Value::as_bool)
+            .unwrap_or(default.require_candidate_status),
+        allow_review_conflict: value
+            .get("allow_review_conflict")
+            .and_then(Value::as_bool)
+            .unwrap_or(default.allow_review_conflict),
+    })
+}
+
+fn optional_string_vec(value: &Value, key: &str) -> Option<Vec<String>> {
+    value
+        .get(key)
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .filter(|items| !items.is_empty())
+}
+
+fn autonomy_decision(proposal: &Value, policy: &HypothesisAutonomyPolicy) -> AutonomyDecision {
+    let outcome = proposal
+        .get("proposed_outcome")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    if outcome == "review_conflict" && !policy.allow_review_conflict {
+        return denied("review_conflict proposals require human review");
+    }
+    if !policy
+        .allowed_outcomes
+        .iter()
+        .any(|allowed| allowed == outcome)
+    {
+        return denied(format!("outcome {outcome} is not policy-allowed"));
+    }
+    if policy.require_candidate_status
+        && proposal
+            .get("target_hypothesis_status")
+            .and_then(Value::as_str)
+            != Some("candidate")
+    {
+        return denied("target hypothesis is not in candidate lifecycle status");
+    }
+    let confidence = proposal
+        .get("confidence")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    if confidence < policy.min_confidence {
+        return denied(format!(
+            "confidence {confidence} is below policy minimum {}",
+            policy.min_confidence
+        ));
+    }
+    let signal_pointer = match outcome {
+        "supported" => "/supporting_signals",
+        "falsified" => "/falsifying_signals",
+        _ => "/supporting_signals",
+    };
+    let signals = proposal
+        .pointer(signal_pointer)
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    if signals.is_empty() {
+        return denied("proposal has no outcome-specific evidence signals");
+    }
+    let has_allowed_trust = signals.iter().any(|signal| {
+        signal
+            .get("trust_level")
+            .and_then(Value::as_str)
+            .is_some_and(|trust| {
+                policy
+                    .allowed_trust_levels
+                    .iter()
+                    .any(|allowed| allowed == trust)
+            })
+    });
+    if !has_allowed_trust {
+        return denied("proposal has no evidence signal with policy-allowed trust level");
+    }
+    AutonomyDecision {
+        allowed: true,
+        reason: "policy allowed".to_string(),
+    }
+}
+
+fn denied(reason: impl Into<String>) -> AutonomyDecision {
+    AutonomyDecision {
+        allowed: false,
+        reason: reason.into(),
+    }
+}
+
+fn application_skip(proposal: &Value, reason: impl Into<String>) -> Value {
+    json!({
+        "proposal_id": proposal.get("id"),
+        "target_hypothesis_id": proposal.get("target_hypothesis_id"),
+        "proposed_outcome": proposal.get("proposed_outcome"),
+        "reason": reason.into()
+    })
+}
+
+fn hypothesis_event_from_proposal(
+    engagement_id: &str,
+    proposal: &Value,
+    reviewer: &str,
+    reason: &str,
+    from_report: &Path,
+    base_revision: Option<&str>,
+    ordinal: usize,
+) -> AdvisoryResult<Value> {
+    let hypothesis_id = proposal
+        .get("target_hypothesis_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            AdvisoryError::Validation("lifecycle proposal missing target_hypothesis_id".to_string())
+        })?;
+    let outcome = proposal
+        .get("proposed_outcome")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            AdvisoryError::Validation("lifecycle proposal missing proposed_outcome".to_string())
+        })?;
+    let event_outcome = match outcome {
+        "supported" | "falsified" => outcome,
+        other => {
+            return Err(AdvisoryError::Validation(format!(
+                "cannot apply lifecycle proposal outcome {other}"
+            )))
+        }
+    };
+    let evidence_ids = proposal
+        .get("evidence_ids")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let hypothesis_slug = hypothesis_id.trim_start_matches("hypothesis:");
+    let event = json!({
+        "schema": HYPOTHESIS_EVENT_SCHEMA,
+        "hypothesis_event_id": format!("hypothesis-event:auto-{event_outcome}:{hypothesis_slug}-{ordinal:06}"),
+        "engagement_id": engagement_id,
+        "target_hypothesis_id": hypothesis_id,
+        "outcome": event_outcome,
+        "reviewer_id": reviewer,
+        "reviewed_at": Utc::now().to_rfc3339(),
+        "reason": reason,
+        "evidence_ids": evidence_ids,
+        "base_revision_id": base_revision,
+        "metadata": {
+            "from_report": from_report.display().to_string(),
+            "proposal_id": proposal.get("id"),
+            "autonomy": {
+                "applied_from_proposal": true,
+                "proposal_confidence": proposal.get("confidence"),
+                "supporting_signals": proposal.get("supporting_signals"),
+                "falsifying_signals": proposal.get("falsifying_signals")
+            }
+        }
+    });
+    validate_document(&event, Some(HYPOTHESIS_EVENT_SCHEMA))?;
+    Ok(event)
 }
 
 fn hypothesis_lifecycle_event(

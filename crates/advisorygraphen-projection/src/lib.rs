@@ -201,6 +201,8 @@ fn ai_agent_projection(
                 "lift",
                 "check",
                 "completions propose",
+                "hypothesis propose",
+                "hypothesis apply-proposals with conservative policy",
                 "project ai_agent",
                 "project audit_trace",
                 "case import",
