@@ -106,6 +106,30 @@ cell:billing-status-api + incidence:order-service-uses-billing-api
 
 This separation prevents silent promotion.
 
+The generic case-store command for promotion is:
+
+```sh
+advisorygraphen completions apply-accepted \
+  --store .advisorygraphen/store \
+  --space-id space:technical-advisory-smoke \
+  --reviewer ai-agent:codex \
+  --reason "Apply reviewed accepted completion candidates" \
+  --base-revision revision:review-000002 \
+  --format json
+```
+
+Automatic promotion is intentionally narrow. It currently supports:
+
+| Candidate type | Required structure applied |
+| --- | --- |
+| `ownership_clarification` | placeholder `owner` cell and `owns` incidence |
+| `proposed_test` | placeholder `test_or_verification` cell and `verifies` incidence |
+
+Other accepted candidates remain pending structural application until a specific
+generic materialization rule exists. After application, the agent must rerun
+case reasoning or inspect `post_apply_case_reason` before treating the blocker
+as resolved.
+
 ## Review policy
 
 | Target | Required review |

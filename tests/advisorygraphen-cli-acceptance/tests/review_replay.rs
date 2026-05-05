@@ -360,4 +360,38 @@ fn rejected_candidate_survives_case_replay() {
     assert_output_contains(&reason_after_accept, "frontier_items");
     assert_output_contains(&reason_after_accept, "apply_accepted_candidate_structure");
     assert_output_contains(&reason_after_accept, "add owner cell and owns incidence");
+
+    let apply_accepted = run_cli([
+        "completions",
+        "apply-accepted",
+        "--store",
+        path_str(&store),
+        "--space-id",
+        SPACE_ID,
+        "--reviewer",
+        "ai-agent:dogfood",
+        "--reason",
+        "Apply reviewed accepted completion during replay test.",
+        "--base-revision",
+        "revision:review-000002",
+        "--format",
+        "json",
+    ]);
+    assert_success(&apply_accepted);
+    assert_output_contains(&apply_accepted, r#""report_type": "completion_apply_accepted""#);
+    assert_output_contains(&apply_accepted, r#""applied_count": 1"#);
+    assert_output_contains(
+        &apply_accepted,
+        "cell:auto-owner-enterprise-packaging-action",
+    );
+    assert_file_contains(&space_head, "revision:completion-apply-000003");
+
+    let materialized_space = store
+        .join("spaces")
+        .join(SPACE_ID.replace([':', '/'], "-"))
+        .join("materialized/space.json");
+    assert_file_contains(
+        &materialized_space,
+        "incidence:auto-owner-enterprise-packaging-action-owns-enterprise-packaging-action",
+    );
 }

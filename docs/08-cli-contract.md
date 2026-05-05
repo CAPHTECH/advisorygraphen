@@ -201,6 +201,37 @@ The completion report `space_id` must already be imported into the case store.
 `--base-revision` is required and checked against that space's case-store
 `HEAD`. A missing or stale value fails with exit code `5`.
 
+### `completions apply-accepted`
+
+Apply reviewed accepted completion candidates into the materialized advisory
+space. The command reruns check/propose, overlays review events, inspects
+`blocker_resolution_state.application_requirements`, and only materializes
+candidate types with an explicit generic mapping.
+
+```sh
+advisorygraphen completions apply-accepted \
+  --store .advisorygraphen/store \
+  --space-id space:technical-advisory-smoke \
+  --reviewer ai-agent:codex \
+  --reason "Apply reviewed accepted completion candidates" \
+  --base-revision revision:review-000002 \
+  --format json
+```
+
+Supported automatic applications:
+
+| Candidate type | Materialized structure |
+| --- | --- |
+| `ownership_clarification` | placeholder `owner` cell plus `owns` incidence to the blocked action |
+| `proposed_test` | placeholder `test_or_verification` cell plus `verifies` incidence to the blocked requirement |
+
+Unsupported accepted candidate types are reported in `skipped_candidates` and
+remain review-visible. `--dry-run` returns the cells and incidences that would
+be written without changing `materialized/space.json` or `HEAD`. Successful
+application appends a `advisorygraphen.completion.application.v1` case-log
+event, advances `HEAD`, and includes `post_apply_case_reason` so an agent can
+verify whether the blocker actually disappeared.
+
 ### `project`
 
 Create audience-specific projection.

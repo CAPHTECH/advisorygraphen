@@ -64,6 +64,16 @@ pub struct ReviewOptions {
 }
 
 #[derive(Debug, Clone)]
+pub struct CompletionApplyAcceptedOptions {
+    pub store: PathBuf,
+    pub space_id: String,
+    pub reviewer: String,
+    pub reason: String,
+    pub base_revision: Option<String>,
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Clone)]
 pub struct ProjectOptions {
     pub space: PathBuf,
     pub report: PathBuf,

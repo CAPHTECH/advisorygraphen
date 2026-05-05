@@ -1,6 +1,6 @@
 use advisorygraphen_core::{
-    validate_document, AdvisoryError, AdvisoryResult, AdvisorySpaceEnvelope, ReportEnvelope,
-    HYPOTHESIS_EVENT_SCHEMA, REVIEW_EVENT_SCHEMA,
+    json_id, validate_document, AdvisoryError, AdvisoryResult, AdvisorySpaceEnvelope,
+    ReportEnvelope, HYPOTHESIS_EVENT_SCHEMA, REVIEW_EVENT_SCHEMA,
 };
 use advisorygraphen_interpretation::InterpretationPackage;
 use advisorygraphen_lift::lift_snapshot;
@@ -32,8 +32,9 @@ use hypothesis_propagation::{
 use hypothesis_review::apply_hypothesis_events;
 pub use options::{
     CaseCloseCheckOptions, CaseImportOptions, CaseReasonOptions, CheckOptions,
-    CompletionProposeOptions, HypothesisApplyProposalsOptions, HypothesisFalsifyOptions,
-    HypothesisProposeOptions, LiftOptions, ProjectOptions, ReviewOptions, ValidateOptions,
+    CompletionApplyAcceptedOptions, CompletionProposeOptions, HypothesisApplyProposalsOptions,
+    HypothesisFalsifyOptions, HypothesisProposeOptions, LiftOptions, ProjectOptions, ReviewOptions,
+    ValidateOptions,
 };
 use projection_report::{attach_completion_report, read_projection_report};
 use review::{higher_graphen_completion_review, review_report_path, review_space_id};
@@ -278,8 +279,377 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
     )?;
     Ok(event)
 }
+
+pub fn completions_apply_accepted_workflow(
+    options: &CompletionApplyAcceptedOptions,
+) -> AdvisoryResult<Value> {
+    fs::create_dir_all(&options.store)?;
+    let head = read_imported_space_head(&options.store, &options.space_id)?;
+    ensure_base_revision(Some(&head), options.base_revision.as_deref())?;
+    let mut space = read_materialized_space(&options.store, &options.space_id)?;
+    let check = check_space(&space, "technical_advisory_mvp", None, None)?;
+    let blockers = check
+        .result
+        .get("obstructions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut completions = propose_completions(&space, &check, "apply_accepted", None)?;
+    let mut candidates = completions
+        .result
+        .get("completion_candidates")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    apply_candidate_reviews(&options.store, &options.space_id, &mut candidates)?;
+    completions.result["completion_candidates"] = json!(candidates.clone());
+    let resolution_state = blocker_resolution_state(&blockers, &candidates);
+    let mut applied_structures = Vec::new();
+    let mut skipped_candidates = Vec::new();
+
+    for item in &resolution_state {
+        if item.get("resolution_status").and_then(Value::as_str)
+            != Some("accepted_candidate_pending_application")
+        {
+            continue;
+        }
+        let obstruction_id = item
+            .get("obstruction_id")
+            .and_then(Value::as_str)
+            .unwrap_or("obstruction:unknown");
+        let Some(blocker) = blockers
+            .iter()
+            .find(|blocker| blocker.get("id").and_then(Value::as_str) == Some(obstruction_id))
+        else {
+            continue;
+        };
+        for candidate_id in item
+            .get("accepted_candidate_ids")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+        {
+            let Some(candidate) = candidates.iter().find(|candidate| {
+                candidate.get("id").and_then(Value::as_str) == Some(candidate_id)
+            }) else {
+                continue;
+            };
+            match materialize_candidate_structure(&space, blocker, candidate, &options.reviewer) {
+                Materialization::Applied { cells, incidences } => {
+                    if options.dry_run {
+                        applied_structures.push(json!({
+                            "candidate_id": candidate_id,
+                            "dry_run": true,
+                            "cells": cells,
+                            "incidences": incidences
+                        }));
+                    } else {
+                        for cell in &cells {
+                            upsert_by_id(&mut space.cells, cell.clone());
+                        }
+                        for incidence in &incidences {
+                            upsert_by_id(&mut space.incidences, incidence.clone());
+                        }
+                        applied_structures.push(json!({
+                            "candidate_id": candidate_id,
+                            "dry_run": false,
+                            "cell_ids": ids_of(&cells),
+                            "incidence_ids": ids_of(&incidences)
+                        }));
+                    }
+                }
+                Materialization::Skipped { reason } => {
+                    skipped_candidates.push(json!({
+                        "candidate_id": candidate_id,
+                        "candidate_type": candidate.get("candidate_type"),
+                        "reason": reason
+                    }));
+                }
+            }
+        }
+    }
+
+    let mut current_head = head.clone();
+    if !options.dry_run && !applied_structures.is_empty() {
+        advisorygraphen_core::validate_space(&space)?;
+        let sequence = next_sequence(&options.store, &options.space_id);
+        let target_revision = format!("revision:completion-apply-{sequence:06}");
+        let event = json!({
+            "schema": "advisorygraphen.completion.application.v1",
+            "application_event_id": format!("completion-application:{sequence:06}"),
+            "engagement_id": space.engagement_id,
+            "reviewer_id": options.reviewer,
+            "reviewed_at": Utc::now().to_rfc3339(),
+            "reason": options.reason,
+            "base_revision_id": options.base_revision,
+            "applied_structures": applied_structures,
+            "skipped_candidates": skipped_candidates
+        });
+        append_store_event(
+            &options.store,
+            &json!({
+                "schema": "advisorygraphen.case.log.entry.v1",
+                "case_space_id": options.space_id.clone(),
+                "sequence": sequence,
+                "entry_id": format!("log:{sequence:06}"),
+                "morphism_id": format!("morphism:completion-apply-{sequence:06}"),
+                "source_revision_id": head,
+                "target_revision_id": target_revision.clone(),
+                "actor": options.reviewer,
+                "recorded_at": Utc::now().to_rfc3339(),
+                "previous_entry_hash": null,
+                "entry_hash": null,
+                "payload": event
+            }),
+        )?;
+        fs::write(
+            space_dir(&options.store, &options.space_id).join("materialized/space.json"),
+            serde_json::to_vec_pretty(&space)?,
+        )?;
+        fs::write(
+            space_dir(&options.store, &options.space_id).join("HEAD"),
+            &target_revision,
+        )?;
+        current_head = target_revision;
+    }
+
+    let post_apply_case_reason = if options.dry_run || applied_structures.is_empty() {
+        json!(null)
+    } else {
+        let reasoned = case_reason_workflow(&CaseReasonOptions {
+            store: options.store.clone(),
+            space_id: options.space_id.clone(),
+        })?;
+        json!({
+            "case_head_revision": reasoned.pointer("/result/case_head_revision"),
+            "close_status": reasoned.pointer("/result/close_status"),
+            "frontier_items": reasoned.pointer("/result/frontier_items"),
+            "waiting_items": reasoned.pointer("/result/waiting_items")
+        })
+    };
+
+    Ok(json!({
+        "schema": "advisorygraphen.report.v1",
+        "report_type": "completion_apply_accepted",
+        "report_version": 1,
+        "tool": advisorygraphen_core::tool_metadata(None),
+        "input": {
+            "space_id": options.space_id,
+            "base_revision": options.base_revision,
+            "dry_run": options.dry_run
+        },
+        "result": {
+            "applied_count": applied_structures.len(),
+            "skipped_count": skipped_candidates.len(),
+            "applied_structures": applied_structures,
+            "skipped_candidates": skipped_candidates,
+            "initial_head_revision": head,
+            "case_head_revision": current_head,
+            "post_apply_case_reason": post_apply_case_reason,
+            "supported_candidate_types": [
+                "ownership_clarification",
+                "proposed_test"
+            ]
+        },
+        "projection": {},
+        "warnings": []
+    }))
+}
 pub fn hypothesis_falsify_workflow(options: &HypothesisFalsifyOptions) -> AdvisoryResult<Value> {
     hypothesis_lifecycle_event(options, "falsified")
+}
+
+enum Materialization {
+    Applied {
+        cells: Vec<Value>,
+        incidences: Vec<Value>,
+    },
+    Skipped {
+        reason: String,
+    },
+}
+
+fn materialize_candidate_structure(
+    space: &AdvisorySpaceEnvelope,
+    blocker: &Value,
+    candidate: &Value,
+    reviewer: &str,
+) -> Materialization {
+    if candidate.get("review_status").and_then(Value::as_str) != Some("accepted") {
+        return Materialization::Skipped {
+            reason: "candidate is not accepted".to_string(),
+        };
+    }
+    let Some(blocked_id) = blocker
+        .get("blocked_ids")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .find(|id| space.cells.iter().any(|cell| json_id(cell) == *id))
+    else {
+        return Materialization::Skipped {
+            reason: "blocker has no materializable blocked cell".to_string(),
+        };
+    };
+    let Some(blocked_cell) = space.cells.iter().find(|cell| json_id(cell) == blocked_id) else {
+        return Materialization::Skipped {
+            reason: "blocked cell not found in materialized space".to_string(),
+        };
+    };
+    let candidate_id = json_id(candidate);
+    let blocked_slug = id_suffix(blocked_id);
+    let provenance = reviewed_materialization_provenance(reviewer);
+    let source_ids = materialization_source_ids(candidate, blocker);
+    let context_ids = blocked_cell
+        .get("context_ids")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    match candidate.get("candidate_type").and_then(Value::as_str) {
+        Some("ownership_clarification") => {
+            let owner_id = format!("cell:auto-owner-{blocked_slug}");
+            let incidence_id = format!("incidence:auto-owner-{blocked_slug}-owns-{blocked_slug}");
+            Materialization::Applied {
+                cells: vec![json!({
+                    "id": owner_id,
+                    "cell_type": "owner",
+                    "title": format!("Owner for {}", title(blocked_cell)),
+                    "summary": format!(
+                        "Placeholder owner materialized from accepted completion candidate {candidate_id}."
+                    ),
+                    "context_ids": context_ids,
+                    "source_ids": source_ids,
+                    "structure_refs": [],
+                    "provenance": provenance.clone(),
+                    "metadata": {
+                        "materialized_from_candidate_id": candidate_id,
+                        "materialization_kind": "accepted_completion",
+                        "placeholder": true,
+                        "requires_human_named_owner": true
+                    }
+                })],
+                incidences: vec![json!({
+                    "id": incidence_id,
+                    "relation_type": "owns",
+                    "from_id": owner_id,
+                    "to_id": blocked_id,
+                    "context_ids": [],
+                    "evidence_ids": [],
+                    "strength": "soft",
+                    "provenance": provenance,
+                    "metadata": {
+                        "materialized_from_candidate_id": candidate_id,
+                        "materialization_kind": "accepted_completion"
+                    }
+                })],
+            }
+        }
+        Some("proposed_test") => {
+            let verification_id = format!("cell:auto-verification-{blocked_slug}");
+            let incidence_id =
+                format!("incidence:auto-verification-{blocked_slug}-verifies-{blocked_slug}");
+            Materialization::Applied {
+                cells: vec![json!({
+                    "id": verification_id,
+                    "cell_type": "test_or_verification",
+                    "title": format!("Verification for {}", title(blocked_cell)),
+                    "summary": candidate
+                        .get("rationale")
+                        .and_then(Value::as_str)
+                        .unwrap_or("Verification method materialized from an accepted completion candidate."),
+                    "context_ids": context_ids,
+                    "source_ids": source_ids,
+                    "structure_refs": [],
+                    "provenance": provenance.clone(),
+                    "metadata": {
+                        "materialized_from_candidate_id": candidate_id,
+                        "materialization_kind": "accepted_completion",
+                        "placeholder": true,
+                        "requires_concrete_test_details": true
+                    }
+                })],
+                incidences: vec![json!({
+                    "id": incidence_id,
+                    "relation_type": "verifies",
+                    "from_id": verification_id,
+                    "to_id": blocked_id,
+                    "context_ids": [],
+                    "evidence_ids": [],
+                    "strength": "soft",
+                    "provenance": provenance,
+                    "metadata": {
+                        "materialized_from_candidate_id": candidate_id,
+                        "materialization_kind": "accepted_completion"
+                    }
+                })],
+            }
+        }
+        Some(other) => Materialization::Skipped {
+            reason: format!("candidate_type {other} is not supported for automatic application"),
+        },
+        None => Materialization::Skipped {
+            reason: "candidate_type is missing".to_string(),
+        },
+    }
+}
+
+fn reviewed_materialization_provenance(reviewer: &str) -> Value {
+    json!({
+        "origin": "reviewed",
+        "actor": reviewer,
+        "confidence": 0.7,
+        "review_status": "accepted"
+    })
+}
+
+fn materialization_source_ids(candidate: &Value, blocker: &Value) -> Vec<Value> {
+    let mut ids = candidate
+        .get("source_ids")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    if ids.is_empty() {
+        ids = blocker
+            .get("evidence_ids")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+    }
+    ids.sort_by(|left, right| {
+        left.as_str()
+            .unwrap_or("")
+            .cmp(right.as_str().unwrap_or(""))
+    });
+    ids.dedup();
+    ids
+}
+
+fn upsert_by_id(items: &mut Vec<Value>, value: Value) {
+    let id = json_id(&value);
+    if let Some(existing) = items.iter_mut().find(|item| json_id(item) == id) {
+        *existing = value;
+    } else {
+        items.push(value);
+    }
+}
+
+fn ids_of(items: &[Value]) -> Vec<String> {
+    items.iter().map(json_id).map(str::to_string).collect()
+}
+
+fn title(value: &Value) -> &str {
+    value
+        .get("title")
+        .and_then(Value::as_str)
+        .unwrap_or_else(|| json_id(value))
+}
+
+fn id_suffix(id: &str) -> String {
+    let raw = id.split_once(':').map(|(_, suffix)| suffix).unwrap_or(id);
+    advisorygraphen_core::slugify_id(raw)
 }
 
 pub fn hypothesis_support_workflow(options: &HypothesisFalsifyOptions) -> AdvisoryResult<Value> {

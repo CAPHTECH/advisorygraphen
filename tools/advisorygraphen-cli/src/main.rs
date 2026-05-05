@@ -2,11 +2,12 @@ use advisorygraphen_core::{AdvisoryError, Severity, TOOL_VERSION};
 use advisorygraphen_projection::OutputFormat;
 use advisorygraphen_runtime::{
     case_close_check_workflow, case_import_workflow, case_reason_workflow, check_workflow,
-    code_repo_snapshot_workflow, completions_propose_workflow, dogfood_repo_snapshot_workflow,
-    hypothesis_accept_workflow, hypothesis_apply_proposals_workflow, hypothesis_falsify_workflow,
-    hypothesis_propose_workflow, hypothesis_reject_workflow, hypothesis_support_workflow,
-    lift_workflow, project_workflow, review_workflow, validate_workflow, CaseCloseCheckOptions,
-    CaseImportOptions, CaseReasonOptions, CheckOptions, CodeRepoSnapshotOptions,
+    code_repo_snapshot_workflow, completions_apply_accepted_workflow, completions_propose_workflow,
+    dogfood_repo_snapshot_workflow, hypothesis_accept_workflow,
+    hypothesis_apply_proposals_workflow, hypothesis_falsify_workflow, hypothesis_propose_workflow,
+    hypothesis_reject_workflow, hypothesis_support_workflow, lift_workflow, project_workflow,
+    review_workflow, validate_workflow, CaseCloseCheckOptions, CaseImportOptions,
+    CaseReasonOptions, CheckOptions, CodeRepoSnapshotOptions, CompletionApplyAcceptedOptions,
     CompletionProposeOptions, DogfoodRepoSnapshotOptions, HypothesisApplyProposalsOptions,
     HypothesisFalsifyOptions, HypothesisProposeOptions, LiftOptions, ProjectOptions, ReviewOptions,
     ValidateOptions,
@@ -122,6 +123,7 @@ enum CompletionsCommand {
     Propose(CompletionProposeArgs),
     Accept(ReviewArgs),
     Reject(ReviewArgs),
+    ApplyAccepted(CompletionApplyAcceptedArgs),
 }
 
 #[derive(Debug, Subcommand)]
@@ -185,6 +187,24 @@ struct CompletionProposeArgs {
     from_report: PathBuf,
     #[arg(long)]
     output: Option<PathBuf>,
+    #[arg(long, default_value = "json")]
+    format: String,
+}
+
+#[derive(Debug, Args)]
+struct CompletionApplyAcceptedArgs {
+    #[arg(long)]
+    store: PathBuf,
+    #[arg(long = "space-id")]
+    space_id: String,
+    #[arg(long)]
+    reviewer: String,
+    #[arg(long)]
+    reason: String,
+    #[arg(long = "base-revision")]
+    base_revision: Option<String>,
+    #[arg(long)]
+    dry_run: bool,
     #[arg(long, default_value = "json")]
     format: String,
 }
@@ -333,6 +353,19 @@ fn run() -> Result<(), AdvisoryError> {
             }
             CompletionsCommand::Accept(args) => run_review(args, "accepted"),
             CompletionsCommand::Reject(args) => run_review(args, "rejected"),
+            CompletionsCommand::ApplyAccepted(args) => {
+                require_json_format(&args.format)?;
+                print_json(&completions_apply_accepted_workflow(
+                    &CompletionApplyAcceptedOptions {
+                        store: args.store,
+                        space_id: args.space_id,
+                        reviewer: args.reviewer,
+                        reason: args.reason,
+                        base_revision: args.base_revision,
+                        dry_run: args.dry_run,
+                    },
+                )?)
+            }
         },
         Command::Project(args) => {
             let format = OutputFormat::parse(&args.format)?;
