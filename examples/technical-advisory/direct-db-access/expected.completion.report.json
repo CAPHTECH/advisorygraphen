@@ -15,6 +15,38 @@
   "result": {
     "completion_candidates": [
       {
+        "application_plan": {
+          "candidate_id": "candidate:billing-status-api",
+          "candidate_type": "proposed_interface",
+          "dry_run_supported": true,
+          "expected_effects": {
+            "affected_invariant_ids": [
+              "invariant:architecture_no_cross_context_direct_database_access"
+            ],
+            "repairs_obstruction_ids": [
+              "obstruction:order-service-direct-billing-db-access"
+            ]
+          },
+          "operations": [
+            {
+              "cell_id": "cell:billing-status-api",
+              "operation": "upsert_cell",
+              "review_status": "unreviewed"
+            },
+            {
+              "incidence_id": "incidence:order-service-accesses-billing-db",
+              "operation": "remove_incidence",
+              "reason": "replace direct access with proposed boundary-safe structure",
+              "review_status": "unreviewed"
+            }
+          ],
+          "review_status": "unreviewed",
+          "safety": {
+            "dry_run_does_not_accept_candidate": true,
+            "requires_explicit_review_for_persistent_application": true
+          },
+          "schema": "advisorygraphen.completion.application_plan.v1"
+        },
         "candidate_type": "proposed_interface",
         "confidence": 0.82,
         "higher_graphen": {
@@ -42,6 +74,7 @@
           "derived_from_hypothesis_id": "hypothesis:order-service-direct-billing-db-access-implicit-interface",
           "evidence_strength": "source_backed_obstruction",
           "from_cell_id": "cell:order-service",
+          "incidence_id": "incidence:order-service-accesses-billing-db",
           "precision_note": "Derived from boundary violation witness cells and obstruction evidence_ids.",
           "specificity": "source_derived",
           "to_cell_id": "cell:billing-db"
@@ -291,6 +324,38 @@
         "title": "Add Billing status query API"
       },
       {
+        "application_plan": {
+          "candidate_id": "candidate:replace-order-service-db-read",
+          "candidate_type": "proposed_refactor_action",
+          "dry_run_supported": true,
+          "expected_effects": {
+            "affected_invariant_ids": [
+              "invariant:architecture_no_cross_context_direct_database_access"
+            ],
+            "repairs_obstruction_ids": [
+              "obstruction:order-service-direct-billing-db-access"
+            ]
+          },
+          "operations": [
+            {
+              "cell_id": "cell:action-replace-order-service-direct-db-read",
+              "operation": "upsert_cell",
+              "review_status": "unreviewed"
+            },
+            {
+              "incidence_id": "incidence:order-service-accesses-billing-db",
+              "operation": "remove_incidence",
+              "reason": "replace direct access with proposed boundary-safe structure",
+              "review_status": "unreviewed"
+            }
+          ],
+          "review_status": "unreviewed",
+          "safety": {
+            "dry_run_does_not_accept_candidate": true,
+            "requires_explicit_review_for_persistent_application": true
+          },
+          "schema": "advisorygraphen.completion.application_plan.v1"
+        },
         "candidate_type": "proposed_refactor_action",
         "confidence": 0.78,
         "higher_graphen": {
@@ -318,6 +383,7 @@
           "derived_from_hypothesis_id": "hypothesis:order-service-direct-billing-db-access-implicit-interface",
           "evidence_strength": "source_backed_obstruction",
           "from_cell_id": "cell:order-service",
+          "incidence_id": "incidence:order-service-accesses-billing-db",
           "precision_note": "Derived from boundary violation witness cells and obstruction evidence_ids.",
           "specificity": "source_derived",
           "to_cell_id": "cell:billing-db"

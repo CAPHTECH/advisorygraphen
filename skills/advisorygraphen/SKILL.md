@@ -72,13 +72,15 @@ Inspect these fields for every candidate:
 - `proposal_content.valuation`
 - `proposal_content.policy`
 - `proposal_content.content_obstructions`
+- `application_plan`
 - `proposed_cell_ids`
 - `proposed_incidence_ids`
 
 Classify candidates as:
 
 - `ready_for_review`: scenario status is `candidate`, content obstructions are
-  empty, and the candidate proposes concrete cells or incidences.
+  empty, the candidate proposes concrete cells or incidences, and
+  `application_plan.dry_run_supported` is true.
 - `needs_structure`: content obstruction
   `proposal_content_underspecified` is present or both `proposed_cell_ids` and
   `proposed_incidence_ids` are empty.
@@ -90,7 +92,7 @@ Classify candidates as:
   policy-approved review before promotion.
 
 Do not treat `ready_for_review` as accepted. It means the candidate is concrete
-enough for explicit review.
+enough to dry-run or submit for review.
 
 ## Candidate-specific actions
 
@@ -177,6 +179,7 @@ advisorygraphen validate --input INPUT.json --format json
 advisorygraphen lift --input INPUT.json --package technical_advisory --output SPACE.json --format json
 advisorygraphen check --space SPACE.json --ruleset technical_advisory_mvp --output CHECK.json --format json
 advisorygraphen completions propose --space SPACE.json --from-report CHECK.json --output COMPLETIONS.json --format json
+advisorygraphen completions dry-run --space SPACE.json --from-report COMPLETIONS.json --candidate-id CANDIDATE --output DRY_RUN.json --format json
 advisorygraphen project --space SPACE.json --report CHECK.json --completions-report COMPLETIONS.json --audience ai_agent --format json --output AI_AGENT.json
 advisorygraphen project --space SPACE.json --report CHECK.json --audience executive --format markdown --output REPORT.md
 advisorygraphen project --space SPACE.json --report CHECK.json --audience audit_trace --format json --output AUDIT.json
@@ -204,6 +207,10 @@ advisorygraphen hypothesis reject  --store STORE --from-report CHECK.json --hypo
   unresolved content obstructions.
 - `proposal_content_summary.blocked_content > 0` means some candidates need
   more source or structure before review.
+- `application_plan` is the candidate's unreviewed operation preview; it does
+  not prove the blocker will resolve.
+- `completion_dry_run.result.dry_runs[].check_delta` is the evidence for what a
+  candidate resolves or introduces on a cloned space.
 - `proposed_incidence_ids` means the candidate proposes a concrete relation,
   usually `owns` or `verifies`, based on existing related structure.
 - `agent_operation_contract` lists safe next commands and review-gated commands.

@@ -2,15 +2,15 @@ use advisorygraphen_core::{AdvisoryError, Severity, TOOL_VERSION};
 use advisorygraphen_projection::OutputFormat;
 use advisorygraphen_runtime::{
     case_close_check_workflow, case_import_workflow, case_reason_workflow, check_workflow,
-    code_repo_snapshot_workflow, completions_apply_accepted_workflow, completions_propose_workflow,
-    dogfood_repo_snapshot_workflow, hypothesis_accept_workflow,
+    code_repo_snapshot_workflow, completions_apply_accepted_workflow, completions_dry_run_workflow,
+    completions_propose_workflow, dogfood_repo_snapshot_workflow, hypothesis_accept_workflow,
     hypothesis_apply_proposals_workflow, hypothesis_falsify_workflow, hypothesis_propose_workflow,
     hypothesis_reject_workflow, hypothesis_support_workflow, lift_workflow, project_workflow,
     review_workflow, validate_workflow, CaseCloseCheckOptions, CaseImportOptions,
     CaseReasonOptions, CheckOptions, CodeRepoSnapshotOptions, CompletionApplyAcceptedOptions,
-    CompletionProposeOptions, DogfoodRepoSnapshotOptions, HypothesisApplyProposalsOptions,
-    HypothesisFalsifyOptions, HypothesisProposeOptions, LiftOptions, ProjectOptions, ReviewOptions,
-    ValidateOptions,
+    CompletionDryRunOptions, CompletionProposeOptions, DogfoodRepoSnapshotOptions,
+    HypothesisApplyProposalsOptions, HypothesisFalsifyOptions, HypothesisProposeOptions,
+    LiftOptions, ProjectOptions, ReviewOptions, ValidateOptions,
 };
 use clap::{Args, Parser, Subcommand};
 use serde::Serialize;
@@ -121,6 +121,7 @@ struct HypothesisFalsifyArgs {
 #[derive(Debug, Subcommand)]
 enum CompletionsCommand {
     Propose(CompletionProposeArgs),
+    DryRun(CompletionDryRunArgs),
     Accept(ReviewArgs),
     Reject(ReviewArgs),
     ApplyAccepted(CompletionApplyAcceptedArgs),
@@ -185,6 +186,20 @@ struct CompletionProposeArgs {
     space: PathBuf,
     #[arg(long = "from-report")]
     from_report: PathBuf,
+    #[arg(long)]
+    output: Option<PathBuf>,
+    #[arg(long, default_value = "json")]
+    format: String,
+}
+
+#[derive(Debug, Args)]
+struct CompletionDryRunArgs {
+    #[arg(long)]
+    space: PathBuf,
+    #[arg(long = "from-report")]
+    from_report: PathBuf,
+    #[arg(long = "candidate-id")]
+    candidate_ids: Vec<String>,
     #[arg(long)]
     output: Option<PathBuf>,
     #[arg(long, default_value = "json")]
@@ -346,6 +361,17 @@ fn run() -> Result<(), AdvisoryError> {
                 let report = completions_propose_workflow(&CompletionProposeOptions {
                     space: args.space,
                     from_report: args.from_report,
+                    output: args.output,
+                    command: Some(command_string()),
+                })?;
+                print_json(&report)
+            }
+            CompletionsCommand::DryRun(args) => {
+                require_json_format(&args.format)?;
+                let report = completions_dry_run_workflow(&CompletionDryRunOptions {
+                    space: args.space,
+                    from_report: args.from_report,
+                    candidate_ids: args.candidate_ids,
                     output: args.output,
                     command: Some(command_string()),
                 })?;

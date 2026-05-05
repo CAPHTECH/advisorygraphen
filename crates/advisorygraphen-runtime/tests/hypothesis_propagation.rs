@@ -1,10 +1,11 @@
 use advisorygraphen_runtime::{
     case_import_workflow, case_reason_workflow, check_workflow,
-    completions_apply_accepted_workflow, completions_propose_workflow,
-    hypothesis_apply_proposals_workflow, hypothesis_falsify_workflow, hypothesis_propose_workflow,
-    lift_workflow, review_workflow, CaseImportOptions, CaseReasonOptions, CheckOptions,
-    CompletionApplyAcceptedOptions, CompletionProposeOptions, HypothesisApplyProposalsOptions,
-    HypothesisFalsifyOptions, HypothesisProposeOptions, LiftOptions, ReviewOptions,
+    completions_apply_accepted_workflow, completions_dry_run_workflow,
+    completions_propose_workflow, hypothesis_apply_proposals_workflow, hypothesis_falsify_workflow,
+    hypothesis_propose_workflow, lift_workflow, review_workflow, CaseImportOptions,
+    CaseReasonOptions, CheckOptions, CompletionApplyAcceptedOptions, CompletionDryRunOptions,
+    CompletionProposeOptions, HypothesisApplyProposalsOptions, HypothesisFalsifyOptions,
+    HypothesisProposeOptions, LiftOptions, ReviewOptions,
 };
 use serde_json::json;
 use std::fs;
@@ -284,6 +285,27 @@ fn accepted_completion_candidate_materializes_required_owner_structure() {
         candidate_id,
         "candidate:ship-release-action-missing-owner-owner"
     );
+    let dry_run = completions_dry_run_workflow(&CompletionDryRunOptions {
+        space: space_path.clone(),
+        from_report: completions_path.clone(),
+        candidate_ids: vec![candidate_id.clone()],
+        output: None,
+        command: None,
+    })
+    .unwrap();
+    assert_eq!(dry_run.report_type, "completion_dry_run");
+    let run = &dry_run.result["dry_runs"][0];
+    assert_eq!(run["status"], "applied_to_dry_run_space");
+    assert_eq!(
+        run["applied_structure"]["cell_ids"][0],
+        "cell:auto-owner-ship-release-action"
+    );
+    assert!(run["check_delta"]["resolved_obstruction_ids"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|id| id == "obstruction:ship-release-action-missing-owner"));
+    assert_eq!(run["after_close_status"]["closeable"], true);
 
     case_import_workflow(&CaseImportOptions {
         store: store_path.clone(),

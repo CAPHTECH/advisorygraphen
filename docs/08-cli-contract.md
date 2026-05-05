@@ -97,6 +97,11 @@ a concrete relation candidate with `proposed_incidence_ids`
 placeholder. If no related structure is found, the candidate remains
 underspecified and records that in `content_obstructions`.
 
+Every completion candidate includes `application_plan`, a review-gated operation
+preview. It names proposed cell and incidence upserts and, for boundary repair
+candidates, direct-access incidence removals. Agents should treat the plan as a
+candidate-local hypothesis until review or dry-run evidence exists.
+
 AI-agent and executive projections include `proposal_content_summary` so agents
 and reviewers can see how many candidates have structured proposal content, how
 many remain blocked, and which content obstruction types remain.
@@ -108,6 +113,25 @@ advisorygraphen completions propose \
   --format json \
   --output advisory.completions.report.json
 ```
+
+### `completions dry-run`
+
+Apply one or more completion candidates to a cloned in-memory space and rerun
+the technical advisory check. This command is read-only: it does not write
+review events, accept candidates, or mutate a case store.
+
+```sh
+advisorygraphen completions dry-run \
+  --space advisory.space.json \
+  --from-report advisory.completions.report.json \
+  --candidate-id candidate:billing-status-api \
+  --format json \
+  --output advisory.completion-dry-run.report.json
+```
+
+If `--candidate-id` is omitted, the command dry-runs all candidates in the
+completion report. The output report type is `completion_dry_run`; each entry
+contains `applied_structure`, `check_delta`, and `after_close_status`.
 
 ### `hypothesis propose`
 

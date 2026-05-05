@@ -32,9 +32,9 @@ use hypothesis_propagation::{
 use hypothesis_review::apply_hypothesis_events;
 pub use options::{
     CaseCloseCheckOptions, CaseImportOptions, CaseReasonOptions, CheckOptions,
-    CompletionApplyAcceptedOptions, CompletionProposeOptions, HypothesisApplyProposalsOptions,
-    HypothesisFalsifyOptions, HypothesisProposeOptions, LiftOptions, ProjectOptions, ReviewOptions,
-    ValidateOptions,
+    CompletionApplyAcceptedOptions, CompletionDryRunOptions, CompletionProposeOptions,
+    HypothesisApplyProposalsOptions, HypothesisFalsifyOptions, HypothesisProposeOptions,
+    LiftOptions, ProjectOptions, ReviewOptions, ValidateOptions,
 };
 use projection_report::{attach_completion_report, read_projection_report};
 use review::{higher_graphen_completion_review, review_report_path, review_space_id};
@@ -74,6 +74,127 @@ pub fn completions_propose_workflow(
         file_name(&options.from_report),
         options.command.as_deref(),
     )?;
+    write_json_if_requested(&options.output, &report)?;
+    Ok(report)
+}
+
+pub fn completions_dry_run_workflow(
+    options: &CompletionDryRunOptions,
+) -> AdvisoryResult<ReportEnvelope> {
+    let space = read_space(&options.space)?;
+    let completion_report: ReportEnvelope =
+        serde_json::from_value(read_json(&options.from_report)?)?;
+    if completion_report.report_type != "completion_proposal" {
+        return Err(AdvisoryError::Validation(
+            "from-report must be a completion_proposal report".to_string(),
+        ));
+    }
+    let before_check = check_space(&space, "technical_advisory_mvp", None, None)?;
+    let before_obstructions = before_check
+        .result
+        .get("obstructions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let candidates = completion_report
+        .result
+        .get("completion_candidates")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let selected = candidates
+        .iter()
+        .filter(|candidate| {
+            options.candidate_ids.is_empty()
+                || options
+                    .candidate_ids
+                    .iter()
+                    .any(|id| candidate.get("id").and_then(Value::as_str) == Some(id.as_str()))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut dry_runs = Vec::new();
+
+    for candidate in selected {
+        let candidate_id = json_id(&candidate).to_string();
+        let mut dry_space = space.clone();
+        let materialization =
+            materialize_candidate_dry_run(&dry_space, &before_obstructions, &candidate);
+        match materialization {
+            DryRunMaterialization::Applied {
+                cells,
+                incidences,
+                removed_incidence_ids,
+            } => {
+                for incidence_id in &removed_incidence_ids {
+                    dry_space
+                        .incidences
+                        .retain(|incidence| json_id(incidence) != incidence_id);
+                }
+                for cell in &cells {
+                    upsert_by_id(&mut dry_space.cells, cell.clone());
+                }
+                for incidence in &incidences {
+                    upsert_by_id(&mut dry_space.incidences, incidence.clone());
+                }
+                advisorygraphen_core::validate_space(&dry_space)?;
+                let after_check = check_space(&dry_space, "technical_advisory_mvp", None, None)?;
+                let before_ids = obstruction_ids(&before_check);
+                let after_ids = obstruction_ids(&after_check);
+                let resolved_ids = before_ids
+                    .iter()
+                    .filter(|id| !after_ids.contains(*id))
+                    .cloned()
+                    .collect::<Vec<_>>();
+                let introduced_ids = after_ids
+                    .iter()
+                    .filter(|id| !before_ids.contains(*id))
+                    .cloned()
+                    .collect::<Vec<_>>();
+                dry_runs.push(json!({
+                    "candidate_id": candidate_id,
+                    "candidate_type": candidate.get("candidate_type"),
+                    "status": "applied_to_dry_run_space",
+                    "application_plan": candidate.get("application_plan"),
+                    "applied_structure": {
+                        "cell_ids": ids_of(&cells),
+                        "incidence_ids": ids_of(&incidences),
+                        "removed_incidence_ids": removed_incidence_ids
+                    },
+                    "check_delta": {
+                        "before_obstruction_ids": before_ids,
+                        "after_obstruction_ids": after_ids,
+                        "resolved_obstruction_ids": resolved_ids,
+                        "introduced_obstruction_ids": introduced_ids
+                    },
+                    "after_close_status": close_status(&dry_space, &after_check)
+                }));
+            }
+            DryRunMaterialization::Skipped { reason } => {
+                dry_runs.push(json!({
+                    "candidate_id": candidate_id,
+                    "candidate_type": candidate.get("candidate_type"),
+                    "status": "skipped",
+                    "reason": reason,
+                    "application_plan": candidate.get("application_plan")
+                }));
+            }
+        }
+    }
+
+    let report = ReportEnvelope::new(
+        "completion_dry_run",
+        options.command.as_deref(),
+        json!({
+            "space_id": space.space_id,
+            "from_report": file_name(&options.from_report),
+            "candidate_ids": options.candidate_ids
+        }),
+        json!({
+            "dry_runs": dry_runs,
+            "candidate_count": candidates.len()
+        }),
+    );
     write_json_if_requested(&options.output, &report)?;
     Ok(report)
 }
@@ -468,6 +589,297 @@ enum Materialization {
     Skipped {
         reason: String,
     },
+}
+
+enum DryRunMaterialization {
+    Applied {
+        cells: Vec<Value>,
+        incidences: Vec<Value>,
+        removed_incidence_ids: Vec<String>,
+    },
+    Skipped {
+        reason: String,
+    },
+}
+
+fn materialize_candidate_dry_run(
+    space: &AdvisorySpaceEnvelope,
+    blockers: &[Value],
+    candidate: &Value,
+) -> DryRunMaterialization {
+    let candidate_type = candidate
+        .get("candidate_type")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    match candidate_type {
+        "owner_assignment" => relation_candidate_dry_run(space, candidate, "owner_cell_id", "owns"),
+        "lift_verification_link" => {
+            relation_candidate_dry_run(space, candidate, "verification_cell_id", "verifies")
+        }
+        "ownership_clarification" | "proposed_test" => {
+            let Some(blocker) = candidate_blocker(blockers, candidate) else {
+                return DryRunMaterialization::Skipped {
+                    reason: "candidate does not resolve a known obstruction".to_string(),
+                };
+            };
+            let mut reviewed = candidate.clone();
+            reviewed["review_status"] = json!("accepted");
+            match materialize_candidate_structure(space, blocker, &reviewed, "dry-run") {
+                Materialization::Applied { cells, incidences } => DryRunMaterialization::Applied {
+                    cells,
+                    incidences,
+                    removed_incidence_ids: Vec::new(),
+                },
+                Materialization::Skipped { reason } => DryRunMaterialization::Skipped { reason },
+            }
+        }
+        "proposed_interface" => interface_candidate_dry_run(space, candidate),
+        "proposed_refactor_action" => refactor_candidate_dry_run(space, candidate),
+        other => DryRunMaterialization::Skipped {
+            reason: format!("candidate_type {other} is not supported for dry-run application"),
+        },
+    }
+}
+
+fn relation_candidate_dry_run(
+    space: &AdvisorySpaceEnvelope,
+    candidate: &Value,
+    from_metadata_key: &str,
+    relation_type: &str,
+) -> DryRunMaterialization {
+    let Some(from_id) = candidate
+        .pointer(&format!("/metadata/{from_metadata_key}"))
+        .and_then(Value::as_str)
+    else {
+        return DryRunMaterialization::Skipped {
+            reason: format!("metadata.{from_metadata_key} is missing"),
+        };
+    };
+    let Some(to_id) = candidate
+        .pointer("/metadata/blocked_cell_id")
+        .and_then(Value::as_str)
+    else {
+        return DryRunMaterialization::Skipped {
+            reason: "metadata.blocked_cell_id is missing".to_string(),
+        };
+    };
+    if !space.cells.iter().any(|cell| json_id(cell) == from_id)
+        || !space.cells.iter().any(|cell| json_id(cell) == to_id)
+    {
+        return DryRunMaterialization::Skipped {
+            reason: "proposed relation endpoint is not present in the space".to_string(),
+        };
+    }
+    let incidence_id = candidate
+        .get("proposed_incidence_ids")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .next()
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            format!(
+                "incidence:{}-{relation_type}-{}",
+                id_suffix(from_id),
+                id_suffix(to_id)
+            )
+        });
+    DryRunMaterialization::Applied {
+        cells: Vec::new(),
+        incidences: vec![json!({
+            "id": incidence_id,
+            "relation_type": relation_type,
+            "from_id": from_id,
+            "to_id": to_id,
+            "context_ids": [],
+            "evidence_ids": evidence_cell_ids_for_candidate(space, candidate),
+            "strength": "soft",
+            "provenance": dry_run_provenance(),
+            "metadata": {
+                "materialized_from_candidate_id": json_id(candidate),
+                "materialization_kind": "completion_dry_run"
+            }
+        })],
+        removed_incidence_ids: Vec::new(),
+    }
+}
+
+fn interface_candidate_dry_run(
+    space: &AdvisorySpaceEnvelope,
+    candidate: &Value,
+) -> DryRunMaterialization {
+    let Some(interface_id) = candidate
+        .get("proposed_cell_ids")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .next()
+    else {
+        return DryRunMaterialization::Skipped {
+            reason: "proposed interface candidate has no proposed_cell_ids".to_string(),
+        };
+    };
+    let Some(from_id) = candidate
+        .pointer("/metadata/from_cell_id")
+        .and_then(Value::as_str)
+    else {
+        return DryRunMaterialization::Skipped {
+            reason: "metadata.from_cell_id is missing".to_string(),
+        };
+    };
+    let removed_incidence_ids = candidate
+        .pointer("/metadata/incidence_id")
+        .and_then(Value::as_str)
+        .map(|id| vec![id.to_string()])
+        .unwrap_or_default();
+    let context_ids = space
+        .cells
+        .iter()
+        .find(|cell| json_id(cell) == from_id)
+        .and_then(|cell| cell.get("context_ids").and_then(Value::as_array).cloned())
+        .unwrap_or_default();
+    let title = candidate
+        .get("title")
+        .and_then(Value::as_str)
+        .unwrap_or("Proposed interface");
+    DryRunMaterialization::Applied {
+        cells: vec![json!({
+            "id": interface_id,
+            "cell_type": "interface",
+            "title": title,
+            "summary": candidate.get("rationale").and_then(Value::as_str),
+            "context_ids": context_ids,
+            "source_ids": candidate.get("source_ids").cloned().unwrap_or_else(|| json!([])),
+            "structure_refs": [],
+            "provenance": dry_run_provenance(),
+            "metadata": {
+                "materialized_from_candidate_id": json_id(candidate),
+                "materialization_kind": "completion_dry_run"
+            }
+        })],
+        incidences: vec![json!({
+            "id": format!("incidence:{}-uses-{}", id_suffix(from_id), id_suffix(interface_id)),
+            "relation_type": "uses",
+            "from_id": from_id,
+            "to_id": interface_id,
+            "context_ids": [],
+            "evidence_ids": evidence_cell_ids_for_candidate(space, candidate),
+            "strength": "soft",
+            "provenance": dry_run_provenance(),
+            "metadata": {
+                "materialized_from_candidate_id": json_id(candidate),
+                "materialization_kind": "completion_dry_run"
+            }
+        })],
+        removed_incidence_ids,
+    }
+}
+
+fn refactor_candidate_dry_run(
+    space: &AdvisorySpaceEnvelope,
+    candidate: &Value,
+) -> DryRunMaterialization {
+    let Some(action_id) = candidate
+        .get("proposed_cell_ids")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .next()
+    else {
+        return DryRunMaterialization::Skipped {
+            reason: "refactor candidate has no proposed_cell_ids".to_string(),
+        };
+    };
+    let removed_incidence_ids = candidate
+        .pointer("/metadata/incidence_id")
+        .and_then(Value::as_str)
+        .map(|id| vec![id.to_string()])
+        .unwrap_or_default();
+    let context_ids = candidate
+        .pointer("/metadata/from_cell_id")
+        .and_then(Value::as_str)
+        .and_then(|from_id| {
+            space
+                .cells
+                .iter()
+                .find(|cell| json_id(cell) == from_id)
+                .and_then(|cell| cell.get("context_ids").and_then(Value::as_array).cloned())
+        })
+        .unwrap_or_default();
+    DryRunMaterialization::Applied {
+        cells: vec![json!({
+            "id": action_id,
+            "cell_type": "action",
+            "title": candidate.get("title").and_then(Value::as_str).unwrap_or("Proposed refactor action"),
+            "summary": candidate.get("rationale").and_then(Value::as_str),
+            "context_ids": context_ids,
+            "source_ids": candidate.get("source_ids").cloned().unwrap_or_else(|| json!([])),
+            "structure_refs": [],
+            "provenance": dry_run_provenance(),
+            "metadata": {
+                "materialized_from_candidate_id": json_id(candidate),
+                "materialization_kind": "completion_dry_run"
+            }
+        })],
+        incidences: Vec::new(),
+        removed_incidence_ids,
+    }
+}
+
+fn candidate_blocker<'a>(blockers: &'a [Value], candidate: &Value) -> Option<&'a Value> {
+    let resolved_ids = candidate
+        .get("resolves_obstruction_ids")
+        .and_then(Value::as_array)?;
+    blockers.iter().find(|blocker| {
+        let blocker_id = json_id(blocker);
+        resolved_ids
+            .iter()
+            .any(|id| id.as_str() == Some(blocker_id))
+    })
+}
+
+fn dry_run_provenance() -> Value {
+    json!({
+        "origin": "inferred",
+        "actor": "advisorygraphen:completion-dry-run",
+        "confidence": 0.6,
+        "review_status": "unreviewed"
+    })
+}
+
+fn evidence_cell_ids_for_candidate(space: &AdvisorySpaceEnvelope, candidate: &Value) -> Vec<Value> {
+    candidate
+        .get("source_ids")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .filter_map(|source_id| {
+            let evidence_id = format!("cell:evidence-{}", source_id.trim_start_matches("source:"));
+            space
+                .cells
+                .iter()
+                .any(|cell| json_id(cell) == evidence_id)
+                .then_some(json!(evidence_id))
+        })
+        .collect()
+}
+
+fn obstruction_ids(report: &ReportEnvelope) -> Vec<String> {
+    let mut ids = report
+        .result
+        .get("obstructions")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|obstruction| obstruction.get("id").and_then(Value::as_str))
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    ids.sort();
+    ids
 }
 
 fn materialize_candidate_structure(

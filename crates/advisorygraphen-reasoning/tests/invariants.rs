@@ -109,6 +109,19 @@ fn boundary_completion_candidates_are_derived_from_witness_cells() {
         "planned"
     );
     assert_eq!(
+        status_api["application_plan"]["schema"],
+        "advisorygraphen.completion.application_plan.v1"
+    );
+    assert_eq!(status_api["application_plan"]["dry_run_supported"], true);
+    assert!(status_api["application_plan"]["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|operation| {
+            operation["operation"] == "remove_incidence"
+                && operation["incidence_id"] == "incidence:inventory-service-accesses-pricing-db"
+        }));
+    assert_eq!(
         status_api["proposal_content"]["morphism"]["morphism_type"],
         "as_is_to_to_be"
     );

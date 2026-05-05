@@ -34,6 +34,15 @@ pub struct CompletionProposeOptions {
 }
 
 #[derive(Debug, Clone)]
+pub struct CompletionDryRunOptions {
+    pub space: PathBuf,
+    pub from_report: PathBuf,
+    pub candidate_ids: Vec<String>,
+    pub output: Option<PathBuf>,
+    pub command: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct HypothesisProposeOptions {
     pub space: PathBuf,
     pub from_report: PathBuf,

@@ -12,6 +12,12 @@ review-gate `policy`, and any `content_obstructions` that keep the proposal
 underspecified. This makes the proposal itself critiqueable without promoting
 it to accepted structure.
 
+Each generated candidate also carries `application_plan`, a machine-readable
+preview of the operations the candidate would need: `upsert_cell`,
+`upsert_incidence`, and, for boundary repair proposals, `remove_incidence`.
+The plan is still unreviewed. It exists so agents can run impact checks before
+asking a reviewer to accept anything.
+
 When an owner, test, metric, or verification cell already exists in the same
 context or source neighborhood as a blocker, completion generation proposes the
 missing relation (`owns` or `verifies`) through `proposed_incidence_ids`. When
@@ -66,6 +72,26 @@ advisorygraphen completions accept \
   --base-revision revision:2026-05-02T00-00-00Z \
   --format json
 ```
+
+## Dry-Run Workflow
+
+Dry-run applies a selected candidate to a cloned in-memory space, reruns
+`check`, and reports the obstruction delta. It does not accept the candidate,
+append review events, or mutate the case store.
+
+```sh
+advisorygraphen completions dry-run \
+  --space advisory.space.json \
+  --from-report advisory.completions.report.json \
+  --candidate-id candidate:billing-status-api \
+  --output advisory.completion-dry-run.report.json \
+  --format json
+```
+
+Inspect `result.dry_runs[].check_delta.resolved_obstruction_ids` and
+`introduced_obstruction_ids` before review. A candidate that resolves the target
+blocker but introduces a new obstruction should be treated as needing revision,
+not acceptance.
 
 ## Reject workflow
 
