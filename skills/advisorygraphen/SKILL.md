@@ -50,6 +50,10 @@ advisorygraphen case reason --store STORE --space-id SPACE_ID --format json
 advisorygraphen case close-check --store STORE --space-id SPACE_ID --base-revision REVISION --format json
 advisorygraphen completions accept --store STORE --candidate-id CANDIDATE --from-report COMPLETIONS.json --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
 advisorygraphen completions reject --store STORE --candidate-id CANDIDATE --from-report COMPLETIONS.json --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
+advisorygraphen hypothesis falsify --store STORE --from-report CHECK.json --hypothesis-id HYPOTHESIS --evidence EVIDENCE_ID --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
+advisorygraphen hypothesis support --store STORE --from-report CHECK.json --hypothesis-id HYPOTHESIS --evidence EVIDENCE_ID --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
+advisorygraphen hypothesis accept  --store STORE --from-report CHECK.json --hypothesis-id HYPOTHESIS --evidence EVIDENCE_ID --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
+advisorygraphen hypothesis reject  --store STORE --from-report CHECK.json --hypothesis-id HYPOTHESIS --evidence EVIDENCE_ID --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
 ```
 
 ## Output interpretation

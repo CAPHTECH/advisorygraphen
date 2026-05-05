@@ -7,10 +7,19 @@ use higher_graphen_core::Id as HigherId;
 use serde_json::{json, Value};
 
 mod completions;
+mod cycles;
 mod higher;
+mod hypotheses;
 mod resolution;
 pub use completions::propose_completions;
+use cycles::evaluate_dependency_cycles;
+pub use cycles::CYCLE_INVARIANT;
 use higher::{has_accepted_supporting_evidence, violation_finding, FindingInput};
+use hypotheses::build_hypotheses;
+pub use hypotheses::{
+    HYPOTHESIS_LIFECYCLE_ACCEPTED, HYPOTHESIS_LIFECYCLE_CANDIDATE, HYPOTHESIS_LIFECYCLE_FALSIFIED,
+    HYPOTHESIS_LIFECYCLE_REJECTED, HYPOTHESIS_LIFECYCLE_SUPPORTED,
+};
 pub use resolution::{blocker_resolution_state, frontier_items, waiting_items};
 
 pub const BOUNDARY_INVARIANT: &str =
@@ -52,6 +61,12 @@ pub fn check_space(
         &mut obstructions,
     )?;
     evaluate_api_route_auth(space, &mut invariant_results, &mut obstructions)?;
+    evaluate_dependency_cycles(
+        space,
+        &higher_space,
+        &mut invariant_results,
+        &mut obstructions,
+    )?;
 
     invariant_results = sorted_values_by_id(invariant_results);
     obstructions = sorted_values_by_id(obstructions);
@@ -66,6 +81,8 @@ pub fn check_space(
         }
     }
 
+    let hypothesis_bundle = build_hypotheses(space, &obstructions)?;
+
     Ok(ReportEnvelope::new(
         "check",
         command,
@@ -76,6 +93,9 @@ pub fn check_space(
         json!({
             "invariant_results": invariant_results,
             "obstructions": obstructions,
+            "hypotheses": hypothesis_bundle.hypotheses,
+            "falsifiers": hypothesis_bundle.falsifiers,
+            "argumentation_incidences": hypothesis_bundle.incidences,
             "higher_graphen": higher_space.summary_json()
         }),
     ))
@@ -139,9 +159,11 @@ pub fn close_status(space: &AdvisorySpaceEnvelope, check_report: &ReportEnvelope
         .into_iter()
         .flatten()
         .filter(|obstruction| {
-            obstruction
-                .get("severity")
+            let effective = obstruction
+                .pointer("/metadata/effective_severity")
                 .and_then(Value::as_str)
+                .or_else(|| obstruction.get("severity").and_then(Value::as_str));
+            effective
                 .and_then(Severity::parse)
                 .is_some_and(|severity| severity >= Severity::Medium)
                 && obstruction.get("review_status").and_then(Value::as_str) != Some("waived")

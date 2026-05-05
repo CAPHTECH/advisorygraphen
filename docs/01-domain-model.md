@@ -38,6 +38,8 @@
 | `obstruction` | durable finding として保持する obstruction | 「根拠不足のため提案を確定できない」 |
 | `completion` | durable candidate として保持する completion | 「追加インタビューを行う」 |
 | `projection_record` | 生成された projection の記録 | executive report revision |
+| `hypothesis` | obstruction を説明し得る競合的な構造仮説 | 「この越境アクセスは暗黙のクロスコンテキスト interface である」 |
+| `falsifier` | hypothesis を反証し得る観測条件 | 「該当アクセスを許可する明示的な policy/ADR が存在する」 |
 
 ## Context taxonomy
 
@@ -67,6 +69,10 @@
 | `projects_to` | structure が projection に含まれる | diagnostic |
 | `omits_from_projection` | projection から意図的に省略される | diagnostic, must disclose |
 | `maps_to` | context-specific term or structure mapping | hard when equivalence is required |
+| `explains` | hypothesis が obstruction を説明する | soft until review-promoted |
+| `supported_by` | hypothesis が evidence によって支持される | soft, audited via argumentation_incidences |
+| `falsified_by` | hypothesis が falsifier 観測条件によって反証され得る | soft, becomes hard if falsifier is observed |
+| `competes_with` | 同じ obstruction を説明する hypothesis 同士 | diagnostic |
 
 ## Provenance and review statuses
 

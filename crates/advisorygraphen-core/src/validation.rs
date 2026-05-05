@@ -1,7 +1,7 @@
 use crate::{
     json_id, optional_string_array, string_field, AdvisoryError, AdvisoryResult,
-    AdvisorySpaceEnvelope, ValidationReport, PROJECTION_REQUEST_SCHEMA, REPORT_SCHEMA,
-    REVIEW_EVENT_SCHEMA, SNAPSHOT_SCHEMA, SPACE_SCHEMA,
+    AdvisorySpaceEnvelope, ValidationReport, HYPOTHESIS_EVENT_SCHEMA, PROJECTION_REQUEST_SCHEMA,
+    REPORT_SCHEMA, REVIEW_EVENT_SCHEMA, SNAPSHOT_SCHEMA, SPACE_SCHEMA,
 };
 use indexmap::IndexSet;
 use serde_json::Value;
@@ -65,6 +65,10 @@ fn dispatch_schema_validation<'a>(
         REVIEW_EVENT_SCHEMA => {
             validate_review_event(value, errors);
             "review_event"
+        }
+        HYPOTHESIS_EVENT_SCHEMA => {
+            validate_hypothesis_event(value, errors);
+            "hypothesis_event"
         }
         other => {
             return Err(AdvisoryError::SchemaMismatch {
@@ -205,6 +209,29 @@ fn validate_review_event(value: &Value, errors: &mut Vec<String>) {
     }
 }
 
+fn validate_hypothesis_event(value: &Value, errors: &mut Vec<String>) {
+    require_fields(value, HYPOTHESIS_EVENT_FIELDS, errors);
+    if value
+        .get("target_hypothesis_id")
+        .and_then(Value::as_str)
+        .is_none_or(str::is_empty)
+    {
+        errors.push("hypothesis event must target a hypothesis_id".to_string());
+    }
+    match value.get("outcome").and_then(Value::as_str) {
+        Some("falsified") | Some("supported") | Some("accepted") | Some("rejected") => {}
+        Some(other) => errors.push(format!("unsupported hypothesis outcome: {other}")),
+        None => errors.push("hypothesis event outcome is required".to_string()),
+    }
+    if value
+        .get("reason")
+        .and_then(Value::as_str)
+        .is_none_or(str::is_empty)
+    {
+        errors.push("hypothesis event reason is required".to_string());
+    }
+}
+
 fn validate_source_refs(record: &Value, source_ids: &IndexSet<String>, errors: &mut Vec<String>) {
     for source_id in optional_string_array(record, "source_ids") {
         if !source_ids.contains(&source_id) {
@@ -335,6 +362,18 @@ const REVIEW_EVENT_FIELDS: &[&str] = &[
     "review_event_id",
     "engagement_id",
     "target_ids",
+    "outcome",
+    "reviewer_id",
+    "reviewed_at",
+    "reason",
+    "evidence_ids",
+    "metadata",
+];
+const HYPOTHESIS_EVENT_FIELDS: &[&str] = &[
+    "schema",
+    "hypothesis_event_id",
+    "engagement_id",
+    "target_hypothesis_id",
     "outcome",
     "reviewer_id",
     "reviewed_at",

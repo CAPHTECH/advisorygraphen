@@ -3,10 +3,11 @@ use advisorygraphen_projection::OutputFormat;
 use advisorygraphen_runtime::{
     case_close_check_workflow, case_import_workflow, case_reason_workflow, check_workflow,
     code_repo_snapshot_workflow, completions_propose_workflow, dogfood_repo_snapshot_workflow,
-    lift_workflow, project_workflow, review_workflow, validate_workflow, CaseCloseCheckOptions,
-    CaseImportOptions, CaseReasonOptions, CheckOptions, CodeRepoSnapshotOptions,
-    CompletionProposeOptions, DogfoodRepoSnapshotOptions, LiftOptions, ProjectOptions,
-    ReviewOptions, ValidateOptions,
+    hypothesis_accept_workflow, hypothesis_falsify_workflow, hypothesis_reject_workflow,
+    hypothesis_support_workflow, lift_workflow, project_workflow, review_workflow,
+    validate_workflow, CaseCloseCheckOptions, CaseImportOptions, CaseReasonOptions, CheckOptions,
+    CodeRepoSnapshotOptions, CompletionProposeOptions, DogfoodRepoSnapshotOptions,
+    HypothesisFalsifyOptions, LiftOptions, ProjectOptions, ReviewOptions, ValidateOptions,
 };
 use clap::{Args, Parser, Subcommand};
 use serde::Serialize;
@@ -46,6 +47,38 @@ enum Command {
         #[command(subcommand)]
         command: CaseCommand,
     },
+    Hypothesis {
+        #[command(subcommand)]
+        command: HypothesisCommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum HypothesisCommand {
+    Falsify(HypothesisFalsifyArgs),
+    Support(HypothesisFalsifyArgs),
+    Accept(HypothesisFalsifyArgs),
+    Reject(HypothesisFalsifyArgs),
+}
+
+#[derive(Debug, Args)]
+struct HypothesisFalsifyArgs {
+    #[arg(long)]
+    store: PathBuf,
+    #[arg(long = "from-report")]
+    from_report: PathBuf,
+    #[arg(long = "hypothesis-id")]
+    hypothesis_id: String,
+    #[arg(long = "evidence")]
+    evidence: Vec<String>,
+    #[arg(long)]
+    reviewer: String,
+    #[arg(long)]
+    reason: String,
+    #[arg(long = "base-revision")]
+    base_revision: Option<String>,
+    #[arg(long, default_value = "json")]
+    format: String,
 }
 
 #[derive(Debug, Subcommand)]
@@ -298,6 +331,12 @@ fn run() -> Result<(), AdvisoryError> {
                 })?)
             }
         },
+        Command::Hypothesis { command } => match command {
+            HypothesisCommand::Falsify(args) => run_hypothesis_event(args, "falsify"),
+            HypothesisCommand::Support(args) => run_hypothesis_event(args, "support"),
+            HypothesisCommand::Accept(args) => run_hypothesis_event(args, "accept"),
+            HypothesisCommand::Reject(args) => run_hypothesis_event(args, "reject"),
+        },
         Command::Case { command } => match command {
             CaseCommand::Import(args) => {
                 require_json_format(&args.format)?;
@@ -324,6 +363,31 @@ fn run() -> Result<(), AdvisoryError> {
             }
         },
     }
+}
+
+fn run_hypothesis_event(args: HypothesisFalsifyArgs, action: &str) -> Result<(), AdvisoryError> {
+    require_json_format(&args.format)?;
+    let options = HypothesisFalsifyOptions {
+        store: args.store,
+        from_report: args.from_report,
+        hypothesis_id: args.hypothesis_id,
+        evidence_ids: args.evidence,
+        reviewer: args.reviewer,
+        reason: args.reason,
+        base_revision: args.base_revision,
+    };
+    let event = match action {
+        "falsify" => hypothesis_falsify_workflow(&options)?,
+        "support" => hypothesis_support_workflow(&options)?,
+        "accept" => hypothesis_accept_workflow(&options)?,
+        "reject" => hypothesis_reject_workflow(&options)?,
+        other => {
+            return Err(AdvisoryError::Validation(format!(
+                "unsupported hypothesis action: {other}"
+            )))
+        }
+    };
+    print_json(&event)
 }
 
 fn run_review(args: ReviewArgs, outcome: &str) -> Result<(), AdvisoryError> {

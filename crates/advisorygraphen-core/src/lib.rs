@@ -13,6 +13,7 @@ pub const SPACE_SCHEMA: &str = "advisorygraphen.space.v1";
 pub const REPORT_SCHEMA: &str = "advisorygraphen.report.v1";
 pub const PROJECTION_REQUEST_SCHEMA: &str = "advisorygraphen.projection.request.v1";
 pub const REVIEW_EVENT_SCHEMA: &str = "advisorygraphen.review.event.v1";
+pub const HYPOTHESIS_EVENT_SCHEMA: &str = "advisorygraphen.hypothesis.event.v1";
 pub const PACKAGE_TECHNICAL_ADVISORY_MVP: &str = "package:technical_advisory_mvp";
 
 #[derive(Debug, thiserror::Error)]

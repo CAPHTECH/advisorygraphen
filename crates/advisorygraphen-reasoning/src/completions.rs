@@ -98,6 +98,8 @@ fn boundary_completion_candidates(
     } else {
         "source_backed_obstruction"
     };
+    let stem = obstruction_id.trim_start_matches("obstruction:");
+    let h_implicit_interface = format!("hypothesis:{stem}-implicit-interface");
     Ok(vec![
         completion_candidate(CandidateSpec {
             space,
@@ -118,6 +120,7 @@ fn boundary_completion_candidates(
                 "specificity": "source_derived",
                 "evidence_strength": evidence_strength,
                 "precision_note": "Derived from boundary violation witness cells and obstruction evidence_ids.",
+                "derived_from_hypothesis_id": h_implicit_interface,
                 "from_cell_id": json_id(from_cell),
                 "to_cell_id": json_id(to_cell)
             }),
@@ -140,6 +143,7 @@ fn boundary_completion_candidates(
                 "specificity": "source_derived",
                 "evidence_strength": evidence_strength,
                 "precision_note": "Derived from boundary violation witness cells and obstruction evidence_ids.",
+                "derived_from_hypothesis_id": h_implicit_interface,
                 "from_cell_id": json_id(from_cell),
                 "to_cell_id": json_id(to_cell)
             }),
@@ -151,12 +155,11 @@ fn owner_completion_candidate(
     space: &AdvisorySpaceEnvelope,
     obstruction: &Value,
 ) -> AdvisoryResult<Value> {
+    let stem = json_id(obstruction).trim_start_matches("obstruction:");
+    let h_unassigned = format!("hypothesis:{stem}-no-team-holds-action");
     completion_candidate(CandidateSpec {
         space,
-        id: format!(
-            "candidate:{}-owner",
-            json_id(obstruction).trim_start_matches("obstruction:")
-        ),
+        id: format!("candidate:{stem}-owner"),
         candidate_type: "ownership_clarification",
         title: "Clarify action owner".to_string(),
         rationale: obstruction
@@ -173,7 +176,8 @@ fn owner_completion_candidate(
         metadata: json!({
             "specificity": "generic",
             "evidence_strength": "obstruction_message",
-            "precision_note": "Identifies the missing owner relation but does not infer a specific owner."
+            "precision_note": "Identifies the missing owner relation but does not infer a specific owner.",
+            "derived_from_hypothesis_id": h_unassigned
         }),
     })
 }
@@ -182,12 +186,11 @@ fn verification_completion_candidate(
     space: &AdvisorySpaceEnvelope,
     obstruction: &Value,
 ) -> AdvisoryResult<Value> {
+    let stem = json_id(obstruction).trim_start_matches("obstruction:");
+    let h_genuinely_missing = format!("hypothesis:{stem}-verification-genuinely-missing");
     completion_candidate(CandidateSpec {
         space,
-        id: format!(
-            "candidate:{}-verification",
-            json_id(obstruction).trim_start_matches("obstruction:")
-        ),
+        id: format!("candidate:{stem}-verification"),
         candidate_type: "proposed_test",
         title: "Define verification method".to_string(),
         rationale: obstruction
@@ -204,7 +207,8 @@ fn verification_completion_candidate(
         metadata: json!({
             "specificity": "requirement_derived",
             "evidence_strength": "obstruction_message",
-            "precision_note": "Identifies the verification gap but does not infer a concrete test implementation."
+            "precision_note": "Identifies the verification gap but does not infer a concrete test implementation.",
+            "derived_from_hypothesis_id": h_genuinely_missing
         }),
     })
 }
@@ -223,12 +227,11 @@ fn auth_guard_completion_candidate(
     } else {
         "source_backed_obstruction"
     };
+    let stem = json_id(obstruction).trim_start_matches("obstruction:");
+    let h_unprotected = format!("hypothesis:{stem}-truly-unprotected");
     completion_candidate(CandidateSpec {
         space,
-        id: format!(
-            "candidate:{}-auth-guard",
-            json_id(obstruction).trim_start_matches("obstruction:")
-        ),
+        id: format!("candidate:{stem}-auth-guard"),
         candidate_type: "proposed_auth_guard",
         title: format!("Add authentication guard to {route_path}"),
         rationale: obstruction
@@ -246,6 +249,7 @@ fn auth_guard_completion_candidate(
             "specificity": "code_derived",
             "evidence_strength": evidence_strength,
             "precision_note": "Derived from code snapshot route metadata. The candidate must be reviewed because lexical detection can miss shared middleware or dynamic auth wrappers.",
+            "derived_from_hypothesis_id": h_unprotected,
             "route_path": route_path,
             "http_methods": obstruction.pointer("/metadata/http_methods").cloned().unwrap_or_else(|| json!([]))
         }),

@@ -159,6 +159,55 @@ fn explicitly_public_database_route_does_not_emit_auth_obstruction() {
 }
 
 #[test]
+fn directed_dependency_cycle_emits_circular_dependency_obstruction() {
+    let cells = vec![
+        component_cell("cell:service-a", "Service A", "context:platform"),
+        component_cell("cell:service-b", "Service B", "context:platform"),
+        component_cell("cell:service-c", "Service C", "context:platform"),
+    ];
+    let incidences = vec![
+        depends_on_incidence("incidence:a-b", "cell:service-a", "cell:service-b"),
+        depends_on_incidence("incidence:b-c", "cell:service-b", "cell:service-c"),
+        depends_on_incidence("incidence:c-a", "cell:service-c", "cell:service-a"),
+    ];
+    let space = base_space(cells, incidences);
+
+    let report = check_space(&space, "technical_advisory_mvp", None, None).unwrap();
+    let obstructions = report.result["obstructions"].as_array().unwrap();
+    let cycle = obstructions
+        .iter()
+        .find(|item| item["obstruction_type"] == "circular_dependency")
+        .expect("circular_dependency obstruction emitted");
+
+    assert_eq!(cycle["severity"], "medium");
+    assert_eq!(cycle["metadata"]["specificity"], "topology_derived");
+    let participants = cycle["metadata"]["cycle_cell_ids"].as_array().unwrap();
+    assert_eq!(participants.len(), 3);
+}
+
+#[test]
+fn dag_dependencies_do_not_emit_cycle_obstruction() {
+    let cells = vec![
+        component_cell("cell:service-a", "Service A", "context:platform"),
+        component_cell("cell:service-b", "Service B", "context:platform"),
+    ];
+    let incidences = vec![depends_on_incidence(
+        "incidence:a-b",
+        "cell:service-a",
+        "cell:service-b",
+    )];
+    let space = base_space(cells, incidences);
+
+    let report = check_space(&space, "technical_advisory_mvp", None, None).unwrap();
+
+    assert!(report.result["obstructions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|item| item["obstruction_type"] != "circular_dependency"));
+}
+
+#[test]
 fn blocker_resolution_excludes_rejected_candidates_from_application_requirements() {
     let blockers = vec![json!({
         "id": "obstruction:missing-owner",
@@ -294,6 +343,20 @@ fn action_cell(id: &str) -> Value {
         "context_ids": [],
         "source_ids": ["source:test"],
         "structure_refs": [],
+        "provenance": provenance("source_backed", "accepted"),
+        "metadata": {}
+    })
+}
+
+fn depends_on_incidence(id: &str, from: &str, to: &str) -> Value {
+    json!({
+        "id": id,
+        "relation_type": "depends_on",
+        "from_id": from,
+        "to_id": to,
+        "context_ids": [],
+        "evidence_ids": [],
+        "strength": "hard",
         "provenance": provenance("source_backed", "accepted"),
         "metadata": {}
     })

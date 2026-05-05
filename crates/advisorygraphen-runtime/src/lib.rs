@@ -1,6 +1,6 @@
 use advisorygraphen_core::{
     validate_document, AdvisoryError, AdvisoryResult, AdvisorySpaceEnvelope, ReportEnvelope,
-    REVIEW_EVENT_SCHEMA,
+    HYPOTHESIS_EVENT_SCHEMA, REVIEW_EVENT_SCHEMA,
 };
 use advisorygraphen_interpretation::InterpretationPackage;
 use advisorygraphen_lift::lift_snapshot;
@@ -18,15 +18,22 @@ use std::path::{Path, PathBuf};
 mod case_review;
 mod code_snapshot;
 mod dogfood;
+mod hypothesis_propagation;
+mod hypothesis_review;
 mod options;
 mod projection_report;
 mod review;
 use case_review::apply_candidate_reviews;
 pub use code_snapshot::{code_repo_snapshot_workflow, CodeRepoSnapshotOptions};
 pub use dogfood::{dogfood_repo_snapshot_workflow, DogfoodRepoSnapshotOptions};
+use hypothesis_propagation::{
+    extend_candidates_from_supported_hypotheses, mark_orphaned_candidates, reframe_obstructions,
+};
+use hypothesis_review::apply_hypothesis_events;
 pub use options::{
     CaseCloseCheckOptions, CaseImportOptions, CaseReasonOptions, CheckOptions,
-    CompletionProposeOptions, LiftOptions, ProjectOptions, ReviewOptions, ValidateOptions,
+    CompletionProposeOptions, HypothesisFalsifyOptions, LiftOptions, ProjectOptions, ReviewOptions,
+    ValidateOptions,
 };
 use projection_report::{attach_completion_report, read_projection_report};
 use review::{higher_graphen_completion_review, review_report_path, review_space_id};
@@ -123,6 +130,110 @@ pub fn review_workflow(options: &ReviewOptions) -> AdvisoryResult<Value> {
     )?;
     Ok(event)
 }
+pub fn hypothesis_falsify_workflow(options: &HypothesisFalsifyOptions) -> AdvisoryResult<Value> {
+    hypothesis_lifecycle_event(options, "falsified")
+}
+
+pub fn hypothesis_support_workflow(options: &HypothesisFalsifyOptions) -> AdvisoryResult<Value> {
+    hypothesis_lifecycle_event(options, "supported")
+}
+
+pub fn hypothesis_accept_workflow(options: &HypothesisFalsifyOptions) -> AdvisoryResult<Value> {
+    hypothesis_lifecycle_event(options, "accepted")
+}
+
+pub fn hypothesis_reject_workflow(options: &HypothesisFalsifyOptions) -> AdvisoryResult<Value> {
+    hypothesis_lifecycle_event(options, "rejected")
+}
+
+fn hypothesis_lifecycle_event(
+    options: &HypothesisFalsifyOptions,
+    outcome: &str,
+) -> AdvisoryResult<Value> {
+    fs::create_dir_all(&options.store)?;
+    let report = read_json(&options.from_report)?;
+    let space_id = report
+        .pointer("/input/space_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            AdvisoryError::Validation(
+                "from-report must contain input.space_id for hypothesis events".to_string(),
+            )
+        })?
+        .to_string();
+    let hypothesis = report
+        .pointer("/result/hypotheses")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .find(|item| item.get("id").and_then(Value::as_str) == Some(&options.hypothesis_id))
+        .ok_or_else(|| {
+            AdvisoryError::Validation(format!(
+                "hypothesis {} not found in from-report",
+                options.hypothesis_id
+            ))
+        })?
+        .clone();
+    let head = read_imported_space_head(&options.store, &space_id)?;
+    let materialized_space = read_materialized_space(&options.store, &space_id)?;
+    ensure_base_revision(Some(&head), options.base_revision.as_deref())?;
+    let sequence = next_sequence(&options.store, &space_id);
+    let target_revision = format!("revision:hypothesis-{sequence:06}");
+    let hypothesis_slug = options.hypothesis_id.trim_start_matches("hypothesis:");
+    let hypothesis_event_id = format!("hypothesis-event:{outcome}:{hypothesis_slug}-{sequence:06}");
+    let evidence_ids: Vec<Value> = options
+        .evidence_ids
+        .iter()
+        .map(|id| Value::String(id.clone()))
+        .collect();
+    let event = json!({
+        "schema": HYPOTHESIS_EVENT_SCHEMA,
+        "hypothesis_event_id": hypothesis_event_id,
+        "engagement_id": materialized_space.engagement_id,
+        "target_hypothesis_id": options.hypothesis_id,
+        "outcome": outcome,
+        "reviewer_id": options.reviewer,
+        "reviewed_at": Utc::now().to_rfc3339(),
+        "reason": options.reason,
+        "evidence_ids": evidence_ids,
+        "base_revision_id": options.base_revision,
+        "metadata": {
+            "from_report": options.from_report.display().to_string(),
+            "competes_with": hypothesis
+                .pointer("/metadata/competes_with")
+                .cloned()
+                .unwrap_or_else(|| json!([])),
+            "falsified_by": hypothesis
+                .pointer("/metadata/falsified_by")
+                .cloned()
+                .unwrap_or_else(|| json!([]))
+        }
+    });
+    validate_document(&event, Some(HYPOTHESIS_EVENT_SCHEMA))?;
+    append_store_event(
+        &options.store,
+        &json!({
+            "schema": "advisorygraphen.case.log.entry.v1",
+            "case_space_id": space_id.clone(),
+            "sequence": sequence,
+            "entry_id": format!("log:{sequence:06}"),
+            "morphism_id": format!("morphism:hypothesis-{outcome}-{hypothesis_slug}"),
+            "source_revision_id": head,
+            "target_revision_id": target_revision.clone(),
+            "actor": event["reviewer_id"],
+            "recorded_at": Utc::now().to_rfc3339(),
+            "previous_entry_hash": null,
+            "entry_hash": null,
+            "payload": event
+        }),
+    )?;
+    fs::write(
+        space_dir(&options.store, &space_id).join("HEAD"),
+        &target_revision,
+    )?;
+    Ok(event)
+}
+
 pub fn project_workflow(options: &ProjectOptions) -> AdvisoryResult<String> {
     let space = read_space(&options.space)?;
     let report = read_projection_report(&options.report, options.completions_report.as_deref())?;
@@ -178,22 +289,35 @@ pub fn case_import_workflow(options: &CaseImportOptions) -> AdvisoryResult<Value
 pub fn case_reason_workflow(options: &CaseReasonOptions) -> AdvisoryResult<Value> {
     let head = read_space_head_revision(&options.store, &options.space_id)?;
     let space = read_materialized_space(&options.store, &options.space_id)?;
-    let check = check_space(&space, "technical_advisory_mvp", None, None)?;
-    let mut completions = propose_completions(&space, &check, "case_reason", None)?;
-    let blockers = check
+    let mut check = check_space(&space, "technical_advisory_mvp", None, None)?;
+    let mut hypotheses = check
+        .result
+        .get("hypotheses")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    apply_hypothesis_events(&options.store, &options.space_id, &mut hypotheses)?;
+    check.result["hypotheses"] = json!(hypotheses.clone());
+    let mut obstructions = check
         .result
         .get("obstructions")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
+    reframe_obstructions(&mut obstructions, &hypotheses);
+    check.result["obstructions"] = json!(obstructions.clone());
+    let mut completions = propose_completions(&space, &check, "case_reason", None)?;
     let mut candidates = completions
         .result
         .get("completion_candidates")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
+    extend_candidates_from_supported_hypotheses(&mut candidates, &hypotheses, &obstructions);
+    mark_orphaned_candidates(&mut candidates, &hypotheses);
     apply_candidate_reviews(&options.store, &options.space_id, &mut candidates)?;
     completions.result["completion_candidates"] = json!(candidates.clone());
+    let blockers = obstructions.clone();
     let resolution_state = blocker_resolution_state(&blockers, &candidates);
     let frontier = frontier_items(&resolution_state);
     let waiting = waiting_items(&resolution_state);

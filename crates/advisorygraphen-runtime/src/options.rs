@@ -73,3 +73,14 @@ pub struct CaseCloseCheckOptions {
     pub space_id: String,
     pub base_revision: Option<String>,
 }
+
+#[derive(Debug, Clone)]
+pub struct HypothesisFalsifyOptions {
+    pub store: PathBuf,
+    pub from_report: PathBuf,
+    pub hypothesis_id: String,
+    pub evidence_ids: Vec<String>,
+    pub reviewer: String,
+    pub reason: String,
+    pub base_revision: Option<String>,
+}

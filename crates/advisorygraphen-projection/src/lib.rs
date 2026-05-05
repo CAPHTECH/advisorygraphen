@@ -5,6 +5,9 @@ use advisorygraphen_reasoning::{
 use serde_json::{json, Value};
 
 mod higher;
+mod hypotheses;
+
+use hypotheses::{argumentation_incidences, falsifiers, hypotheses, hypothesis_summary};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum OutputFormat {
@@ -64,6 +67,9 @@ fn executive_projection(
     let medium_severity_obstructions = obstructions_by_severity(&obstructions, "medium");
     let close_status = close_status_value(space, report);
     let candidate_quality = candidate_quality_summary(&completion_candidates(report));
+    let hypotheses = hypotheses(report);
+    let falsifiers = falsifiers(report);
+    let hypothesis_summary = hypothesis_summary(&hypotheses);
     let higher_graphen = higher::projection_result_json(
         space,
         report,
@@ -86,8 +92,11 @@ fn executive_projection(
             "high_severity_obstructions": high_severity_obstructions,
             "medium_severity_obstructions": medium_severity_obstructions,
             "unreviewed_candidates_are_not_accepted": true,
-            "candidate_quality": candidate_quality
+            "candidate_quality": candidate_quality,
+            "hypothesis_summary": hypothesis_summary
         },
+        "hypotheses": hypotheses,
+        "falsifiers": falsifiers,
         "source_boundary": space.metadata.get("source_boundary").cloned().unwrap_or_else(|| json!({})),
         "projection_loss": projection_loss(space, report),
         "higher_graphen": higher_graphen
@@ -160,6 +169,11 @@ fn ai_agent_projection(
     let candidates = completion_candidates(report);
     let resolution_state = blocker_resolution_state(&open_obstructions, &candidates);
     let candidate_quality = candidate_quality_summary(&candidates);
+    let (live_candidates, superseded_candidates) = partition_candidates(&candidates);
+    let hypotheses = hypotheses(report);
+    let falsifiers = falsifiers(report);
+    let argumentation_incidences = argumentation_incidences(report);
+    let hypothesis_summary = hypothesis_summary(&hypotheses);
     let higher_graphen = higher::projection_result_json(
         space,
         report,
@@ -195,7 +209,11 @@ fn ai_agent_projection(
             ],
             "review_gated_commands": [
                 "completions accept",
-                "completions reject"
+                "completions reject",
+                "hypothesis falsify",
+                "hypothesis support",
+                "hypothesis accept",
+                "hypothesis reject"
             ],
             "forbidden_operations": [
                 "promote unreviewed candidate structure",
@@ -213,7 +231,13 @@ fn ai_agent_projection(
             ]
         },
         "open_obstructions": open_obstructions,
+        "hypotheses": hypotheses,
+        "falsifiers": falsifiers,
+        "argumentation_incidences": argumentation_incidences,
+        "hypothesis_summary": hypothesis_summary,
         "candidate_review_state": candidates,
+        "live_candidates": live_candidates,
+        "superseded_candidates": superseded_candidates,
         "candidate_quality": candidate_quality,
         "blocker_resolution_state": resolution_state,
         "frontier_items": frontier_items(&resolution_state),
@@ -329,6 +353,69 @@ fn render_markdown(audience: &str, projection: &Value) -> AdvisoryResult<String>
         }
         lines.push(String::new());
     }
+    let mut reframed_obstructions: Vec<&Value> = Vec::new();
+    for obstruction in projection
+        .pointer("/summary/high_severity_obstructions")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .chain(
+            projection
+                .pointer("/summary/medium_severity_obstructions")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten(),
+        )
+    {
+        if obstruction.pointer("/metadata/reframe").is_some() {
+            reframed_obstructions.push(obstruction);
+        }
+    }
+    if !reframed_obstructions.is_empty() {
+        lines.push("## Reframed obstructions (primary hypothesis falsified)".to_string());
+        for obstruction in reframed_obstructions {
+            let id = obstruction["id"].as_str().unwrap_or("unknown");
+            let original = obstruction
+                .pointer("/metadata/reframe/original_severity")
+                .and_then(Value::as_str)
+                .unwrap_or("?");
+            let effective = obstruction
+                .pointer("/metadata/reframe/effective_severity")
+                .and_then(Value::as_str)
+                .unwrap_or("?");
+            lines.push(format!(
+                "- `{id}`: severity {original} → effective {effective}"
+            ));
+            if let Some(types) = obstruction
+                .pointer("/metadata/reframe/effective_completion_types")
+                .and_then(Value::as_array)
+            {
+                let names: Vec<&str> = types.iter().filter_map(Value::as_str).collect();
+                lines.push(format!("  - now suggests: {}", names.join(", ")));
+            }
+        }
+        lines.push(String::new());
+    }
+    if let Some(summary) = projection.pointer("/summary/hypothesis_summary") {
+        let total = summary["total"].as_u64().unwrap_or(0);
+        if total > 0 {
+            lines.push("## Hypotheses".to_string());
+            lines.push(format!("- Total: {}", total));
+            for status in [
+                "candidate",
+                "supported",
+                "accepted",
+                "rejected",
+                "falsified",
+            ] {
+                let count = summary[status].as_u64().unwrap_or(0);
+                if count > 0 {
+                    lines.push(format!("- {status}: {count}"));
+                }
+            }
+            lines.push(String::new());
+        }
+    }
     if let Some(boundary) = projection.get("source_boundary") {
         lines.push("## Source boundary".to_string());
         if let Some(included) = boundary
@@ -435,6 +522,19 @@ fn completion_candidates(report: &Value) -> Vec<Value> {
     candidates
 }
 
+fn partition_candidates(candidates: &[Value]) -> (Vec<Value>, Vec<Value>) {
+    let mut live = Vec::new();
+    let mut superseded = Vec::new();
+    for candidate in candidates {
+        if candidate.get("review_status").and_then(Value::as_str) == Some("superseded") {
+            superseded.push(candidate.clone());
+        } else {
+            live.push(candidate.clone());
+        }
+    }
+    (live, superseded)
+}
+
 fn obstructions_by_severity(obstructions: &[Value], severity: &str) -> Vec<Value> {
     obstructions
         .iter()
@@ -472,6 +572,7 @@ fn candidate_quality_summary(candidates: &[Value]) -> Value {
     let mut source_derived = 0_u64;
     let mut requirement_derived = 0_u64;
     let mut code_derived = 0_u64;
+    let mut topology_derived = 0_u64;
     let mut generic = 0_u64;
     let mut missing_precision_metadata = 0_u64;
     let mut source_backed = 0_u64;
@@ -484,6 +585,7 @@ fn candidate_quality_summary(candidates: &[Value]) -> Value {
             "source_derived" => source_derived += 1,
             "requirement_derived" => requirement_derived += 1,
             "code_derived" => code_derived += 1,
+            "topology_derived" => topology_derived += 1,
             "generic" => generic += 1,
             _ => missing_precision_metadata += 1,
         }
@@ -503,6 +605,7 @@ fn candidate_quality_summary(candidates: &[Value]) -> Value {
         "source_derived": source_derived,
         "requirement_derived": requirement_derived,
         "code_derived": code_derived,
+        "topology_derived": topology_derived,
         "generic": generic,
         "source_backed": source_backed,
         "missing_precision_metadata": missing_precision_metadata

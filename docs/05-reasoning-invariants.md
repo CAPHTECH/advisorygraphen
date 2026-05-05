@@ -106,6 +106,24 @@ therefore precise enough to block unreviewed recommendations, but projections
 must disclose that shared middleware, dynamic wrappers, and framework-specific
 auth conventions can require review.
 
+### `architecture_no_circular_dependencies`
+
+A directed dependency graph constructed from `accesses`, `depends_on`, `uses`,
+and `implements` incidences must be acyclic. Soft links (`owns`, `verifies`)
+are excluded because they are not runtime/structural dependencies.
+
+Violation creates:
+
+- `obstruction_type = circular_dependency`
+- severity: `medium`
+- recommended completion: `proposed_dependency_break`, `architecture_review`
+- one obstruction per simple cycle, with `metadata.cycle_cell_ids`,
+  `metadata.cycle_edge_ids`, and `metadata.specificity = "topology_derived"`.
+
+The cycle witnesses come from a deterministic depth-first search over the
+incidence graph. Each cycle is reported once via canonical rotation, so cycle
+witnesses are stable across re-runs.
+
 ### `projection_loss_declared`
 
 Every projection must declare omitted source IDs, compressed structures, hidden internal policy, and summarized evidence when applicable.
