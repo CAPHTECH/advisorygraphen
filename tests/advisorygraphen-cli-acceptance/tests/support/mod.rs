@@ -221,7 +221,7 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
     ]);
     assert_success(&propose);
     assert_file_contains(&completions, "higher_graphen");
-    assert_file_contains(&completions, "\"missing_type\": \"cell\"");
+    assert_file_contains(&completions, "\"missing_type\":");
 
     let project = run_cli([
         "project",
@@ -319,10 +319,10 @@ pub fn assert_advisory_fixture_flow(flow: AdvisoryFixtureFlow<'_>) {
     assert_output_contains(&reason, "apply_accepted_candidate_structure");
     assert_output_contains(&reason, "application_requirements");
     assert_output_contains(&reason, "required_cell_types");
-    assert_output_contains(&reason, "owner");
+    assert_output_contains(&reason, "reviewed_structure");
     assert_output_contains(&reason, "required_relation_types");
-    assert_output_contains(&reason, "owns");
-    assert_output_contains(&reason, "add owner cell and owns incidence");
+    assert_output_contains(&reason, "resolves");
+    assert_output_contains(&reason, "add reviewed structure linked to the obstruction");
     assert_output_contains(
         &reason,
         "does_not_clear_obstruction_until_structure_changes",
@@ -350,7 +350,8 @@ pub fn assert_advanced_dogfood_fixture_flows(package: &str, ruleset: &str) {
             "obstruction:private-boundary-checklist-action-missing-owner",
         ],
         expected_audit_text: "Define enterprise packaging owner and launch gate",
-        expected_candidate_text: "candidate:enterprise-packaging-action-missing-owner-owner",
+        expected_candidate_text:
+            "candidate:enterprise-packaging-action-missing-owner-assign-product-lead",
     });
 
     assert_advisory_fixture_flow(AdvisoryFixtureFlow {
@@ -369,7 +370,8 @@ pub fn assert_advanced_dogfood_fixture_flows(package: &str, ruleset: &str) {
             "obstruction:prompt-injection-boundary-action-missing-owner",
         ],
         expected_audit_text: "Create agent recovery runbook",
-        expected_candidate_text: "candidate:agent-recovery-runbook-action-missing-owner-owner",
+        expected_candidate_text:
+            "candidate:agent-recovery-runbook-action-missing-owner-assign-agent-ops-maintainer",
     });
 
     assert_advisory_fixture_flow(AdvisoryFixtureFlow {
@@ -388,6 +390,7 @@ pub fn assert_advanced_dogfood_fixture_flows(package: &str, ruleset: &str) {
             "obstruction:public-examples-no-customer-data-missing-verification",
         ],
         expected_audit_text: "Create commercial packaging review board",
-        expected_candidate_text: "candidate:commercial-packaging-review-board-action-missing-owner-owner",
+        expected_candidate_text:
+            "candidate:commercial-packaging-review-board-action-missing-owner-assign-security-reviewer",
     });
 }

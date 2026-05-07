@@ -69,9 +69,12 @@ fn executive_projection(
     let candidates = completion_candidates(report);
     let candidate_quality = candidate_quality_summary(&candidates);
     let proposal_content_summary = proposal_content_summary(&candidates);
+    let recommendation_trace = recommendation_trace(&candidates);
     let hypotheses = hypotheses(report);
     let falsifiers = falsifiers(report);
     let hypothesis_summary = hypothesis_summary(&hypotheses);
+    let explicit_hypothesis_matrix = explicit_hypothesis_matrix(space);
+    let explicit_proposal_trace = explicit_proposal_trace(space);
     let higher_graphen = higher::projection_result_json(
         space,
         report,
@@ -96,6 +99,9 @@ fn executive_projection(
             "unreviewed_candidates_are_not_accepted": true,
             "candidate_quality": candidate_quality,
             "proposal_content_summary": proposal_content_summary,
+            "recommendation_trace": recommendation_trace,
+            "explicit_hypothesis_matrix": explicit_hypothesis_matrix,
+            "explicit_proposal_trace": explicit_proposal_trace,
             "hypothesis_summary": hypothesis_summary
         },
         "hypotheses": hypotheses,
@@ -173,11 +179,15 @@ fn ai_agent_projection(
     let resolution_state = blocker_resolution_state(&open_obstructions, &candidates);
     let candidate_quality = candidate_quality_summary(&candidates);
     let proposal_content_summary = proposal_content_summary(&candidates);
+    let recommendation_trace = recommendation_trace(&candidates);
+    let hypothesis_promotion_workflow = hypothesis_promotion_workflow(&recommendation_trace);
     let (live_candidates, superseded_candidates) = partition_candidates(&candidates);
     let hypotheses = hypotheses(report);
     let falsifiers = falsifiers(report);
     let argumentation_incidences = argumentation_incidences(report);
     let hypothesis_summary = hypothesis_summary(&hypotheses);
+    let explicit_hypothesis_matrix = explicit_hypothesis_matrix(space);
+    let explicit_proposal_trace = explicit_proposal_trace(space);
     let higher_graphen = higher::projection_result_json(
         space,
         report,
@@ -241,11 +251,15 @@ fn ai_agent_projection(
         "falsifiers": falsifiers,
         "argumentation_incidences": argumentation_incidences,
         "hypothesis_summary": hypothesis_summary,
+        "explicit_hypothesis_matrix": explicit_hypothesis_matrix,
+        "explicit_proposal_trace": explicit_proposal_trace,
         "candidate_review_state": candidates,
         "live_candidates": live_candidates,
         "superseded_candidates": superseded_candidates,
         "candidate_quality": candidate_quality,
         "proposal_content_summary": proposal_content_summary,
+        "recommendation_trace": recommendation_trace,
+        "hypothesis_promotion_workflow": hypothesis_promotion_workflow,
         "blocker_resolution_state": resolution_state,
         "frontier_items": frontier_items(&resolution_state),
         "waiting_items": waiting_items(&resolution_state),
@@ -342,6 +356,50 @@ fn render_markdown(audience: &str, projection: &Value) -> AdvisoryResult<String>
                 "- Content obstructions: {}",
                 summary["content_obstruction_count"].as_u64().unwrap_or(0)
             ));
+            lines.push(String::new());
+        }
+        if let Some(trace) = projection.pointer("/summary/recommendation_trace") {
+            lines.push("## Recommendation trace".to_string());
+            lines.push(format!(
+                "- Primary recommendations: {}",
+                trace["primary_count"].as_u64().unwrap_or(0)
+            ));
+            lines.push(format!(
+                "- Alternatives: {}",
+                trace["alternative_count"].as_u64().unwrap_or(0)
+            ));
+            lines.push(format!(
+                "- Follow-up observations: {}",
+                trace["follow_up_observation_count"].as_u64().unwrap_or(0)
+            ));
+            if let Some(items) = trace
+                .get("follow_up_observations")
+                .and_then(Value::as_array)
+            {
+                for item in items.iter().take(5) {
+                    lines.push(format!(
+                        "- Follow-up: `{}` from `{}`: {}",
+                        item["candidate_id"].as_str().unwrap_or("unknown"),
+                        item["derived_hypothesis_id"].as_str().unwrap_or("missing"),
+                        item["title"].as_str().unwrap_or("Untitled follow-up")
+                    ));
+                    for task in item
+                        .get("ranked_observation_tasks")
+                        .and_then(Value::as_array)
+                        .into_iter()
+                        .flatten()
+                        .take(2)
+                    {
+                        lines.push(format!(
+                            "  - Observation {}: {}",
+                            task["rank"].as_u64().unwrap_or(0),
+                            task["expected_observation"]
+                                .as_str()
+                                .unwrap_or("Collect evidence before promotion.")
+                        ));
+                    }
+                }
+            }
             lines.push(String::new());
         }
         lines.push("## High-severity obstructions".to_string());
@@ -683,6 +741,660 @@ fn proposal_content_summary(candidates: &[Value]) -> Value {
         "content_obstruction_count": content_obstruction_count,
         "content_obstruction_types": obstruction_types
     })
+}
+
+fn explicit_hypothesis_matrix(space: &AdvisorySpaceEnvelope) -> Value {
+    let hypotheses = space
+        .cells
+        .iter()
+        .filter(|cell| is_explicit_hypothesis(cell))
+        .map(|hypothesis| {
+            let id = hypothesis.get("id").and_then(Value::as_str).unwrap_or("cell:unknown");
+            json!({
+                "hypothesis_id": id,
+                "title": hypothesis.get("title").cloned().unwrap_or(Value::Null),
+                "status": explicit_hypothesis_status(hypothesis),
+                "expected_observations": hypothesis.pointer("/metadata/expected_observations").cloned().unwrap_or_else(|| json!([])),
+                "falsifiers": hypothesis.pointer("/metadata/falsifiers").cloned().unwrap_or_else(|| json!([])),
+                "supporting_incidence_ids": relation_ids_for(space, id, &["supports", "supported_by"]),
+                "falsifying_incidence_ids": relation_ids_for(space, id, &["falsifies", "falsified_by"]),
+                "competing_hypothesis_ids": competing_ids_for(space, id),
+                "remaining_uncertainty": remaining_hypothesis_uncertainty(space, hypothesis)
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut counts = serde_json::Map::new();
+    for hypothesis in &hypotheses {
+        let status = hypothesis
+            .get("status")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        let current = counts.get(status).and_then(Value::as_u64).unwrap_or(0);
+        counts.insert(status.to_string(), json!(current + 1));
+    }
+    json!({
+        "count": hypotheses.len(),
+        "status_counts": counts,
+        "hypotheses": hypotheses,
+        "rule": "Hypotheses should carry expected observations, falsifiers, support/falsify incidences, and competing alternatives before driving proposals."
+    })
+}
+
+fn explicit_proposal_trace(space: &AdvisorySpaceEnvelope) -> Value {
+    let proposals = space
+        .cells
+        .iter()
+        .filter(|cell| cell["cell_type"] == "action")
+        .map(|action| {
+            let action_id = action.get("id").and_then(Value::as_str).unwrap_or("cell:unknown");
+            let derived = explicit_derived_hypothesis_ids(space, action_id, action);
+            json!({
+                "action_id": action_id,
+                "title": action.get("title").cloned().unwrap_or(Value::Null),
+                "priority": action.pointer("/metadata/priority").cloned().unwrap_or(Value::Null),
+                "derived_hypothesis_ids": derived,
+                "derived_hypothesis_statuses": derived.iter().map(|id| {
+                    json!({
+                        "hypothesis_id": id,
+                        "status": space.cells.iter()
+                            .find(|cell| cell.get("id").and_then(Value::as_str) == Some(id.as_str()))
+                            .map(explicit_hypothesis_status)
+                            .unwrap_or("missing")
+                    })
+                }).collect::<Vec<_>>(),
+                "required_verification": action.pointer("/metadata/required_verification").cloned().unwrap_or(Value::Null),
+                "owner_state": if relation_ids_for(space, action_id, &["owns"]).is_empty() { "missing" } else { "present" },
+                "proposal_quality_notes": proposal_quality_notes(space, action)
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "count": proposals.len(),
+        "proposals": proposals,
+        "rule": "Proposal trace is problem -> hypothesis -> evidence -> classification -> proposal -> required verification/owner."
+    })
+}
+
+fn is_explicit_hypothesis(cell: &Value) -> bool {
+    cell["cell_type"] == "hypothesis"
+        || cell
+            .pointer("/metadata/hypothesis")
+            .and_then(Value::as_bool)
+            == Some(true)
+        || cell.pointer("/metadata/hypothesis_status").is_some()
+        || cell.get("lifecycle_status").is_some()
+}
+
+fn explicit_hypothesis_status(cell: &Value) -> &str {
+    cell.pointer("/metadata/hypothesis_status")
+        .and_then(Value::as_str)
+        .or_else(|| cell.get("lifecycle_status").and_then(Value::as_str))
+        .unwrap_or("candidate")
+}
+
+fn relation_ids_for(
+    space: &AdvisorySpaceEnvelope,
+    target_id: &str,
+    relation_types: &[&str],
+) -> Vec<Value> {
+    space
+        .incidences
+        .iter()
+        .filter(|incidence| {
+            let relation_type = incidence
+                .get("relation_type")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            relation_types.contains(&relation_type)
+                && (incidence.get("from_id").and_then(Value::as_str) == Some(target_id)
+                    || incidence.get("to_id").and_then(Value::as_str) == Some(target_id))
+        })
+        .filter_map(|incidence| incidence.get("id").cloned())
+        .collect()
+}
+
+fn competing_ids_for(space: &AdvisorySpaceEnvelope, hypothesis_id: &str) -> Vec<Value> {
+    space
+        .incidences
+        .iter()
+        .filter(|incidence| {
+            incidence.get("relation_type").and_then(Value::as_str) == Some("competes_with")
+        })
+        .filter_map(|incidence| {
+            let from = incidence.get("from_id").and_then(Value::as_str)?;
+            let to = incidence.get("to_id").and_then(Value::as_str)?;
+            if from == hypothesis_id {
+                Some(json!(to))
+            } else if to == hypothesis_id {
+                Some(json!(from))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn remaining_hypothesis_uncertainty(
+    space: &AdvisorySpaceEnvelope,
+    hypothesis: &Value,
+) -> Vec<Value> {
+    let mut items = Vec::new();
+    let id = hypothesis
+        .get("id")
+        .and_then(Value::as_str)
+        .unwrap_or("cell:unknown");
+    if hypothesis
+        .pointer("/metadata/expected_observations")
+        .and_then(Value::as_array)
+        .map_or(true, Vec::is_empty)
+    {
+        items.push(json!("missing_expected_observations"));
+    }
+    if hypothesis
+        .pointer("/metadata/falsifiers")
+        .and_then(Value::as_array)
+        .map_or(true, Vec::is_empty)
+    {
+        items.push(json!("missing_falsifiers"));
+    }
+    let status = explicit_hypothesis_status(hypothesis);
+    if matches!(
+        status,
+        "supported" | "strongly_supported" | "supported_needs_followup"
+    ) && relation_ids_for(space, id, &["supports", "supported_by"]).is_empty()
+    {
+        items.push(json!("missing_support_incidence"));
+    }
+    if status == "falsified"
+        && relation_ids_for(space, id, &["falsifies", "falsified_by"]).is_empty()
+    {
+        items.push(json!("missing_falsifying_incidence"));
+    }
+    items
+}
+
+fn explicit_derived_hypothesis_ids(
+    space: &AdvisorySpaceEnvelope,
+    action_id: &str,
+    action: &Value,
+) -> Vec<String> {
+    let mut ids = Vec::new();
+    if let Some(id) = action
+        .pointer("/metadata/derived_from_hypothesis")
+        .and_then(Value::as_str)
+    {
+        ids.push(normalize_projection_cell_id(id));
+    }
+    if let Some(id) = action
+        .pointer("/metadata/derived_from_hypothesis_id")
+        .and_then(Value::as_str)
+    {
+        ids.push(normalize_projection_cell_id(id));
+    }
+    if let Some(values) = action
+        .pointer("/metadata/derived_from_hypotheses")
+        .and_then(Value::as_array)
+    {
+        ids.extend(
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(normalize_projection_cell_id),
+        );
+    }
+    ids.extend(
+        space
+            .incidences
+            .iter()
+            .filter(|incidence| {
+                incidence.get("relation_type").and_then(Value::as_str) == Some("derives_from")
+                    && incidence.get("from_id").and_then(Value::as_str) == Some(action_id)
+            })
+            .filter_map(|incidence| incidence.get("to_id").and_then(Value::as_str))
+            .map(normalize_projection_cell_id),
+    );
+    ids.sort();
+    ids.dedup();
+    ids
+}
+
+fn normalize_projection_cell_id(id: &str) -> String {
+    if id.starts_with("record:") {
+        format!("cell:{}", id.trim_start_matches("record:"))
+    } else {
+        id.to_string()
+    }
+}
+
+fn proposal_quality_notes(space: &AdvisorySpaceEnvelope, action: &Value) -> Vec<Value> {
+    let action_id = action
+        .get("id")
+        .and_then(Value::as_str)
+        .unwrap_or("cell:unknown");
+    let mut notes = Vec::new();
+    let derived = explicit_derived_hypothesis_ids(space, action_id, action);
+    if derived.is_empty() {
+        notes.push(json!("missing_hypothesis_trace"));
+    }
+    if action
+        .pointer("/metadata/required_verification")
+        .and_then(Value::as_str)
+        .map_or(true, |value| value.trim().is_empty())
+    {
+        notes.push(json!("missing_required_verification"));
+    }
+    if relation_ids_for(space, action_id, &["owns"]).is_empty() {
+        notes.push(json!("missing_owner"));
+    }
+    notes
+}
+
+fn recommendation_trace(candidates: &[Value]) -> Value {
+    let mut primary = Vec::new();
+    let mut alternatives = Vec::new();
+    let mut follow_up = Vec::new();
+    let mut unsupported = 0_u64;
+
+    for candidate in candidates {
+        let item = recommendation_trace_item(candidate);
+        match candidate
+            .get("recommendation_role")
+            .and_then(Value::as_str)
+            .unwrap_or("follow_up_observation")
+        {
+            "primary" => primary.push(item),
+            "alternative" => alternatives.push(item),
+            _ => {
+                unsupported += 1;
+                follow_up.push(item);
+            }
+        }
+    }
+
+    json!({
+        "primary_count": primary.len(),
+        "alternative_count": alternatives.len(),
+        "follow_up_observation_count": follow_up.len(),
+        "unsupported_hypothesis_candidate_count": unsupported,
+        "primary_recommendations": primary,
+        "alternatives": alternatives,
+        "follow_up_observations": follow_up,
+        "rule": "Only candidates derived from supported or accepted hypotheses can be primary recommendations."
+    })
+}
+
+fn recommendation_trace_item(candidate: &Value) -> Value {
+    json!({
+        "candidate_id": candidate.get("id").cloned().unwrap_or(Value::Null),
+        "title": candidate.get("title").cloned().unwrap_or(Value::Null),
+        "candidate_type": candidate.get("candidate_type").cloned().unwrap_or(Value::Null),
+        "recommendation_role": candidate.get("recommendation_role").cloned().unwrap_or_else(|| json!("follow_up_observation")),
+        "derived_hypothesis_id": candidate.pointer("/hypothesis_trace/derived_hypothesis_id").cloned().unwrap_or(Value::Null),
+        "hypothesis_lifecycle_status": candidate.pointer("/hypothesis_trace/lifecycle_status").cloned().unwrap_or(Value::Null),
+        "supported_hypothesis_ids": candidate.get("supported_hypothesis_ids").cloned().unwrap_or_else(|| json!([])),
+        "unsupported_hypothesis_ids": candidate.get("unsupported_hypothesis_ids").cloned().unwrap_or_else(|| json!([])),
+        "required_verification": candidate.pointer("/proposal_content/content_obstructions")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items.iter()
+                    .filter_map(|item| item.get("required_resolution").and_then(Value::as_str))
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default(),
+        "ranked_observation_tasks": ranked_observation_tasks(candidate)
+    })
+}
+
+fn ranked_observation_tasks(candidate: &Value) -> Vec<Value> {
+    let mut tasks = Vec::new();
+    let candidate_id = candidate
+        .get("id")
+        .and_then(Value::as_str)
+        .unwrap_or("candidate:unknown");
+    let title = candidate
+        .get("title")
+        .and_then(Value::as_str)
+        .unwrap_or("candidate");
+    let candidate_type = candidate
+        .get("candidate_type")
+        .and_then(Value::as_str)
+        .unwrap_or("completion_candidate");
+    let source_ids = candidate
+        .get("source_ids")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let unsupported_hypothesis_ids = candidate
+        .get("unsupported_hypothesis_ids")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut rank = 1_u64;
+
+    for hypothesis_id in unsupported_hypothesis_ids.iter().filter_map(Value::as_str) {
+        tasks.push(json!({
+            "rank": rank,
+            "task_id": format!("observation:{}:support-{}", id_tail(candidate_id), rank),
+            "observation_type": "hypothesis_support",
+            "candidate_id": candidate_id,
+            "hypothesis_id": hypothesis_id,
+            "source_ids_to_inspect": source_ids,
+            "command_template": observation_command_template(candidate_type),
+            "required_inputs": required_observation_inputs(candidate_type),
+            "output_schema": observation_output_schema(),
+            "pass_fail_extraction": pass_fail_extraction(candidate_type),
+            "expected_observation": expected_observation(candidate_type, title),
+            "falsifier": falsifier_observation(candidate_type, title),
+            "weakens_hypothesis_ids": competing_hypotheses(candidate, hypothesis_id),
+            "promotion_effect": "If this observation supports the hypothesis, review-gated hypothesis support or acceptance can allow the candidate to be reconsidered as primary or alternative."
+        }));
+        rank += 1;
+    }
+
+    for obstruction in candidate
+        .pointer("/proposal_content/content_obstructions")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        if obstruction.get("obstruction_type").and_then(Value::as_str)
+            != Some("proposal_content_underspecified")
+        {
+            continue;
+        }
+        tasks.push(json!({
+            "rank": rank,
+            "task_id": format!("observation:{}:complete-structure", id_tail(candidate_id)),
+            "observation_type": "proposal_structure_completion",
+            "candidate_id": candidate_id,
+            "hypothesis_id": candidate.pointer("/hypothesis_trace/derived_hypothesis_id").cloned().unwrap_or(Value::Null),
+            "source_ids_to_inspect": source_ids,
+            "command_template": "Inspect the candidate proposal_content and source snapshot, then draft the exact cell or incidence required to repair the obstruction.",
+            "required_inputs": [
+                "candidate_id",
+                "proposal_content",
+                "resolves_obstruction_ids",
+                "bounded_source_snapshot"
+            ],
+            "output_schema": observation_output_schema(),
+            "pass_fail_extraction": {
+                "pass_when": "The output names concrete cells or incidences to add and maps them to the repaired obstruction.",
+                "fail_when": "The output cannot name concrete structure without inventing facts outside the source boundary.",
+                "review_required": true
+            },
+            "expected_observation": "Identify the concrete cell or incidence that would be added, plus the exact obstruction it repairs.",
+            "falsifier": "No concrete structure can be named without inventing facts beyond the bounded source snapshot.",
+            "weakens_hypothesis_ids": [],
+            "promotion_effect": "A concrete proposed structure removes underspecification but still requires review before acceptance."
+        }));
+        rank += 1;
+    }
+
+    if tasks.is_empty()
+        && candidate.get("recommendation_role").and_then(Value::as_str) != Some("primary")
+    {
+        tasks.push(json!({
+            "rank": rank,
+            "task_id": format!("observation:{}:review-readiness", id_tail(candidate_id)),
+            "observation_type": "review_readiness",
+            "candidate_id": candidate_id,
+            "hypothesis_id": candidate.pointer("/hypothesis_trace/derived_hypothesis_id").cloned().unwrap_or(Value::Null),
+            "source_ids_to_inspect": source_ids,
+            "command_template": "Review candidate evidence, owners, verification fields, and proposal_content obstructions for promotion readiness.",
+            "required_inputs": [
+                "candidate_id",
+                "supported_hypothesis_ids",
+                "unsupported_hypothesis_ids",
+                "proposal_content.content_obstructions"
+            ],
+            "output_schema": observation_output_schema(),
+            "pass_fail_extraction": {
+                "pass_when": "The candidate has supported or accepted hypotheses and no unresolved content obstructions.",
+                "fail_when": "The candidate still depends on unreviewed hypotheses or underspecified proposal content.",
+                "review_required": true
+            },
+            "expected_observation": "Confirm whether the candidate has enough accepted evidence, owner, and verification to enter review.",
+            "falsifier": "The candidate still depends on inferred or unreviewed structure.",
+            "weakens_hypothesis_ids": [],
+            "promotion_effect": "A positive readiness observation identifies the next explicit review event; a negative one keeps the candidate as follow-up."
+        }));
+    }
+
+    tasks
+}
+
+fn observation_command_template(candidate_type: &str) -> &'static str {
+    match candidate_type {
+        "owner_assignment" | "ownership_clarification" => {
+            "Inspect source_ids_to_inspect for ownership evidence and return the owner claim, source id, and contradiction status."
+        }
+        "proposed_test" | "proposed_metric" => {
+            "Inspect source_ids_to_inspect and define the smallest verification method, metric, or review path that can verify the requirement."
+        }
+        "proposed_interface" => {
+            "Inspect boundary witnesses and source_ids_to_inspect, then identify the minimal interface contract and owner evidence."
+        }
+        "proposed_auth_guard" => {
+            "Inspect route evidence and shared middleware evidence, then decide whether a route-specific auth guard is required."
+        }
+        _ => {
+            "Inspect source_ids_to_inspect and candidate evidence, then return support, falsification, or insufficient-evidence status."
+        }
+    }
+}
+
+fn required_observation_inputs(candidate_type: &str) -> Vec<&'static str> {
+    let mut inputs = vec![
+        "candidate_id",
+        "hypothesis_id",
+        "source_ids_to_inspect",
+        "expected_observation",
+        "falsifier",
+    ];
+    match candidate_type {
+        "owner_assignment" | "ownership_clarification" => {
+            inputs.push("owner_cell_id");
+            inputs.push("blocked_cell_id");
+        }
+        "proposed_interface" => {
+            inputs.push("from_cell_id");
+            inputs.push("to_cell_id");
+        }
+        _ => {}
+    }
+    inputs
+}
+
+fn observation_output_schema() -> Value {
+    json!({
+        "type": "object",
+        "required": [
+            "observation_status",
+            "evidence_ids",
+            "summary",
+            "supports_hypothesis",
+            "falsifies_hypothesis"
+        ],
+        "properties": {
+            "observation_status": {
+                "enum": [
+                    "supports",
+                    "falsifies",
+                    "insufficient_evidence",
+                    "requires_human_review"
+                ]
+            },
+            "evidence_ids": {
+                "type": "array",
+                "items": { "type": "string" }
+            },
+            "summary": { "type": "string" },
+            "supports_hypothesis": { "type": "boolean" },
+            "falsifies_hypothesis": { "type": "boolean" },
+            "review_note": { "type": "string" }
+        }
+    })
+}
+
+fn pass_fail_extraction(candidate_type: &str) -> Value {
+    match candidate_type {
+        "owner_assignment" | "ownership_clarification" => json!({
+            "pass_when": "A source-backed owner or ownership incidence is identified for the blocked action.",
+            "fail_when": "No owner evidence exists, a different accepted owner is found, or ownership is explicitly collective.",
+            "review_required": true
+        }),
+        "proposed_test" | "proposed_metric" => json!({
+            "pass_when": "A concrete verification method, metric, or review path can be named and linked to the requirement.",
+            "fail_when": "The requirement is exploratory, already verified, or cannot be verified within the source boundary.",
+            "review_required": true
+        }),
+        "proposed_interface" => json!({
+            "pass_when": "The boundary need and minimal interface contract are both supported by source evidence.",
+            "fail_when": "The direct dependency is absent, already mediated, or cannot be tied to a source-backed requirement.",
+            "review_required": true
+        }),
+        "proposed_auth_guard" => json!({
+            "pass_when": "The route touches protected data and lacks an effective shared or route-specific guard.",
+            "fail_when": "Existing middleware protects the route or the data is intentionally public.",
+            "review_required": true
+        }),
+        _ => json!({
+            "pass_when": "Source-backed evidence supports the blocking hypothesis and weakens relevant alternatives.",
+            "fail_when": "Evidence falsifies the hypothesis or remains insufficient after inspecting bounded sources.",
+            "review_required": true
+        }),
+    }
+}
+
+fn expected_observation(candidate_type: &str, title: &str) -> String {
+    match candidate_type {
+        "owner_assignment" | "ownership_clarification" => format!(
+            "Find source-backed evidence that the proposed owner is accountable for `{title}`."
+        ),
+        "proposed_test" | "proposed_metric" => format!(
+            "Find or define a verification method that would demonstrate `{title}` without relying on agent inference."
+        ),
+        "proposed_interface" => format!(
+            "Confirm the current cross-boundary need and the minimal interface shape required for `{title}`."
+        ),
+        "proposed_auth_guard" => format!(
+            "Confirm the route lacks an effective guard and identify the guard required for `{title}`."
+        ),
+        _ => format!("Collect source-backed evidence that justifies `{title}`."),
+    }
+}
+
+fn falsifier_observation(candidate_type: &str, title: &str) -> String {
+    match candidate_type {
+        "owner_assignment" | "ownership_clarification" => format!(
+            "A different accepted owner is documented for `{title}`, or ownership is intentionally collective."
+        ),
+        "proposed_test" | "proposed_metric" => format!(
+            "The requirement behind `{title}` is exploratory or already verified by an existing accepted relation."
+        ),
+        "proposed_interface" => format!(
+            "The direct dependency behind `{title}` is not present, or an accepted interface already exists."
+        ),
+        "proposed_auth_guard" => format!(
+            "The route behind `{title}` is already protected by middleware or does not touch protected data."
+        ),
+        _ => format!("Accepted evidence contradicts the need for `{title}`."),
+    }
+}
+
+fn competing_hypotheses(candidate: &Value, current_hypothesis_id: &str) -> Vec<Value> {
+    candidate
+        .get("unsupported_hypothesis_ids")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .filter(|id| *id != current_hypothesis_id)
+        .map(|id| json!(id))
+        .collect()
+}
+
+fn hypothesis_promotion_workflow(recommendation_trace: &Value) -> Value {
+    let items: Vec<Value> = recommendation_trace
+        .get("follow_up_observations")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .map(|item| {
+            let observation_task_ids: Vec<Value> = item
+                .get("ranked_observation_tasks")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(|task| task.get("task_id").cloned())
+                .collect();
+            json!({
+                "candidate_id": item.get("candidate_id").cloned().unwrap_or(Value::Null),
+                "current_role": item.get("recommendation_role").cloned().unwrap_or_else(|| json!("follow_up_observation")),
+                "blocking_hypothesis_ids": item.get("unsupported_hypothesis_ids").cloned().unwrap_or_else(|| json!([])),
+                "observation_task_ids": observation_task_ids,
+                "next_command_drafts": promotion_command_drafts(item),
+                "promotion_steps": [
+                    "Run the ranked observation tasks against the bounded source snapshot.",
+                    "Record source-backed evidence that supports, weakens, or falsifies the blocking hypothesis.",
+                    "Use a review-gated hypothesis support or accept command only after evidence exists.",
+                    "Rerun completions propose and project ai_agent; promote only if the candidate no longer has unsupported hypotheses or content obstructions."
+                ]
+            })
+        })
+        .collect();
+
+    json!({
+        "workflow_rule": "Follow-up observations become primary recommendations only through source-backed hypothesis review and a fresh projection.",
+        "review_gated_commands": [
+            "hypothesis support",
+            "hypothesis accept",
+            "completions accept"
+        ],
+        "item_count": items.len(),
+        "items": items
+    })
+}
+
+fn promotion_command_drafts(item: &Value) -> Value {
+    let task_ids: Vec<Value> = item
+        .get("ranked_observation_tasks")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|task| task.get("task_id").cloned())
+        .collect();
+    let hypothesis_id = item
+        .get("unsupported_hypothesis_ids")
+        .and_then(Value::as_array)
+        .and_then(|ids| ids.first())
+        .and_then(Value::as_str)
+        .unwrap_or("<hypothesis-id>");
+    json!({
+        "record_observation": {
+            "command": "advisorygraphen observation record --store STORE --space-id SPACE_ID --from-projection AI_AGENT.json --task-id TASK_ID --result OBSERVATION_RESULT.json --reviewer REVIEWER --reason REASON --base-revision REVISION --format json",
+            "task_ids": task_ids
+        },
+        "support_hypothesis": {
+            "command": format!("advisorygraphen hypothesis support --store STORE --from-report CHECK.json --hypothesis-id {hypothesis_id} --evidence EVIDENCE_CELL_ID --reviewer REVIEWER --reason REASON --base-revision REVISION --format json"),
+            "requires": [
+                "observation result with observation_status=supports",
+                "evidence cell produced by observation record"
+            ]
+        },
+        "falsify_hypothesis": {
+            "command": format!("advisorygraphen hypothesis falsify --store STORE --from-report CHECK.json --hypothesis-id {hypothesis_id} --evidence EVIDENCE_CELL_ID --reviewer REVIEWER --reason REASON --base-revision REVISION --format json"),
+            "requires": [
+                "observation result with observation_status=falsifies",
+                "evidence cell produced by observation record"
+            ]
+        }
+    })
+}
+
+fn id_tail(id: &str) -> String {
+    id.rsplit(':').next().unwrap_or(id).replace('_', "-")
 }
 
 fn close_status_value(space: &AdvisorySpaceEnvelope, report: &Value) -> Value {

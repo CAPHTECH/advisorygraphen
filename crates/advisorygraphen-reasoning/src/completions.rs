@@ -46,6 +46,7 @@ pub fn propose_completions(
             _ => {}
         }
     }
+    enrich_candidates_with_hypothesis_support(&mut candidates, check_report);
     let higher_candidates = candidates
         .iter()
         .filter_map(|candidate| candidate.get("higher_graphen").cloned())
@@ -74,6 +75,106 @@ pub fn propose_completions(
             "higher_graphen": higher_detection
         }),
     ))
+}
+
+fn enrich_candidates_with_hypothesis_support(
+    candidates: &mut [Value],
+    check_report: &ReportEnvelope,
+) {
+    let hypothesis_status = check_report
+        .result
+        .get("hypotheses")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|hypothesis| {
+            let id = hypothesis.get("id")?.as_str()?.to_string();
+            let status = hypothesis
+                .get("lifecycle_status")
+                .and_then(Value::as_str)
+                .unwrap_or("candidate")
+                .to_string();
+            Some((id, status))
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
+
+    for candidate in candidates {
+        let derived_hypothesis_id = candidate
+            .pointer("/metadata/derived_from_hypothesis_id")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let lifecycle_status = derived_hypothesis_id
+            .as_deref()
+            .and_then(|id| hypothesis_status.get(id).map(String::as_str))
+            .unwrap_or("missing");
+        let hypothesis_supported = matches!(lifecycle_status, "supported" | "accepted");
+        let supported_hypothesis_ids = if hypothesis_supported {
+            derived_hypothesis_id.iter().cloned().collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+        let unsupported_hypothesis_ids = if hypothesis_supported {
+            Vec::new()
+        } else {
+            derived_hypothesis_id.iter().cloned().collect::<Vec<_>>()
+        };
+        candidate["supported_hypothesis_ids"] = json!(supported_hypothesis_ids);
+        candidate["unsupported_hypothesis_ids"] = json!(unsupported_hypothesis_ids);
+        candidate["hypothesis_trace"] = json!({
+            "derived_hypothesis_id": derived_hypothesis_id,
+            "lifecycle_status": lifecycle_status,
+            "support_required_for_primary_recommendation": true,
+            "supported": hypothesis_supported
+        });
+
+        let has_content_obstructions = candidate
+            .pointer("/proposal_content/content_obstructions")
+            .and_then(Value::as_array)
+            .is_some_and(|items| !items.is_empty());
+        let recommendation_role = if hypothesis_supported && !has_content_obstructions {
+            "primary"
+        } else if hypothesis_supported {
+            "alternative"
+        } else {
+            "follow_up_observation"
+        };
+        candidate["recommendation_role"] = json!(recommendation_role);
+        candidate["metadata"]["hypothesis_lifecycle_status"] = json!(lifecycle_status);
+        candidate["metadata"]["recommendation_role"] = json!(recommendation_role);
+
+        if !hypothesis_supported {
+            add_proposal_trace_obstruction(candidate, lifecycle_status);
+        }
+    }
+}
+
+fn add_proposal_trace_obstruction(candidate: &mut Value, lifecycle_status: &str) {
+    let obstruction = json!({
+        "obstruction_type": "proposal_depends_on_unsupported_hypothesis",
+        "message": "Proposal is derived from a hypothesis that is not supported or accepted; keep it out of primary recommendations.",
+        "required_resolution": "Collect supporting observations or explicitly review the hypothesis before promoting this proposal.",
+        "hypothesis_lifecycle_status": lifecycle_status,
+        "review_status": "unreviewed"
+    });
+    if let Some(content) = candidate
+        .get_mut("proposal_content")
+        .and_then(Value::as_object_mut)
+    {
+        content
+            .entry("content_obstructions".to_string())
+            .or_insert_with(|| json!([]))
+            .as_array_mut()
+            .map(|items| items.push(obstruction));
+        if let Some(scenario) = content.get_mut("scenario").and_then(Value::as_object_mut) {
+            scenario.insert("status".to_string(), json!("blocked"));
+        }
+        if let Some(derivation) = content.get_mut("derivation").and_then(Value::as_object_mut) {
+            derivation.insert(
+                "verification_status".to_string(),
+                json!("hypothesis_not_supported"),
+            );
+        }
+    }
 }
 
 fn boundary_completion_candidates(

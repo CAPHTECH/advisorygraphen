@@ -122,3 +122,15 @@ pub struct HypothesisFalsifyOptions {
     pub reason: String,
     pub base_revision: Option<String>,
 }
+
+#[derive(Debug, Clone)]
+pub struct ObservationRecordOptions {
+    pub store: PathBuf,
+    pub space_id: String,
+    pub from_projection: PathBuf,
+    pub task_id: String,
+    pub result: PathBuf,
+    pub reviewer: String,
+    pub reason: String,
+    pub base_revision: Option<String>,
+}

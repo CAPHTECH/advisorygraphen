@@ -351,6 +351,169 @@ fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
 }
 
 #[test]
+fn adversarial_dogfood_fixture_is_regression_oracle_for_hypothesis_gates() {
+    let dir = clean_case_dir("dogfood-adversarial-hypothesis-gates");
+    let input = dir.join("adversarial.input.json");
+    let space = dir.join("adversarial.space.json");
+    let check = dir.join("adversarial.check.json");
+    let completions = dir.join("adversarial.completions.json");
+    let ai_agent = dir.join("adversarial.ai-agent.json");
+    let executive = dir.join("adversarial.executive.md");
+    let observation_result = dir.join("observation-result.json");
+    let store = dir.join("store");
+
+    let generate = run_cli([
+        "dogfood",
+        "adversarial-fixture",
+        "--output",
+        path_str(&input),
+        "--format",
+        "json",
+    ]);
+    assert_success(&generate);
+    assert_file_contains(&input, "adversarial_fixture:0.1.0");
+    assert_file_contains(&input, "expected_recommendation_role");
+
+    let validate = run_cli([
+        "validate",
+        "--input",
+        path_str(&input),
+        "--format",
+        "json",
+    ]);
+    assert_success(&validate);
+
+    let lift = run_cli([
+        "lift",
+        "--input",
+        path_str(&input),
+        "--package",
+        PACKAGE_NAME,
+        "--output",
+        path_str(&space),
+        "--format",
+        "json",
+    ]);
+    assert_success(&lift);
+    assert_file_contains(&space, "space:advisory:dogfood-adversarial-hypothesis-gates");
+
+    check_space(&space, &check);
+    assert_file_contains(&check, r#""obstruction_type": "boundary_violation""#);
+    assert_file_contains(&check, r#""obstruction_type": "missing_owner""#);
+    assert_file_contains(&check, r#""obstruction_type": "requirement_unverified""#);
+
+    propose_completions(&space, &check, &completions);
+    assert_file_contains(&completions, r#""recommendation_role": "follow_up_observation""#);
+    assert_file_not_contains(&completions, r#""recommendation_role": "primary""#);
+    assert_file_contains(&completions, "proposal_depends_on_unsupported_hypothesis");
+
+    let project_agent = run_cli([
+        "project",
+        "--space",
+        path_str(&space),
+        "--report",
+        path_str(&check),
+        "--completions-report",
+        path_str(&completions),
+        "--audience",
+        "ai_agent",
+        "--format",
+        "json",
+        "--output",
+        path_str(&ai_agent),
+    ]);
+    assert_success(&project_agent);
+    assert_file_contains(&ai_agent, r#""primary_count": 0"#);
+    assert_file_contains(&ai_agent, r#""follow_up_observation_count": 4"#);
+    assert_file_contains(&ai_agent, r#""unsupported_hypothesis_candidate_count": 4"#);
+    assert_file_contains(&ai_agent, "ranked_observation_tasks");
+    assert_file_contains(&ai_agent, "command_template");
+    assert_file_contains(&ai_agent, "output_schema");
+    assert_file_contains(&ai_agent, "pass_fail_extraction");
+    assert_file_contains(&ai_agent, "hypothesis_promotion_workflow");
+    assert_file_contains(&ai_agent, "Run the ranked observation tasks");
+
+    let project_executive = run_cli([
+        "project",
+        "--space",
+        path_str(&space),
+        "--report",
+        path_str(&check),
+        "--completions-report",
+        path_str(&completions),
+        "--audience",
+        "executive",
+        "--format",
+        "markdown",
+        "--output",
+        path_str(&executive),
+    ]);
+    assert_success(&project_executive);
+    assert_file_contains(&executive, "Primary recommendations: 0");
+    assert_file_contains(&executive, "Follow-up observations: 4");
+    assert_file_contains(&executive, "Observation 1:");
+
+    assert_success(&import_case(
+        &store,
+        &space,
+        "revision:adversarial-observation-1",
+    ));
+    fs::write(
+        &observation_result,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "observation_status": "supports",
+            "evidence_ids": ["source:adversarial-governance-note"],
+            "summary": "A concrete verification method can be defined for the fixture requirement.",
+            "supports_hypothesis": true,
+            "falsifies_hypothesis": false,
+            "review_note": "Acceptance test fixture observation."
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let record = run_cli([
+        "observation",
+        "record",
+        "--store",
+        path_str(&store),
+        "--space-id",
+        "space:advisory:dogfood-adversarial-hypothesis-gates",
+        "--from-projection",
+        path_str(&ai_agent),
+        "--task-id",
+        "observation:agent-output-verification-requirement-missing-verification-verification:support-1",
+        "--result",
+        path_str(&observation_result),
+        "--reviewer",
+        "ai-agent:acceptance-test",
+        "--reason",
+        "Record source-backed observation result.",
+        "--base-revision",
+        "revision:adversarial-observation-1",
+        "--format",
+        "json",
+    ]);
+    assert_success(&record);
+    assert_output_contains(&record, r#""report_type": "observation_record""#);
+    assert_output_contains(&record, r#""recorded": true"#);
+    assert_output_contains(&record, "supports_hypothesis_id");
+    assert_output_contains(&record, "suggested_next_commands");
+
+    let reason = run_cli([
+        "case",
+        "reason",
+        "--store",
+        path_str(&store),
+        "--space-id",
+        "space:advisory:dogfood-adversarial-hypothesis-gates",
+        "--format",
+        "json",
+    ]);
+    assert_success(&reason);
+    assert_output_contains(&reason, r#""case_head_revision": "revision:observation-000001""#);
+}
+
+#[test]
 fn advanced_dogfood_fixtures_cover_multiple_self_review_domains() {
     assert_advanced_dogfood_fixture_flows(PACKAGE_NAME, RULESET);
 }

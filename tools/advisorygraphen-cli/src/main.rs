@@ -3,14 +3,16 @@ use advisorygraphen_projection::OutputFormat;
 use advisorygraphen_runtime::{
     case_close_check_workflow, case_import_workflow, case_reason_workflow, check_workflow,
     code_repo_snapshot_workflow, completions_apply_accepted_workflow, completions_dry_run_workflow,
-    completions_propose_workflow, dogfood_repo_snapshot_workflow, hypothesis_accept_workflow,
+    completions_propose_workflow, dogfood_adversarial_fixture_workflow,
+    dogfood_repo_snapshot_workflow, hypothesis_accept_workflow,
     hypothesis_apply_proposals_workflow, hypothesis_falsify_workflow, hypothesis_propose_workflow,
-    hypothesis_reject_workflow, hypothesis_support_workflow, lift_workflow, project_workflow,
-    review_workflow, validate_workflow, CaseCloseCheckOptions, CaseImportOptions,
-    CaseReasonOptions, CheckOptions, CodeRepoSnapshotOptions, CompletionApplyAcceptedOptions,
-    CompletionDryRunOptions, CompletionProposeOptions, DogfoodRepoSnapshotOptions,
+    hypothesis_reject_workflow, hypothesis_support_workflow, lift_workflow,
+    observation_record_workflow, project_workflow, review_workflow, validate_workflow,
+    CaseCloseCheckOptions, CaseImportOptions, CaseReasonOptions, CheckOptions,
+    CodeRepoSnapshotOptions, CompletionApplyAcceptedOptions, CompletionDryRunOptions,
+    CompletionProposeOptions, DogfoodAdversarialFixtureOptions, DogfoodRepoSnapshotOptions,
     HypothesisApplyProposalsOptions, HypothesisFalsifyOptions, HypothesisProposeOptions,
-    LiftOptions, ProjectOptions, ReviewOptions, ValidateOptions,
+    LiftOptions, ObservationRecordOptions, ProjectOptions, ReviewOptions, ValidateOptions,
 };
 use clap::{Args, Parser, Subcommand};
 use serde::Serialize;
@@ -54,6 +56,10 @@ enum Command {
         #[command(subcommand)]
         command: HypothesisCommand,
     },
+    Observation {
+        #[command(subcommand)]
+        command: ObservationCommand,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -64,6 +70,11 @@ enum HypothesisCommand {
     Support(HypothesisFalsifyArgs),
     Accept(HypothesisFalsifyArgs),
     Reject(HypothesisFalsifyArgs),
+}
+
+#[derive(Debug, Subcommand)]
+enum ObservationCommand {
+    Record(ObservationRecordArgs),
 }
 
 #[derive(Debug, Args)]
@@ -118,6 +129,28 @@ struct HypothesisFalsifyArgs {
     format: String,
 }
 
+#[derive(Debug, Args)]
+struct ObservationRecordArgs {
+    #[arg(long)]
+    store: PathBuf,
+    #[arg(long = "space-id")]
+    space_id: String,
+    #[arg(long = "from-projection")]
+    from_projection: PathBuf,
+    #[arg(long = "task-id")]
+    task_id: String,
+    #[arg(long)]
+    result: PathBuf,
+    #[arg(long)]
+    reviewer: String,
+    #[arg(long)]
+    reason: String,
+    #[arg(long = "base-revision")]
+    base_revision: Option<String>,
+    #[arg(long, default_value = "json")]
+    format: String,
+}
+
 #[derive(Debug, Subcommand)]
 enum CompletionsCommand {
     Propose(CompletionProposeArgs),
@@ -137,6 +170,7 @@ enum CaseCommand {
 #[derive(Debug, Subcommand)]
 enum DogfoodCommand {
     RepoSnapshot(DogfoodRepoSnapshotArgs),
+    AdversarialFixture(DogfoodAdversarialFixtureArgs),
 }
 
 #[derive(Debug, Subcommand)]
@@ -262,6 +296,14 @@ struct ProjectArgs {
 struct DogfoodRepoSnapshotArgs {
     #[arg(long, default_value = ".")]
     repo: PathBuf,
+    #[arg(long)]
+    output: Option<PathBuf>,
+    #[arg(long, default_value = "json")]
+    format: String,
+}
+
+#[derive(Debug, Args)]
+struct DogfoodAdversarialFixtureArgs {
     #[arg(long)]
     output: Option<PathBuf>,
     #[arg(long, default_value = "json")]
@@ -416,6 +458,14 @@ fn run() -> Result<(), AdvisoryError> {
                     },
                 )?)
             }
+            DogfoodCommand::AdversarialFixture(args) => {
+                require_json_format(&args.format)?;
+                print_json(&dogfood_adversarial_fixture_workflow(
+                    &DogfoodAdversarialFixtureOptions {
+                        output: args.output,
+                    },
+                )?)
+            }
         },
         Command::Code { command } => match command {
             CodeCommand::RepoSnapshot(args) => {
@@ -454,6 +504,21 @@ fn run() -> Result<(), AdvisoryError> {
             HypothesisCommand::Support(args) => run_hypothesis_event(args, "support"),
             HypothesisCommand::Accept(args) => run_hypothesis_event(args, "accept"),
             HypothesisCommand::Reject(args) => run_hypothesis_event(args, "reject"),
+        },
+        Command::Observation { command } => match command {
+            ObservationCommand::Record(args) => {
+                require_json_format(&args.format)?;
+                print_json(&observation_record_workflow(&ObservationRecordOptions {
+                    store: args.store,
+                    space_id: args.space_id,
+                    from_projection: args.from_projection,
+                    task_id: args.task_id,
+                    result: args.result,
+                    reviewer: args.reviewer,
+                    reason: args.reason,
+                    base_revision: args.base_revision,
+                })?)
+            }
         },
         Command::Case { command } => match command {
             CaseCommand::Import(args) => {

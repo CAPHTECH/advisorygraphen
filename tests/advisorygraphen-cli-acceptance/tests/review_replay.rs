@@ -9,7 +9,8 @@ const PACKAGE_NAME: &str = "technical_advisory";
 const RULESET: &str = "technical_advisory_mvp";
 const SPACE_ID: &str = "space:advisory:dogfood-product-governance";
 const REVISION_ID: &str = "revision:dogfood-product-governance-reject";
-const OWNER_CANDIDATE: &str = "candidate:enterprise-packaging-action-missing-owner-owner";
+const OWNER_CANDIDATE: &str =
+    "candidate:enterprise-packaging-action-missing-owner-assign-product-lead";
 
 #[test]
 fn rejected_candidate_survives_case_replay() {
@@ -288,7 +289,7 @@ fn rejected_candidate_survives_case_replay() {
     assert_output_contains(&reject, "\"outcome_review_status\": \"rejected\"");
     assert_output_contains(
         &reject,
-        "review:rejected:enterprise-packaging-action-missing-owner-owner-000001",
+        "review:rejected:enterprise-packaging-action-missing-owner-assign-product-lead-000001",
     );
 
     let reason = run_cli([
@@ -334,7 +335,7 @@ fn rejected_candidate_survives_case_replay() {
     assert_output_contains(&accept, "\"outcome_review_status\": \"accepted\"");
     assert_output_contains(
         &accept,
-        "review:accepted:enterprise-packaging-action-missing-owner-owner-000002",
+        "review:accepted:enterprise-packaging-action-missing-owner-assign-product-lead-000002",
     );
     let space_head = store
         .join("spaces")
@@ -359,7 +360,10 @@ fn rejected_candidate_survives_case_replay() {
     assert_output_contains(&reason_after_accept, "accepted_candidate_pending_application");
     assert_output_contains(&reason_after_accept, "frontier_items");
     assert_output_contains(&reason_after_accept, "apply_accepted_candidate_structure");
-    assert_output_contains(&reason_after_accept, "add owner cell and owns incidence");
+    assert_output_contains(
+        &reason_after_accept,
+        "add reviewed structure linked to the obstruction",
+    );
 
     let apply_accepted = run_cli([
         "completions",
@@ -379,19 +383,11 @@ fn rejected_candidate_survives_case_replay() {
     ]);
     assert_success(&apply_accepted);
     assert_output_contains(&apply_accepted, r#""report_type": "completion_apply_accepted""#);
-    assert_output_contains(&apply_accepted, r#""applied_count": 1"#);
+    assert_output_contains(&apply_accepted, r#""applied_count": 0"#);
+    assert_output_contains(&apply_accepted, r#""skipped_count": 1"#);
     assert_output_contains(
         &apply_accepted,
-        "cell:auto-owner-enterprise-packaging-action",
+        "candidate_type owner_assignment is not supported for automatic application",
     );
-    assert_file_contains(&space_head, "revision:completion-apply-000003");
-
-    let materialized_space = store
-        .join("spaces")
-        .join(SPACE_ID.replace([':', '/'], "-"))
-        .join("materialized/space.json");
-    assert_file_contains(
-        &materialized_space,
-        "incidence:auto-owner-enterprise-packaging-action-owns-enterprise-packaging-action",
-    );
+    assert_file_contains(&space_head, "revision:review-000002");
 }

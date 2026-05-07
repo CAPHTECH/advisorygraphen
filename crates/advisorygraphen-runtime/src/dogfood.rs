@@ -11,6 +11,11 @@ pub struct DogfoodRepoSnapshotOptions {
     pub output: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone)]
+pub struct DogfoodAdversarialFixtureOptions {
+    pub output: Option<PathBuf>,
+}
+
 pub fn dogfood_repo_snapshot_workflow(
     options: &DogfoodRepoSnapshotOptions,
 ) -> AdvisoryResult<Value> {
@@ -72,6 +77,77 @@ pub fn dogfood_repo_snapshot_workflow(
     Ok(snapshot)
 }
 
+pub fn dogfood_adversarial_fixture_workflow(
+    options: &DogfoodAdversarialFixtureOptions,
+) -> AdvisoryResult<Value> {
+    let captured_at = Utc::now().to_rfc3339();
+    let snapshot = json!({
+        "schema": "advisorygraphen.engagement.snapshot.v1",
+        "snapshot_id": "snapshot:dogfood-adversarial-hypothesis-gates",
+        "engagement_id": "engagement:advisorygraphen-self-review",
+        "captured_at": captured_at,
+        "source_boundary": {
+            "included_source_ids": [
+                "source:adversarial-architecture-note",
+                "source:adversarial-governance-note"
+            ],
+            "excluded_summary": [
+                "No production repository or customer material was ingested.",
+                "This fixture intentionally contains unresolved and unreviewed structures."
+            ],
+            "extraction_loss": [
+                "The fixture is synthetic and exercises hypothesis/proposal gates rather than product completeness.",
+                "The expected result is an uncloseable advisory space with follow-up observations, not accepted recommendations."
+            ],
+            "trust_notes": [
+                "Use this fixture to verify unsupported hypotheses do not become primary recommendations.",
+                "Use this fixture to verify recommendation_trace exposes ranked observation tasks and promotion workflow."
+            ],
+            "adapter_version": "adversarial_fixture:0.1.0"
+        },
+        "sources": [
+            {
+                "id": "source:adversarial-architecture-note",
+                "source_type": "synthetic_fixture",
+                "title": "Adversarial direct dependency note",
+                "uri": null,
+                "captured_at": captured_at,
+                "classification": "public",
+                "metadata": {
+                    "fixture_role": "boundary_violation"
+                }
+            },
+            {
+                "id": "source:adversarial-governance-note",
+                "source_type": "synthetic_fixture",
+                "title": "Adversarial governance gap note",
+                "uri": null,
+                "captured_at": captured_at,
+                "classification": "public",
+                "metadata": {
+                    "fixture_role": "missing_owner_and_verification"
+                }
+            }
+        ],
+        "records": adversarial_records(),
+        "metadata": {
+            "fixture": true,
+            "dogfood": true,
+            "adversarial": true,
+            "expected_obstruction_types": [
+                "boundary_violation",
+                "missing_owner",
+                "requirement_unverified"
+            ],
+            "expected_recommendation_role": "follow_up_observation",
+            "generator": "advisorygraphen dogfood adversarial-fixture"
+        }
+    });
+    validate_document(&snapshot, Some(advisorygraphen_core::SNAPSHOT_SCHEMA))?;
+    write_json_if_requested(&options.output, &snapshot)?;
+    Ok(snapshot)
+}
+
 fn repo_source(
     repo: &Path,
     relative_path: &str,
@@ -112,6 +188,18 @@ fn dogfood_records() -> Vec<Value> {
         record(RecordSpec { id: "record:reviewable-completion-requirement", record_type: "requirement", title: "Completion candidates must remain review-gated", summary: "Completion candidates are proposals and must not be treated as accepted changes until explicit review events are applied.", source_ids: &["source:completion-review-workflow", "source:reviewable-completions-adr", "source:readme"], context_hints: &["advisorygraphen", "review"], relation: None, metadata: json!({"criticality": "high", "require_verification": true}) }),
         record(RecordSpec { id: "record:reviewable-completion-verified-by-acceptance", record_type: "verification_relation", title: "Acceptance verifies review-gated completions", summary: "Acceptance coverage checks that completion candidates remain unreviewed until explicit accept or reject commands record a review event.", source_ids: &["source:testing-acceptance", "source:completion-review-workflow"], context_hints: &["advisorygraphen", "review"], relation: Some(json!({"relation_type": "verifies", "from_record_id": "record:cli-acceptance-suite", "to_record_id": "record:reviewable-completion-requirement"})), metadata: json!({}) }),
         record(RecordSpec { id: "record:cli-first-decision", record_type: "claim", title: "CLI-first implementation boundary", summary: "The MVP intentionally starts with a Rust CLI, JSON schemas, and file-based workflows before hosted UI or MCP layers.", source_ids: &["source:readme", "source:rust-cli-first-adr", "source:cli-contract"], context_hints: &["advisorygraphen", "architecture"], relation: None, metadata: json!({"decision_status": "accepted"}) }),
+    ]
+}
+
+fn adversarial_records() -> Vec<Value> {
+    vec![
+        record(RecordSpec { id: "record:order-service", record_type: "component", title: "Order Service", summary: "Service that needs billing status before order confirmation.", source_ids: &["source:adversarial-architecture-note"], context_hints: &["orders"], relation: None, metadata: json!({"component_type": "service"}) }),
+        record(RecordSpec { id: "record:billing-service", record_type: "component", title: "Billing Service", summary: "Service that owns billing status and billing storage.", source_ids: &["source:adversarial-architecture-note"], context_hints: &["billing"], relation: None, metadata: json!({"component_type": "service"}) }),
+        record(RecordSpec { id: "record:billing-db", record_type: "data_store", title: "Billing DB", summary: "Billing database owned by Billing Service.", source_ids: &["source:adversarial-architecture-note"], context_hints: &["billing"], relation: None, metadata: json!({"store_type": "database"}) }),
+        record(RecordSpec { id: "record:billing-service-owns-billing-db", record_type: "ownership_relation", title: "Billing Service owns Billing DB", summary: "Billing Service owns Billing DB.", source_ids: &["source:adversarial-architecture-note"], context_hints: &["billing"], relation: Some(json!({"relation_type": "owns", "from_record_id": "record:billing-service", "to_record_id": "record:billing-db"})), metadata: json!({}) }),
+        record(RecordSpec { id: "record:order-service-accesses-billing-db", record_type: "access_relation", title: "Order Service reads Billing DB directly", summary: "Order Service reads Billing DB directly to check billing status.", source_ids: &["source:adversarial-architecture-note"], context_hints: &["orders", "billing"], relation: Some(json!({"relation_type": "accesses", "from_record_id": "record:order-service", "to_record_id": "record:billing-db"})), metadata: json!({"access_type": "direct_database_read"}) }),
+        record(RecordSpec { id: "record:agent-output-verification-requirement", record_type: "requirement", title: "Agent recommendations must expose promotion evidence", summary: "AdvisoryGraphen must show the evidence needed before an unsupported proposal can become a primary recommendation.", source_ids: &["source:adversarial-governance-note"], context_hints: &["advisorygraphen", "hypothesis"], relation: None, metadata: json!({"criticality": "high", "require_verification": true}) }),
+        record(RecordSpec { id: "record:projection-polish-action", record_type: "action", title: "Render follow-up observations in projections", summary: "Improve executive and ai_agent projections so follow-up observations include concrete evidence tasks.", source_ids: &["source:adversarial-governance-note"], context_hints: &["advisorygraphen", "projection"], relation: None, metadata: json!({"priority": "p1"}) }),
     ]
 }
 

@@ -57,8 +57,33 @@ pub(super) fn hypothesis_cell(
     context_ids: &[Value],
     evidence_ids: &[Value],
     summary: String,
-    metadata: Value,
+    mut metadata: Value,
 ) -> Value {
+    let falsifiers = metadata
+        .get("falsified_by")
+        .cloned()
+        .unwrap_or_else(|| json!([]));
+    let metadata_object = metadata.as_object_mut();
+    if let Some(metadata_object) = metadata_object {
+        metadata_object
+            .entry("expected_observations".to_string())
+            .or_insert_with(|| {
+                json!([
+                    "Collect a direct observation that supports this hypothesis and weakens at least one competing hypothesis."
+                ])
+            });
+        metadata_object
+            .entry("falsifiers".to_string())
+            .or_insert(falsifiers);
+        metadata_object
+            .entry("decision_impact".to_string())
+            .or_insert_with(|| {
+                json!("If supported, proposals derived from this hypothesis can be considered for recommendation; if falsified, derived proposals must be demoted to follow-up or rejected.")
+            });
+        metadata_object
+            .entry("verification_cost".to_string())
+            .or_insert_with(|| json!("unknown"));
+    }
     json!({
         "id": id,
         "cell_type": "hypothesis",

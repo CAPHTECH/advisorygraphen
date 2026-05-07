@@ -23,6 +23,9 @@ fn repository_skill_documents_agent_resume_protocol() {
         "case reason",
         "case close-check",
         "review_gated_commands",
+        "ranked_observation_tasks",
+        "hypothesis_promotion_workflow",
+        "dogfood adversarial-fixture",
     ] {
         assert!(
             skill.contains(required),

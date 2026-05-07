@@ -131,8 +131,15 @@ fn boundary_completion_candidates_are_derived_from_witness_cells() {
     );
     assert_eq!(
         status_api["proposal_content"]["derivation"]["verification_status"],
-        "unverified"
+        "hypothesis_not_supported"
     );
+    assert_eq!(status_api["recommendation_role"], "follow_up_observation");
+    assert_eq!(status_api["supported_hypothesis_ids"], json!([]));
+    assert!(status_api["proposal_content"]["content_obstructions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item["obstruction_type"] == "proposal_depends_on_unsupported_hypothesis"));
     assert_eq!(
         status_api["proposal_content"]["valuation"]["order_type"],
         "partial_order"
@@ -141,10 +148,6 @@ fn boundary_completion_candidates_are_derived_from_witness_cells() {
         status_api["proposal_content"]["policy"]["policy_type"],
         "completion_review_gate"
     );
-    assert!(status_api["proposal_content"]["content_obstructions"]
-        .as_array()
-        .unwrap()
-        .is_empty());
     assert!(!candidates
         .iter()
         .any(|item| item["id"] == "candidate:billing-status-api"));
@@ -242,8 +245,9 @@ fn owner_completion_uses_related_owner_cell_when_available() {
     assert_eq!(candidate["metadata"]["owner_cell_id"], "cell:release-team");
     assert_eq!(
         candidate["proposal_content"]["scenario"]["status"],
-        "candidate"
+        "blocked"
     );
+    assert_eq!(candidate["recommendation_role"], "follow_up_observation");
     assert!(candidate["proposed_incidence_ids"]
         .as_array()
         .unwrap()
@@ -252,7 +256,8 @@ fn owner_completion_uses_related_owner_cell_when_available() {
     assert!(candidate["proposal_content"]["content_obstructions"]
         .as_array()
         .unwrap()
-        .is_empty());
+        .iter()
+        .any(|item| item["obstruction_type"] == "proposal_depends_on_unsupported_hypothesis"));
 }
 
 #[test]
@@ -292,8 +297,9 @@ fn verification_completion_links_related_test_when_available() {
     );
     assert_eq!(
         candidate["proposal_content"]["scenario"]["status"],
-        "candidate"
+        "blocked"
     );
+    assert_eq!(candidate["recommendation_role"], "follow_up_observation");
     assert!(candidate["proposed_incidence_ids"]
         .as_array()
         .unwrap()
@@ -302,7 +308,8 @@ fn verification_completion_links_related_test_when_available() {
     assert!(candidate["proposal_content"]["content_obstructions"]
         .as_array()
         .unwrap()
-        .is_empty());
+        .iter()
+        .any(|item| item["obstruction_type"] == "proposal_depends_on_unsupported_hypothesis"));
 }
 
 #[test]
@@ -542,6 +549,163 @@ fn hypothesis_lifecycle_proposal_uses_agent_observation_without_applying_event()
     );
 }
 
+#[test]
+fn explicit_hypothesis_workflow_checks_hypothesis_and_proposal_quality() {
+    let hypothesis = json!({
+        "id": "cell:hypothesis-install-drift",
+        "cell_type": "claim",
+        "title": "Local install drift",
+        "summary": "Install drift explains collection failure.",
+        "context_ids": [],
+        "source_ids": ["source:test"],
+        "structure_refs": [],
+        "provenance": provenance("source_backed", "accepted"),
+        "metadata": {
+            "hypothesis": true,
+            "hypothesis_status": "strongly_supported",
+            "expected_observations": ["module missing locally"]
+        }
+    });
+    let action = json!({
+        "id": "cell:repair-install",
+        "cell_type": "action",
+        "title": "Repair install",
+        "summary": "Repair local install state.",
+        "context_ids": [],
+        "source_ids": ["source:test"],
+        "structure_refs": [],
+        "provenance": provenance("source_backed", "accepted"),
+        "metadata": {
+            "priority": "P0",
+            "derived_from_hypothesis": "cell:hypothesis-install-drift"
+        }
+    });
+    let mut space = base_space(vec![hypothesis, action], vec![]);
+    space.metadata.insert(
+        "method".to_string(),
+        json!("one-problem-multiple-hypotheses-observe-classify-propose"),
+    );
+
+    let report = check_space(&space, "technical_advisory_mvp", None, None).unwrap();
+
+    assert_obstruction(&report.result, "hypothesis_missing_falsifiers");
+    assert_obstruction(&report.result, "supported_hypothesis_missing_support");
+    assert_obstruction(&report.result, "strong_hypothesis_missing_competition");
+    assert_obstruction(
+        &report.result,
+        "proposal_derived_from_unsupported_hypothesis",
+    );
+    assert_obstruction(&report.result, "proposal_missing_verification");
+}
+
+#[test]
+fn explicit_hypothesis_workflow_accepts_supported_trace_with_verification() {
+    let hypothesis = json!({
+        "id": "cell:hypothesis-install-drift",
+        "cell_type": "claim",
+        "title": "Local install drift",
+        "summary": "Install drift explains collection failure.",
+        "context_ids": [],
+        "source_ids": ["source:test"],
+        "structure_refs": [],
+        "provenance": provenance("source_backed", "accepted"),
+        "metadata": {
+            "hypothesis": true,
+            "hypothesis_status": "strongly_supported",
+            "expected_observations": ["module missing locally"],
+            "falsifiers": ["fresh install still fails"]
+        }
+    });
+    let competing = json!({
+        "id": "cell:hypothesis-import-path",
+        "cell_type": "claim",
+        "title": "Import path issue",
+        "summary": "Import path explains collection failure.",
+        "context_ids": [],
+        "source_ids": ["source:test"],
+        "structure_refs": [],
+        "provenance": provenance("source_backed", "accepted"),
+        "metadata": {
+            "hypothesis": true,
+            "hypothesis_status": "falsified",
+            "expected_observations": ["package installed but import fails"],
+            "falsifiers": ["package absent locally"]
+        }
+    });
+    let evidence = json!({
+        "id": "cell:evidence-install-missing",
+        "cell_type": "evidence",
+        "title": "Install missing",
+        "summary": "Package is absent locally.",
+        "context_ids": [],
+        "source_ids": ["source:test"],
+        "structure_refs": [],
+        "provenance": provenance("source_backed", "accepted"),
+        "metadata": {}
+    });
+    let action = json!({
+        "id": "cell:repair-install",
+        "cell_type": "action",
+        "title": "Repair install",
+        "summary": "Repair local install state.",
+        "context_ids": [],
+        "source_ids": ["source:test"],
+        "structure_refs": [],
+        "provenance": provenance("source_backed", "accepted"),
+        "metadata": {
+            "priority": "P0",
+            "required_verification": "full collection exits 0"
+        }
+    });
+    let mut space = base_space(
+        vec![hypothesis, competing, evidence, action],
+        vec![
+            relation(
+                "incidence:evidence-supports-install",
+                "supports",
+                "cell:evidence-install-missing",
+                "cell:hypothesis-install-drift",
+            ),
+            relation(
+                "incidence:evidence-falsifies-import",
+                "falsifies",
+                "cell:evidence-install-missing",
+                "cell:hypothesis-import-path",
+            ),
+            relation(
+                "incidence:install-competes-import",
+                "competes_with",
+                "cell:hypothesis-install-drift",
+                "cell:hypothesis-import-path",
+            ),
+            relation(
+                "incidence:repair-derives-install",
+                "derives_from",
+                "cell:repair-install",
+                "cell:hypothesis-install-drift",
+            ),
+        ],
+    );
+    space.metadata.insert(
+        "method".to_string(),
+        json!("one-problem-multiple-hypotheses-observe-classify-propose"),
+    );
+
+    let report = check_space(&space, "technical_advisory_mvp", None, None).unwrap();
+    let obstruction_types = report.result["obstructions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|item| item["obstruction_type"].as_str())
+        .collect::<Vec<_>>();
+
+    assert!(!obstruction_types.contains(&"hypothesis_missing_falsifiers"));
+    assert!(!obstruction_types.contains(&"supported_hypothesis_missing_support"));
+    assert!(!obstruction_types.contains(&"strong_hypothesis_missing_competition"));
+    assert!(!obstruction_types.contains(&"proposal_derived_from_unsupported_hypothesis"));
+    assert!(!obstruction_types.contains(&"proposal_missing_verification"));
+}
+
 fn assert_obstruction(result: &Value, obstruction_type: &str) {
     let obstructions = result["obstructions"].as_array().unwrap();
     assert!(
@@ -550,6 +714,20 @@ fn assert_obstruction(result: &Value, obstruction_type: &str) {
             .any(|item| item["obstruction_type"] == obstruction_type),
         "expected obstruction_type {obstruction_type}, got {obstructions:#?}"
     );
+}
+
+fn relation(id: &str, relation_type: &str, from: &str, to: &str) -> Value {
+    json!({
+        "id": id,
+        "relation_type": relation_type,
+        "from_id": from,
+        "to_id": to,
+        "context_ids": [],
+        "evidence_ids": [],
+        "strength": "hard",
+        "provenance": provenance("source_backed", "accepted"),
+        "metadata": {}
+    })
 }
 
 fn base_space(cells: Vec<Value>, incidences: Vec<Value>) -> AdvisorySpaceEnvelope {
