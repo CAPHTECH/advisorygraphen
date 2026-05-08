@@ -74,7 +74,10 @@ one bounded problem -> multiple competing hypotheses -> observations/falsifiers
 15. Generate the requested human projection or `audit_trace`, including the
     hypothesis classification, proposal trace, falsified/secondary hypotheses,
     and remaining uncertainty.
-16. Keep candidates unreviewed unless the user explicitly accepts or rejects
+16. When follow-up observation tasks are present, run the bounded observation,
+    record it with `observation record`, then use `result.promotion_gate` to
+    support or falsify the hypothesis before rerunning `case reason`.
+17. Keep candidates unreviewed unless the user explicitly accepts or rejects
     them, or an explicit conservative policy allows an automated lifecycle
     event.
 
@@ -92,8 +95,16 @@ assessment, root-cause analysis, or evidence-backed proposal generation.
    - observations that would weaken or falsify it;
    - source IDs or commands needed to check it;
    - initial confidence as unreviewed or inferred unless source-backed.
+   In JSON snapshots, prefer `record_type: "hypothesis_seed"` for these
+   records. AdvisoryGraphen lifts them to `cell_type: "hypothesis"` and
+   preserves `metadata.expected_observations`, `metadata.falsifiers`, and
+   `metadata.candidate_structure_types`.
 4. Run the cheapest discriminating observations first. A useful observation is
    one that separates at least two hypotheses, not merely one that adds detail.
+   When an observation narrows or revises a hypothesis, record the next version
+   as `record_type: "hypothesis_refinement"` and connect it to the earlier
+   hypothesis with `relation_type: "refines"`. Prefer deriving proposals from
+   the refined hypothesis, not the initial seed.
 5. Classify hypotheses explicitly:
    - `strongly_supported`: direct observation supports it and major competing
      explanations are weakened.
@@ -108,6 +119,14 @@ assessment, root-cause analysis, or evidence-backed proposal generation.
 6. Build proposals from supported hypotheses only. Proposal priority should
    follow causal order: unblock observation first, fix false-positive/failure
    semantics next, then improve policy, ownership, or performance.
+   In JSON snapshots, record these as `record_type: "structure_proposal"` and
+   connect them to their source hypotheses with a `derives_from` relation.
+   AdvisoryGraphen lifts them to proposal actions and checks whether the
+   underlying hypothesis is supported before the action can be treated as a
+   primary recommendation.
+   For P0/P1 proposals, ensure the source hypothesis has refinement lineage.
+   Otherwise AdvisoryGraphen emits
+   `high_priority_proposal_missing_hypothesis_refinement`.
 7. Report proposal trace in this shape:
    `problem -> hypothesis -> evidence -> classification -> proposal -> required
    verification/owner`.
@@ -180,6 +199,10 @@ pass/fail extraction rule, expected observation, falsifier, and promotion
 effect.
 Use `hypothesis_promotion_workflow` to sequence observation -> evidence ->
 review-gated hypothesis support/acceptance -> rerun projection.
+After `observation record`, prefer `result.promotion_gate.next_command` over
+hand-building a `hypothesis support` or `hypothesis falsify` command. It carries
+the concrete evidence cell id and case head revision needed for the next
+review-gated step.
 
 ## Candidate-specific actions
 

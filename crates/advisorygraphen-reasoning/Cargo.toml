@@ -4,10 +4,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description.workspace = true
 
 [dependencies]
-advisorygraphen-core = { path = "../advisorygraphen-core" }
-advisorygraphen-interpretation = { path = "../advisorygraphen-interpretation" }
+advisorygraphen-core.workspace = true
+advisorygraphen-interpretation.workspace = true
 higher-graphen-core.workspace = true
 higher-graphen-evidence.workspace = true
 higher-graphen-reasoning.workspace = true

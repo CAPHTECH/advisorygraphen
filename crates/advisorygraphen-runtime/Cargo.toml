@@ -4,13 +4,14 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description.workspace = true
 
 [dependencies]
-advisorygraphen-core = { path = "../advisorygraphen-core" }
-advisorygraphen-interpretation = { path = "../advisorygraphen-interpretation" }
-advisorygraphen-lift = { path = "../advisorygraphen-lift" }
-advisorygraphen-projection = { path = "../advisorygraphen-projection" }
-advisorygraphen-reasoning = { path = "../advisorygraphen-reasoning" }
+advisorygraphen-core.workspace = true
+advisorygraphen-interpretation.workspace = true
+advisorygraphen-lift.workspace = true
+advisorygraphen-projection.workspace = true
+advisorygraphen-reasoning.workspace = true
 chrono.workspace = true
 higher-graphen-core.workspace = true
 higher-graphen-reasoning.workspace = true

@@ -4,9 +4,10 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description.workspace = true
 
 [dependencies]
-advisorygraphen-core = { path = "../advisorygraphen-core" }
+advisorygraphen-core.workspace = true
 higher-graphen-core.workspace = true
 higher-graphen-interpretation.workspace = true
 serde_json.workspace = true

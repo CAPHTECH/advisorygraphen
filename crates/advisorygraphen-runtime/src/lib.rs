@@ -692,7 +692,20 @@ pub fn observation_record_workflow(options: &ObservationRecordOptions) -> Adviso
             "recorded": true,
             "case_head_revision": target_revision,
             "evidence_cell": evidence_cell,
-            "suggested_next_commands": observation_next_commands(hypothesis_id, &options)
+            "promotion_gate": observation_promotion_gate(
+                hypothesis_id,
+                &evidence_id,
+                &target_revision,
+                supports,
+                falsifies,
+                options,
+            ),
+            "suggested_next_commands": observation_next_commands(
+                hypothesis_id,
+                &evidence_id,
+                &target_revision,
+                options,
+            )
         },
         "projection": {},
         "warnings": []
@@ -759,23 +772,67 @@ fn validate_observation_result(task: &Value, result: &Value) -> AdvisoryResult<(
     Ok(())
 }
 
-fn observation_next_commands(hypothesis_id: &str, options: &ObservationRecordOptions) -> Value {
+fn observation_promotion_gate(
+    hypothesis_id: &str,
+    evidence_id: &str,
+    case_head_revision: &str,
+    supports: bool,
+    falsifies: bool,
+    options: &ObservationRecordOptions,
+) -> Value {
+    let outcome = if supports {
+        "support"
+    } else if falsifies {
+        "falsify"
+    } else {
+        "review"
+    };
     json!({
-        "support": format!(
-            "advisorygraphen hypothesis support --store {} --from-report CHECK.json --hypothesis-id {} --evidence <evidence_cell_id> --reviewer {} --reason '{}' --base-revision <case_head_revision> --format json",
-            options.store.display(),
-            hypothesis_id,
-            options.reviewer,
-            options.reason.replace('\'', " ")
-        ),
-        "falsify": format!(
-            "advisorygraphen hypothesis falsify --store {} --from-report CHECK.json --hypothesis-id {} --evidence <evidence_cell_id> --reviewer {} --reason '{}' --base-revision <case_head_revision> --format json",
-            options.store.display(),
-            hypothesis_id,
-            options.reviewer,
-            options.reason.replace('\'', " ")
-        )
+        "outcome": outcome,
+        "hypothesis_id": hypothesis_id,
+        "evidence_cell_id": evidence_id,
+        "case_head_revision": case_head_revision,
+        "review_required": true,
+        "next_command": match outcome {
+            "support" => concrete_observation_next_command("support", hypothesis_id, evidence_id, case_head_revision, options),
+            "falsify" => concrete_observation_next_command("falsify", hypothesis_id, evidence_id, case_head_revision, options),
+            _ => "Review the observation result before supporting or falsifying the hypothesis.".to_string(),
+        },
+        "rerun_after_review": [
+            "advisorygraphen case reason --store STORE --space-id SPACE_ID --format json",
+            "advisorygraphen completions apply-accepted --store STORE --space-id SPACE_ID --reviewer REVIEWER --reason REASON --base-revision CASE_HEAD --format json"
+        ]
     })
+}
+
+fn observation_next_commands(
+    hypothesis_id: &str,
+    evidence_id: &str,
+    case_head_revision: &str,
+    options: &ObservationRecordOptions,
+) -> Value {
+    json!({
+        "support": concrete_observation_next_command("support", hypothesis_id, evidence_id, case_head_revision, options),
+        "falsify": concrete_observation_next_command("falsify", hypothesis_id, evidence_id, case_head_revision, options)
+    })
+}
+
+fn concrete_observation_next_command(
+    action: &str,
+    hypothesis_id: &str,
+    evidence_id: &str,
+    case_head_revision: &str,
+    options: &ObservationRecordOptions,
+) -> String {
+    format!(
+        "advisorygraphen hypothesis {action} --store {} --from-report CHECK.json --hypothesis-id {} --evidence {} --reviewer {} --reason '{}' --base-revision {} --format json",
+        options.store.display(),
+        hypothesis_id,
+        evidence_id,
+        options.reviewer,
+        options.reason.replace('\'', " "),
+        case_head_revision
+    )
 }
 
 enum Materialization {

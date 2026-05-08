@@ -183,6 +183,22 @@ fn evaluate_hypothesis_quality(
                 "Strongly supported hypothesis has no competing-hypothesis relation.",
             )?;
         }
+        if hypothesis
+            .pointer("/metadata/refinement_required")
+            .and_then(Value::as_bool)
+            == Some(true)
+            && !hypothesis_has_refinement_context(space, hypothesis_id, hypothesis)
+        {
+            push_hypothesis_quality_obstruction(
+                space,
+                invariant_results,
+                obstructions,
+                hypothesis,
+                "hypothesis_refinement_required",
+                "create a refined hypothesis with a refines relation before deriving proposals",
+                "Hypothesis is marked refinement_required but has no refinement lineage.",
+            )?;
+        }
     }
     Ok(())
 }
@@ -217,11 +233,13 @@ fn evaluate_proposal_hypothesis_trace(
                 space,
                 invariant_results,
                 obstructions,
-                action,
-                "proposal_missing_hypothesis_trace",
-                "connect the action to a hypothesis with derives_from before treating it as a recommendation",
-                "Action has no derives_from relation to a hypothesis.",
-                json!({ "action_id": action_id }),
+                ProposalTraceObstruction {
+                    action,
+                    obstruction_type: "proposal_missing_hypothesis_trace",
+                    resolution: "connect the action to a hypothesis with derives_from before treating it as a recommendation",
+                    message_suffix: "Action has no derives_from relation to a hypothesis.",
+                    metadata: json!({ "action_id": action_id }),
+                },
             )?;
             continue;
         }
@@ -236,11 +254,13 @@ fn evaluate_proposal_hypothesis_trace(
                     space,
                     invariant_results,
                     obstructions,
-                    action,
-                    "proposal_derived_from_falsified_hypothesis",
-                    "remove this primary proposal or reframe it from a non-falsified hypothesis",
-                    "Action derives from a falsified or rejected hypothesis.",
-                    json!({ "action_id": action_id, "hypothesis_id": hypothesis_id, "hypothesis_status": status }),
+                    ProposalTraceObstruction {
+                        action,
+                        obstruction_type: "proposal_derived_from_falsified_hypothesis",
+                        resolution: "remove this primary proposal or reframe it from a non-falsified hypothesis",
+                        message_suffix: "Action derives from a falsified or rejected hypothesis.",
+                        metadata: json!({ "action_id": action_id, "hypothesis_id": hypothesis_id, "hypothesis_status": status }),
+                    },
                 )?;
             } else if !primary_action_status_supported(status)
                 || (supported_status(status)
@@ -254,11 +274,13 @@ fn evaluate_proposal_hypothesis_trace(
                     space,
                     invariant_results,
                     obstructions,
-                    action,
-                    "proposal_derived_from_unsupported_hypothesis",
-                    "collect supporting observations before promoting this action as a primary proposal",
-                    "Action derives from a hypothesis that is not supported enough for a primary recommendation.",
-                    json!({ "action_id": action_id, "hypothesis_id": hypothesis_id, "hypothesis_status": status }),
+                    ProposalTraceObstruction {
+                        action,
+                        obstruction_type: "proposal_derived_from_unsupported_hypothesis",
+                        resolution: "collect supporting observations before promoting this action as a primary proposal",
+                        message_suffix: "Action derives from a hypothesis that is not supported enough for a primary recommendation.",
+                        metadata: json!({ "action_id": action_id, "hypothesis_id": hypothesis_id, "hypothesis_status": status }),
+                    },
                 )?;
             } else if p0_or_p1(action)
                 && matches!(status, "plausible_secondary" | "supported_needs_followup")
@@ -267,13 +289,40 @@ fn evaluate_proposal_hypothesis_trace(
                     space,
                     invariant_results,
                     obstructions,
-                    action,
-                    "high_priority_proposal_needs_stronger_hypothesis",
-                    "downgrade the action to follow-up or collect decisive support before P0/P1 promotion",
-                    "High-priority action derives from a secondary or follow-up hypothesis.",
-                    json!({ "action_id": action_id, "hypothesis_id": hypothesis_id, "hypothesis_status": status }),
+                    ProposalTraceObstruction {
+                        action,
+                        obstruction_type: "high_priority_proposal_needs_stronger_hypothesis",
+                        resolution: "downgrade the action to follow-up or collect decisive support before P0/P1 promotion",
+                        message_suffix: "High-priority action derives from a secondary or follow-up hypothesis.",
+                        metadata: json!({ "action_id": action_id, "hypothesis_id": hypothesis_id, "hypothesis_status": status }),
+                    },
                 )?;
             }
+        }
+
+        if p0_or_p1(action)
+            && !derived_hypothesis_ids.iter().any(|hypothesis_id| {
+                space
+                    .cells
+                    .iter()
+                    .find(|cell| cell.get("id").and_then(Value::as_str) == Some(hypothesis_id))
+                    .is_some_and(|hypothesis| {
+                        hypothesis_has_refinement_context(space, hypothesis_id, hypothesis)
+                    })
+            })
+        {
+            push_proposal_trace_obstruction(
+                space,
+                invariant_results,
+                obstructions,
+                ProposalTraceObstruction {
+                    action,
+                    obstruction_type: "high_priority_proposal_missing_hypothesis_refinement",
+                    resolution: "refine the source hypothesis with an explicit refines relation or lower the proposal priority",
+                    message_suffix: "High-priority action derives from hypotheses without refinement lineage.",
+                    metadata: json!({ "action_id": action_id, "derived_hypothesis_ids": derived_hypothesis_ids }),
+                },
+            )?;
         }
 
         if !action_has_required_verification(space, higher_space, action) {
@@ -281,11 +330,13 @@ fn evaluate_proposal_hypothesis_trace(
                 space,
                 invariant_results,
                 obstructions,
-                action,
-                "proposal_missing_verification",
-                "attach required_verification metadata or a verifies incidence for the action",
-                "Action lacks explicit verification for the proposal.",
-                json!({ "action_id": action_id, "derived_hypothesis_ids": derived_hypothesis_ids }),
+                ProposalTraceObstruction {
+                    action,
+                    obstruction_type: "proposal_missing_verification",
+                    resolution: "attach required_verification metadata or a verifies incidence for the action",
+                    message_suffix: "Action lacks explicit verification for the proposal.",
+                    metadata: json!({ "action_id": action_id, "derived_hypothesis_ids": derived_hypothesis_ids }),
+                },
             )?;
         }
     }
@@ -802,6 +853,28 @@ fn has_competing_hypothesis_relation(space: &AdvisorySpaceEnvelope, hypothesis_i
     })
 }
 
+fn hypothesis_has_refinement_context(
+    space: &AdvisorySpaceEnvelope,
+    hypothesis_id: &str,
+    hypothesis: &Value,
+) -> bool {
+    hypothesis
+        .pointer("/metadata/hypothesis_refinement")
+        .and_then(Value::as_bool)
+        == Some(true)
+        || hypothesis
+            .pointer("/metadata/refinement_iteration")
+            .and_then(Value::as_u64)
+            .is_some_and(|iteration| iteration > 1)
+        || space.incidences.iter().any(|incidence| {
+            matches!(
+                incidence.get("relation_type").and_then(Value::as_str),
+                Some("refines" | "refined_from" | "revises" | "revised_from")
+            ) && (incidence.get("from_id").and_then(Value::as_str) == Some(hypothesis_id)
+                || incidence.get("to_id").and_then(Value::as_str) == Some(hypothesis_id))
+        })
+}
+
 fn derived_hypothesis_ids(
     space: &AdvisorySpaceEnvelope,
     action_id: &str,
@@ -856,10 +929,11 @@ fn normalize_cell_id(id: &str) -> String {
 }
 
 fn p0_or_p1(action: &Value) -> bool {
-    matches!(
-        action.pointer("/metadata/priority").and_then(Value::as_str),
-        Some("P0" | "P1")
-    )
+    action
+        .pointer("/metadata/priority")
+        .and_then(Value::as_str)
+        .map(|priority| matches!(priority.to_ascii_lowercase().as_str(), "p0" | "p1"))
+        .unwrap_or(false)
 }
 
 fn action_has_required_verification(
@@ -925,42 +999,48 @@ fn push_hypothesis_quality_obstruction(
     Ok(())
 }
 
+struct ProposalTraceObstruction<'a> {
+    action: &'a Value,
+    obstruction_type: &'static str,
+    resolution: &'static str,
+    message_suffix: &'static str,
+    metadata: Value,
+}
+
 fn push_proposal_trace_obstruction(
     space: &AdvisorySpaceEnvelope,
     invariant_results: &mut Vec<Value>,
     obstructions: &mut Vec<Value>,
-    action: &Value,
-    obstruction_type: &str,
-    resolution: &'static str,
-    message_suffix: &'static str,
-    metadata: Value,
+    input: ProposalTraceObstruction<'_>,
 ) -> AdvisoryResult<()> {
     let obstruction_id = format!(
         "obstruction:{}-{obstruction_type}",
-        json_id(action).trim_start_matches("cell:")
+        json_id(input.action).trim_start_matches("cell:"),
+        obstruction_type = input.obstruction_type
     );
     let finding = violation_finding(FindingInput {
         space_id: &space.space_id,
         invariant_id: PROPOSAL_TRACE_INVARIANT,
         obstruction_id: &obstruction_id,
-        obstruction_type,
+        obstruction_type: input.obstruction_type,
         severity: "medium",
-        message: format!("{} {}", title(action), message_suffix),
-        witness_ids: vec![json_id(action).to_string()],
-        blocked_ids: vec![action["id"].clone()],
-        evidence_ids: action
+        message: format!("{} {}", title(input.action), input.message_suffix),
+        witness_ids: vec![json_id(input.action).to_string()],
+        blocked_ids: vec![input.action["id"].clone()],
+        evidence_ids: input
+            .action
             .get("source_ids")
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default(),
         recommended_completion_types: vec!["proposal_trace_completion"],
-        resolution,
+        resolution: input.resolution,
         metadata: merge_json_objects(
             json!({
                 "rule_precision": "explicit_hypothesis_workflow_proposal_trace_gate",
                 "specificity": "proposal_trace_derived"
             }),
-            metadata,
+            input.metadata,
         ),
     })?;
     invariant_results.push(finding.invariant_result);

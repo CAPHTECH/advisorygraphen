@@ -70,10 +70,10 @@ fn executive_projection(
     let candidate_quality = candidate_quality_summary(&candidates);
     let proposal_content_summary = proposal_content_summary(&candidates);
     let recommendation_trace = recommendation_trace(&candidates);
-    let hypotheses = hypotheses(report);
     let falsifiers = falsifiers(report);
-    let hypothesis_summary = hypothesis_summary(&hypotheses);
     let explicit_hypothesis_matrix = explicit_hypothesis_matrix(space);
+    let hypotheses = merged_hypotheses(hypotheses(report), &explicit_hypothesis_matrix);
+    let hypothesis_summary = hypothesis_summary(&hypotheses);
     let explicit_proposal_trace = explicit_proposal_trace(space);
     let higher_graphen = higher::projection_result_json(
         space,
@@ -182,11 +182,11 @@ fn ai_agent_projection(
     let recommendation_trace = recommendation_trace(&candidates);
     let hypothesis_promotion_workflow = hypothesis_promotion_workflow(&recommendation_trace);
     let (live_candidates, superseded_candidates) = partition_candidates(&candidates);
-    let hypotheses = hypotheses(report);
     let falsifiers = falsifiers(report);
     let argumentation_incidences = argumentation_incidences(report);
-    let hypothesis_summary = hypothesis_summary(&hypotheses);
     let explicit_hypothesis_matrix = explicit_hypothesis_matrix(space);
+    let hypotheses = merged_hypotheses(hypotheses(report), &explicit_hypothesis_matrix);
+    let hypothesis_summary = hypothesis_summary(&hypotheses);
     let explicit_proposal_trace = explicit_proposal_trace(space);
     let higher_graphen = higher::projection_result_json(
         space,
@@ -754,6 +754,10 @@ fn explicit_hypothesis_matrix(space: &AdvisorySpaceEnvelope) -> Value {
                 "hypothesis_id": id,
                 "title": hypothesis.get("title").cloned().unwrap_or(Value::Null),
                 "status": explicit_hypothesis_status(hypothesis),
+                "refinement_parent_ids": refinement_parent_ids_for(space, id),
+                "refinement_child_ids": refinement_child_ids_for(space, id),
+                "refinement_depth": refinement_depth_for(space, id),
+                "refinement_status": refinement_status_for(space, id, hypothesis),
                 "expected_observations": hypothesis.pointer("/metadata/expected_observations").cloned().unwrap_or_else(|| json!([])),
                 "falsifiers": hypothesis.pointer("/metadata/falsifiers").cloned().unwrap_or_else(|| json!([])),
                 "supporting_incidence_ids": relation_ids_for(space, id, &["supports", "supported_by"]),
@@ -776,8 +780,56 @@ fn explicit_hypothesis_matrix(space: &AdvisorySpaceEnvelope) -> Value {
         "count": hypotheses.len(),
         "status_counts": counts,
         "hypotheses": hypotheses,
-        "rule": "Hypotheses should carry expected observations, falsifiers, support/falsify incidences, and competing alternatives before driving proposals."
+        "rule": "Hypotheses should carry expected observations, falsifiers, support/falsify incidences, competing alternatives, and refinement lineage before driving proposals."
     })
+}
+
+fn merged_hypotheses(mut report_hypotheses: Vec<Value>, explicit_matrix: &Value) -> Vec<Value> {
+    let mut known_ids = report_hypotheses
+        .iter()
+        .filter_map(|hypothesis| hypothesis.get("id").and_then(Value::as_str))
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    known_ids.extend(
+        report_hypotheses
+            .iter()
+            .filter_map(|hypothesis| hypothesis.get("hypothesis_id").and_then(Value::as_str))
+            .map(str::to_string),
+    );
+
+    let explicit = explicit_matrix
+        .get("hypotheses")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for hypothesis in explicit {
+        let Some(id) = hypothesis.get("hypothesis_id").and_then(Value::as_str) else {
+            continue;
+        };
+        if known_ids.iter().any(|known| known == id) {
+            continue;
+        }
+        known_ids.push(id.to_string());
+        report_hypotheses.push(json!({
+            "id": id,
+            "hypothesis_id": id,
+            "title": hypothesis.get("title").cloned().unwrap_or(Value::Null),
+            "lifecycle_status": hypothesis.get("status").cloned().unwrap_or_else(|| json!("candidate")),
+            "status": hypothesis.get("status").cloned().unwrap_or_else(|| json!("candidate")),
+            "source": "explicit_advisory_space",
+            "expected_observations": hypothesis.get("expected_observations").cloned().unwrap_or_else(|| json!([])),
+            "falsifiers": hypothesis.get("falsifiers").cloned().unwrap_or_else(|| json!([])),
+            "supporting_incidence_ids": hypothesis.get("supporting_incidence_ids").cloned().unwrap_or_else(|| json!([])),
+            "falsifying_incidence_ids": hypothesis.get("falsifying_incidence_ids").cloned().unwrap_or_else(|| json!([])),
+            "competing_hypothesis_ids": hypothesis.get("competing_hypothesis_ids").cloned().unwrap_or_else(|| json!([])),
+            "refinement_parent_ids": hypothesis.get("refinement_parent_ids").cloned().unwrap_or_else(|| json!([])),
+            "refinement_child_ids": hypothesis.get("refinement_child_ids").cloned().unwrap_or_else(|| json!([])),
+            "refinement_depth": hypothesis.get("refinement_depth").cloned().unwrap_or_else(|| json!(0)),
+            "refinement_status": hypothesis.get("refinement_status").cloned().unwrap_or_else(|| json!("seed")),
+            "remaining_uncertainty": hypothesis.get("remaining_uncertainty").cloned().unwrap_or_else(|| json!([]))
+        }));
+    }
+    report_hypotheses
 }
 
 fn explicit_proposal_trace(space: &AdvisorySpaceEnvelope) -> Value {
@@ -874,6 +926,87 @@ fn competing_ids_for(space: &AdvisorySpaceEnvelope, hypothesis_id: &str) -> Vec<
         .collect()
 }
 
+fn refinement_parent_ids_for(space: &AdvisorySpaceEnvelope, hypothesis_id: &str) -> Vec<Value> {
+    refinement_related_ids(space, hypothesis_id, RefinementDirection::Parent)
+}
+
+fn refinement_child_ids_for(space: &AdvisorySpaceEnvelope, hypothesis_id: &str) -> Vec<Value> {
+    refinement_related_ids(space, hypothesis_id, RefinementDirection::Child)
+}
+
+enum RefinementDirection {
+    Parent,
+    Child,
+}
+
+fn refinement_related_ids(
+    space: &AdvisorySpaceEnvelope,
+    hypothesis_id: &str,
+    direction: RefinementDirection,
+) -> Vec<Value> {
+    let mut ids = space
+        .incidences
+        .iter()
+        .filter(|incidence| is_refinement_relation(incidence))
+        .filter_map(|incidence| {
+            let from = incidence.get("from_id").and_then(Value::as_str)?;
+            let to = incidence.get("to_id").and_then(Value::as_str)?;
+            match direction {
+                RefinementDirection::Parent if from == hypothesis_id => Some(json!(to)),
+                RefinementDirection::Child if to == hypothesis_id => Some(json!(from)),
+                _ => None,
+            }
+        })
+        .collect::<Vec<_>>();
+    ids.sort_by_key(|id| id.as_str().unwrap_or_default().to_string());
+    ids.dedup();
+    ids
+}
+
+fn refinement_depth_for(space: &AdvisorySpaceEnvelope, hypothesis_id: &str) -> u64 {
+    let mut depth = 0_u64;
+    let mut current = hypothesis_id.to_string();
+    let mut seen = vec![current.clone()];
+    while let Some(parent) = refinement_parent_ids_for(space, &current)
+        .into_iter()
+        .find_map(|id| id.as_str().map(str::to_string))
+    {
+        if seen.contains(&parent) {
+            break;
+        }
+        depth += 1;
+        current = parent.clone();
+        seen.push(parent);
+    }
+    depth
+}
+
+fn refinement_status_for(
+    space: &AdvisorySpaceEnvelope,
+    hypothesis_id: &str,
+    hypothesis: &Value,
+) -> &'static str {
+    if hypothesis
+        .pointer("/metadata/hypothesis_refinement")
+        .and_then(Value::as_bool)
+        == Some(true)
+        || refinement_depth_for(space, hypothesis_id) > 0
+    {
+        "refined"
+    } else if !refinement_child_ids_for(space, hypothesis_id).is_empty() {
+        "has_refinements"
+    } else {
+        "seed"
+    }
+}
+
+fn is_refinement_relation(incidence: &Value) -> bool {
+    matches!(
+        incidence.get("relation_type").and_then(Value::as_str),
+        Some("refines" | "refined_from" | "revises" | "revised_from")
+    )
+}
+
 fn remaining_hypothesis_uncertainty(
     space: &AdvisorySpaceEnvelope,
     hypothesis: &Value,
@@ -886,14 +1019,14 @@ fn remaining_hypothesis_uncertainty(
     if hypothesis
         .pointer("/metadata/expected_observations")
         .and_then(Value::as_array)
-        .map_or(true, Vec::is_empty)
+        .is_none_or(Vec::is_empty)
     {
         items.push(json!("missing_expected_observations"));
     }
     if hypothesis
         .pointer("/metadata/falsifiers")
         .and_then(Value::as_array)
-        .map_or(true, Vec::is_empty)
+        .is_none_or(Vec::is_empty)
     {
         items.push(json!("missing_falsifiers"));
     }
@@ -909,6 +1042,15 @@ fn remaining_hypothesis_uncertainty(
         && relation_ids_for(space, id, &["falsifies", "falsified_by"]).is_empty()
     {
         items.push(json!("missing_falsifying_incidence"));
+    }
+    if hypothesis
+        .pointer("/metadata/refinement_required")
+        .and_then(Value::as_bool)
+        == Some(true)
+        && refinement_parent_ids_for(space, id).is_empty()
+        && refinement_child_ids_for(space, id).is_empty()
+    {
+        items.push(json!("missing_refinement_lineage"));
     }
     items
 }
@@ -979,7 +1121,7 @@ fn proposal_quality_notes(space: &AdvisorySpaceEnvelope, action: &Value) -> Vec<
     if action
         .pointer("/metadata/required_verification")
         .and_then(Value::as_str)
-        .map_or(true, |value| value.trim().is_empty())
+        .is_none_or(|value| value.trim().is_empty())
     {
         notes.push(json!("missing_required_verification"));
     }

@@ -189,6 +189,7 @@ fn build_record_cells(records: &[Value]) -> Vec<Value> {
         .iter()
         .filter(|record| record.get("relation").is_none_or(Value::is_null))
         .map(|record| {
+            let record_type = record["record_type"].as_str().unwrap_or("claim");
             let context_ids = optional_string_array(record, "context_hints")
                 .into_iter()
                 .map(|hint| stable_context_id(&hint))
@@ -198,12 +199,7 @@ fn build_record_cells(records: &[Value]) -> Vec<Value> {
                     "id",
                     json!(record_to_cell_id(record["id"].as_str().unwrap_or_default())),
                 ),
-                (
-                    "cell_type",
-                    json!(map_record_type(
-                        record["record_type"].as_str().unwrap_or("claim")
-                    )),
-                ),
+                ("cell_type", json!(map_record_type(record_type))),
                 (
                     "title",
                     record
@@ -231,13 +227,56 @@ fn build_record_cells(records: &[Value]) -> Vec<Value> {
                         .cloned()
                         .unwrap_or_else(source_adapter_provenance),
                 ),
-                (
-                    "metadata",
-                    record.get("metadata").cloned().unwrap_or_else(|| json!({})),
-                ),
+                ("metadata", lifted_record_metadata(record_type, record)),
             ])
         })
         .collect()
+}
+
+fn lifted_record_metadata(record_type: &str, record: &Value) -> Value {
+    let mut metadata = record
+        .get("metadata")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_else(JsonMap::new);
+
+    match record_type {
+        "hypothesis" | "hypothesis_seed" | "hypothesis_refinement" => {
+            metadata
+                .entry("hypothesis".to_string())
+                .or_insert_with(|| json!(true));
+            metadata
+                .entry("hypothesis_status".to_string())
+                .or_insert_with(|| json!("candidate"));
+            let structuring_phase = if record_type == "hypothesis_refinement" {
+                "hypothesis_refinement"
+            } else {
+                "hypothesis_first"
+            };
+            metadata
+                .entry("structuring_phase".to_string())
+                .or_insert_with(|| json!(structuring_phase));
+            if record_type == "hypothesis_refinement" {
+                metadata
+                    .entry("hypothesis_refinement".to_string())
+                    .or_insert_with(|| json!(true));
+            }
+        }
+        "proposal" | "structure_proposal" => {
+            metadata
+                .entry("structure_proposal".to_string())
+                .or_insert_with(|| json!(true));
+            metadata
+                .entry("structuring_phase".to_string())
+                .or_insert_with(|| json!("derived_from_hypothesis"));
+            metadata
+                .entry("priority".to_string())
+                .or_insert_with(|| json!("p2"));
+        }
+        _ => {}
+    }
+
+    Value::Object(metadata)
 }
 
 fn build_incidences(records: &[Value]) -> Vec<Value> {
@@ -278,7 +317,8 @@ fn map_record_type(record_type: &str) -> &str {
         "test" | "verification" | "test_or_verification" => "test_or_verification",
         "owner" => "owner",
         "metric" => "metric",
-        "action" => "action",
+        "action" | "proposal" | "structure_proposal" => "action",
+        "hypothesis" | "hypothesis_seed" | "hypothesis_refinement" => "hypothesis",
         _ => "claim",
     }
 }

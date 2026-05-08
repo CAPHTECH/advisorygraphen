@@ -4,15 +4,16 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description.workspace = true
 
 [[bin]]
 name = "advisorygraphen"
 path = "src/main.rs"
 
 [dependencies]
-advisorygraphen-core = { path = "../../crates/advisorygraphen-core" }
-advisorygraphen-projection = { path = "../../crates/advisorygraphen-projection" }
-advisorygraphen-runtime = { path = "../../crates/advisorygraphen-runtime" }
+advisorygraphen-core.workspace = true
+advisorygraphen-projection.workspace = true
+advisorygraphen-runtime.workspace = true
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -205,6 +205,20 @@ fn projections_expose_explicit_hypothesis_matrix_and_proposal_trace() {
     let ai_agent = build_projection(&space, &report, "ai_agent").unwrap();
     assert_eq!(ai_agent["explicit_hypothesis_matrix"]["count"], json!(2));
     assert_eq!(ai_agent["explicit_proposal_trace"]["count"], json!(1));
+    assert_eq!(ai_agent["hypothesis_summary"]["total"], json!(2));
+    assert_eq!(
+        ai_agent["hypothesis_summary"]["strongly_supported"],
+        json!(1)
+    );
+    assert_eq!(ai_agent["hypothesis_summary"]["falsified"], json!(1));
+    assert_eq!(
+        ai_agent["hypotheses"][0]["source"],
+        json!("explicit_advisory_space")
+    );
+    assert_eq!(
+        ai_agent["hypotheses"][0]["refinement_status"],
+        json!("seed")
+    );
 }
 
 fn empty_space() -> AdvisorySpaceEnvelope {

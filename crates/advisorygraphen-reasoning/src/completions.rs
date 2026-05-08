@@ -160,11 +160,13 @@ fn add_proposal_trace_obstruction(candidate: &mut Value, lifecycle_status: &str)
         .get_mut("proposal_content")
         .and_then(Value::as_object_mut)
     {
-        content
+        if let Some(items) = content
             .entry("content_obstructions".to_string())
             .or_insert_with(|| json!([]))
             .as_array_mut()
-            .map(|items| items.push(obstruction));
+        {
+            items.push(obstruction);
+        }
         if let Some(scenario) = content.get_mut("scenario").and_then(Value::as_object_mut) {
             scenario.insert("status".to_string(), json!("blocked"));
         }
@@ -225,8 +227,8 @@ fn boundary_completion_candidates(
             proposed_cell_ids: vec![format!("cell:{domain_id}-status-api")],
             source_ids: source_ids.clone(),
             affected_invariant_ids: invariant_ids.to_vec(),
-            witness_ids: obstruction_string_array(&obstruction, "witness_ids"),
-            blocked_ids: obstruction_string_array(&obstruction, "blocked_ids"),
+            witness_ids: obstruction_string_array(obstruction, "witness_ids"),
+            blocked_ids: obstruction_string_array(obstruction, "blocked_ids"),
             proposed_incidence_ids: Vec::new(),
             confidence: 0.82,
             missing_type: MissingType::Cell,
@@ -253,8 +255,8 @@ fn boundary_completion_candidates(
             proposed_cell_ids: vec![format!("cell:action-replace-{}-direct-db-read", id_suffix(json_id(from_cell)))],
             source_ids,
             affected_invariant_ids: invariant_ids.to_vec(),
-            witness_ids: obstruction_string_array(&obstruction, "witness_ids"),
-            blocked_ids: obstruction_string_array(&obstruction, "blocked_ids"),
+            witness_ids: obstruction_string_array(obstruction, "witness_ids"),
+            blocked_ids: obstruction_string_array(obstruction, "blocked_ids"),
             proposed_incidence_ids: Vec::new(),
             confidence: 0.78,
             missing_type: MissingType::Cell,
