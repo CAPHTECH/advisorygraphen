@@ -109,8 +109,21 @@ Minimum CI:
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cargo test --manifest-path tests/advisorygraphen-cli-acceptance/Cargo.toml
+cargo package --workspace
+cargo publish --dry-run --workspace
 cargo run -q -p advisorygraphen-cli -- validate --input examples/technical-advisory/direct-db-access/advisory.input.json --format json
 ```
+
+## Acceptance definition for v0.1.1
+
+v0.1.1 can be tagged when:
+
+1. workspace tests and CLI acceptance tests pass;
+2. crates.io package and publish dry-run pass for the workspace;
+3. `ai_agent` projection exposes `observation_actions`, `projection_loss_metrics`, and `schema_morphisms`;
+4. the agent operation contract requires reading those support objects before promotion or summary;
+5. the adversarial dogfood fixture keeps unsupported-hypothesis proposals as follow-up observations.
 
 ## Acceptance definition for v0.1.0
 

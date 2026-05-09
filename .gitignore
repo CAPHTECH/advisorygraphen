@@ -1,4 +1,7 @@
 .advisorygraphen/
+.agents/
+.claude/
+mise.toml
 *.local.json
 *.customer.json
 *.secret.json

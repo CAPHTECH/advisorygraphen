@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "advisorygraphen-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "advisorygraphen-core",
  "advisorygraphen-projection",
@@ -16,7 +16,7 @@ dependencies = [
 
 [[package]]
 name = "advisorygraphen-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "higher-graphen-core",
  "higher-graphen-structure",
@@ -28,7 +28,7 @@ dependencies = [
 
 [[package]]
 name = "advisorygraphen-interpretation"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "advisorygraphen-core",
  "higher-graphen-core",
@@ -38,7 +38,7 @@ dependencies = [
 
 [[package]]
 name = "advisorygraphen-lift"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "advisorygraphen-core",
  "advisorygraphen-interpretation",
@@ -50,7 +50,7 @@ dependencies = [
 
 [[package]]
 name = "advisorygraphen-projection"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "advisorygraphen-core",
  "advisorygraphen-reasoning",
@@ -61,7 +61,7 @@ dependencies = [
 
 [[package]]
 name = "advisorygraphen-reasoning"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "advisorygraphen-core",
  "advisorygraphen-interpretation",
@@ -74,7 +74,7 @@ dependencies = [
 
 [[package]]
 name = "advisorygraphen-runtime"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "advisorygraphen-core",
  "advisorygraphen-interpretation",

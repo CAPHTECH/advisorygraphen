@@ -435,7 +435,7 @@ Every report must include:
 {
   "tool": {
     "name": "advisorygraphen",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "command": "advisorygraphen check --space ...",
     "git_revision": "optional"
   }

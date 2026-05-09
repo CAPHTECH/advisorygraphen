@@ -6,7 +6,7 @@
     "command": "advisorygraphen completions propose --space advisory.space.json --from-report expected.check.report.json --output expected.completion.report.json --format json",
     "git_revision": null,
     "name": "advisorygraphen",
-    "version": "0.1.0"
+    "version": "0.1.1"
   },
   "input": {
     "from_report": "expected.check.report.json",

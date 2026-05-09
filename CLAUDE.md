@@ -31,7 +31,7 @@ cargo run -q -p advisorygraphen-cli -- validate \
   --input examples/technical-advisory/direct-db-access/advisory.input.json --format json
 ```
 
-The CLI binary is `advisorygraphen` from `tools/advisorygraphen-cli`. The full golden flow (`lift → check → completions propose → project`) for the `direct-db-access` example is documented in `docs/13-testing-acceptance.md` and is the v0.1.0 acceptance gate.
+The CLI binary is `advisorygraphen` from `tools/advisorygraphen-cli`. The full golden flow (`lift → check → completions propose → project`) for the `direct-db-access` example is documented in `docs/13-testing-acceptance.md` and is the release acceptance gate.
 
 ## External path dependency
 

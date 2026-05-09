@@ -16,11 +16,11 @@ fn version_command_reports_planned_cli_version() {
     let dashed = run_cli(["--version"]);
     assert_success(&dashed);
     assert_output_contains(&dashed, BINARY);
-    assert_output_contains(&dashed, "0.1.0");
+    assert_output_contains(&dashed, "0.1.1");
 
     let subcommand = run_cli(["version"]);
     assert_success(&subcommand);
-    assert_output_contains(&subcommand, "0.1.0");
+    assert_output_contains(&subcommand, "0.1.1");
 }
 
 #[test]
@@ -396,6 +396,8 @@ fn adversarial_dogfood_fixture_is_regression_oracle_for_hypothesis_gates() {
     ]);
     assert_success(&lift);
     assert_file_contains(&space, "space:advisory:dogfood-adversarial-hypothesis-gates");
+    assert_file_contains(&space, "schema-morphism:engagement-snapshot-to-advisory-space");
+    assert_file_contains(&space, "compatible_with_declared_loss");
 
     check_space(&space, &check);
     assert_file_contains(&check, r#""obstruction_type": "boundary_violation""#);
@@ -427,6 +429,11 @@ fn adversarial_dogfood_fixture_is_regression_oracle_for_hypothesis_gates() {
     assert_file_contains(&ai_agent, r#""follow_up_observation_count": 4"#);
     assert_file_contains(&ai_agent, r#""unsupported_hypothesis_candidate_count": 4"#);
     assert_file_contains(&ai_agent, "ranked_observation_tasks");
+    assert_file_contains(&ai_agent, "observation_actions");
+    assert_file_contains(&ai_agent, "projection_loss_metrics");
+    assert_file_contains(&ai_agent, "schema_morphisms");
+    assert_file_contains(&ai_agent, "inspect observation_actions before promoting unsupported hypotheses");
+    assert_file_contains(&ai_agent, "inspect projection_loss_metrics and schema_morphisms before summarizing");
     assert_file_contains(&ai_agent, "command_template");
     assert_file_contains(&ai_agent, "output_schema");
     assert_file_contains(&ai_agent, "pass_fail_extraction");

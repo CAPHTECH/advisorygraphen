@@ -6,7 +6,7 @@
     "command": "advisorygraphen check --space advisory.space.json --ruleset technical_advisory_mvp --output expected.check.report.json --format json",
     "git_revision": null,
     "name": "advisorygraphen",
-    "version": "0.1.0"
+    "version": "0.1.1"
   },
   "input": {
     "ruleset": "technical_advisory_mvp",
