@@ -67,9 +67,10 @@ one bounded problem -> multiple competing hypotheses -> observations/falsifiers
 12. Generate `advisorygraphen project --audience ai_agent` with
    `--completions-report`.
 13. Inspect `proposal_content_summary`, `recommendation_trace`,
-   `hypothesis_promotion_workflow`, `candidate_review_state`,
-   `blocker_resolution_state`, `frontier_items`, `waiting_items`,
-   `close_status`, and `projection_loss`.
+   `observation_actions`, `hypothesis_promotion_workflow`,
+   `candidate_review_state`, `blocker_resolution_state`, `frontier_items`,
+   `waiting_items`, `close_status`, `projection_loss`,
+   `projection_loss_metrics`, and `schema_morphisms`.
 14. Classify each candidate using its `proposal_content`.
 15. Generate the requested human projection or `audit_trace`, including the
     hypothesis classification, proposal trace, falsified/secondary hypotheses,
@@ -266,6 +267,12 @@ Use:
 - `waiting_items` for human review, source evidence, or blocked states.
 - `projection_loss` to disclose omitted source text, lexical caveats, and
   compression loss.
+- `projection_loss_metrics` to quantify what the projection collapses, omits,
+  or leaves without source trace.
+- `observation_actions` to choose bounded next evidence-gathering steps before
+  promoting weak hypotheses.
+- `schema_morphisms` to understand the lift or contract mapping and declared
+  compatibility/loss.
 
 For human-facing output:
 
@@ -282,8 +289,8 @@ Before running the workflow on external material:
 2. Keep customer-specific spaces, reports, and case logs out of public repos.
 3. Prefer synthetic or public fixtures for examples.
 4. Preserve source IDs so proposal content can carry witnesses.
-5. Disclose `source_boundary.extraction_loss` and `projection_loss` in
-   summaries.
+5. Disclose `source_boundary.extraction_loss`, `projection_loss`, and
+   `projection_loss_metrics` in summaries.
 
 If the source snapshot lacks enough structure for a concrete proposal, report
 the missing structure rather than fabricating facts.

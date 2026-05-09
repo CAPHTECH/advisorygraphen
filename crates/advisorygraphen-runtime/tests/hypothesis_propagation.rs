@@ -224,6 +224,19 @@ fn hypothesis_seed_lift_drives_hypothesis_first_proposal_trace() {
     .unwrap();
 
     let space: serde_json::Value = serde_json::from_slice(&fs::read(&space_path).unwrap()).unwrap();
+    let schema_morphism = &space["morphisms"][0]["schema_morphism"];
+    assert_eq!(
+        schema_morphism["id"],
+        "schema-morphism:engagement-snapshot-to-advisory-space"
+    );
+    assert_eq!(
+        schema_morphism["compatibility"],
+        "compatible_with_declared_loss"
+    );
+    assert_eq!(
+        space["metadata"]["schema_morphisms"][0]["verification"]["status"],
+        "checked_by_lift_validation"
+    );
     let hypothesis = space["cells"]
         .as_array()
         .unwrap()

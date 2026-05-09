@@ -131,6 +131,27 @@ fn recommendation_trace_separates_primary_from_follow_up_observations() {
             ["review_required"],
         json!(true)
     );
+    let actions = projection
+        .pointer("/summary/observation_actions")
+        .expect("observation_actions present");
+    assert_eq!(actions["count"], json!(1));
+    assert_eq!(
+        actions["actions"][0]["id"],
+        json!("observation-action:follow-up-support-1")
+    );
+    assert_eq!(
+        actions["actions"][0]["target_claim_ids"],
+        json!(["hypothesis:unreviewed"])
+    );
+    assert_eq!(
+        actions["actions"][0]["expected_evidence_kind"],
+        json!("support_or_falsification_witness")
+    );
+    assert_eq!(actions["actions"][0]["estimated_cost"], json!("low"));
+    assert_eq!(
+        actions["actions"][0]["policy_blockers"],
+        json!(["review_required"])
+    );
 }
 
 #[test]
@@ -151,6 +172,24 @@ fn ai_agent_projection_exposes_hypothesis_promotion_workflow() {
     assert_eq!(
         workflow["items"][0]["promotion_steps"][0],
         json!("Run the ranked observation tasks against the bounded source snapshot.")
+    );
+    assert!(projection["agent_operation_contract"]["resume_protocol"]
+        .as_array()
+        .unwrap()
+        .contains(&json!(
+            "inspect observation_actions before promoting unsupported hypotheses"
+        )));
+    assert!(projection["agent_operation_contract"]["resume_protocol"]
+        .as_array()
+        .unwrap()
+        .contains(&json!(
+            "inspect projection_loss_metrics and schema_morphisms before summarizing"
+        )));
+    assert!(
+        projection["agent_operation_contract"]["forbidden_operations"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("hide projection_loss_metrics"))
     );
 }
 
@@ -218,6 +257,22 @@ fn projections_expose_explicit_hypothesis_matrix_and_proposal_trace() {
     assert_eq!(
         ai_agent["hypotheses"][0]["refinement_status"],
         json!("seed")
+    );
+    assert_eq!(
+        ai_agent["projection_loss_metrics"]["source_cardinality"],
+        json!(1)
+    );
+    assert_eq!(
+        ai_agent["projection_loss_metrics"]["projected_cardinality"],
+        json!(0)
+    );
+    assert_eq!(
+        ai_agent["projection_loss_metrics"]["collapsed_source_distinction_count"],
+        json!(1)
+    );
+    assert_eq!(
+        ai_agent["projection_loss_metrics"]["missing_loss_declaration"],
+        json!(false)
     );
 }
 

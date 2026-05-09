@@ -30,7 +30,10 @@ pub fn lift_snapshot(
             "adapter": "json_snapshot",
             "package_id": package.package_id,
             "higher_graphen_interpretation": package.higher_graphen_package_value()?
-        }
+        },
+        "schema_morphisms": [
+            schema_morphism(snapshot, package)
+        ]
     });
 
     let space_id = format!(
@@ -68,6 +71,7 @@ pub fn lift_snapshot(
             "from_id": string_field(snapshot, "snapshot_id")?,
             "to_id": space_id,
             "provenance": source_adapter_provenance(),
+            "schema_morphism": schema_morphism(snapshot, package),
             "higher_graphen": {
                 "morphism": source_to_space_morphism,
                 "preservation_report": source_to_space_preservation
@@ -79,6 +83,34 @@ pub fn lift_snapshot(
     };
     validate_space(&space)?;
     Ok(space)
+}
+
+fn schema_morphism(snapshot: &Value, package: &InterpretationPackage) -> Value {
+    json!({
+        "id": "schema-morphism:engagement-snapshot-to-advisory-space",
+        "source_schema": SNAPSHOT_SCHEMA,
+        "target_schema": advisorygraphen_core::SPACE_SCHEMA,
+        "interpretation_package_id": package.package_id,
+        "mapping_kind": "lift_adapter",
+        "compatibility": "compatible_with_declared_loss",
+        "mappings": [
+            { "from": "/sources[]", "to": "/cells[cell_type=evidence]", "loss": "source prose is represented by evidence cells and source metadata" },
+            { "from": "/records[]", "to": "/cells[] or /incidences[]", "loss": "record prose is normalized into typed advisory structure" },
+            { "from": "/source_boundary", "to": "/metadata/source_boundary", "loss": "boundary notes remain advisory metadata rather than accepted facts" }
+        ],
+        "affected_objects": {
+            "source_count": snapshot.get("sources").and_then(Value::as_array).map(Vec::len).unwrap_or(0),
+            "record_count": snapshot.get("records").and_then(Value::as_array).map(Vec::len).unwrap_or(0)
+        },
+        "verification": {
+            "status": "checked_by_lift_validation",
+            "validator": "advisorygraphen-lift",
+            "review_status": "accepted"
+        },
+        "loss_claims": snapshot.pointer("/source_boundary/extraction_loss").cloned().unwrap_or_else(|| json!([])),
+        "provenance": source_adapter_provenance(),
+        "review_status": "accepted"
+    })
 }
 
 fn source_to_space_morphism(

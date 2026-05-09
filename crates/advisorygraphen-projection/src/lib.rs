@@ -70,11 +70,21 @@ fn executive_projection(
     let candidate_quality = candidate_quality_summary(&candidates);
     let proposal_content_summary = proposal_content_summary(&candidates);
     let recommendation_trace = recommendation_trace(&candidates);
+    let observation_actions = observation_actions(&recommendation_trace);
     let falsifiers = falsifiers(report);
     let explicit_hypothesis_matrix = explicit_hypothesis_matrix(space);
     let hypotheses = merged_hypotheses(hypotheses(report), &explicit_hypothesis_matrix);
     let hypothesis_summary = hypothesis_summary(&hypotheses);
     let explicit_proposal_trace = explicit_proposal_trace(space);
+    let projection_loss = projection_loss(space, report);
+    let projection_loss_metrics = projection_loss_metrics(
+        space,
+        report,
+        &represented_ids,
+        &omitted_ids,
+        &projection_loss,
+    );
+    let schema_morphisms = schema_morphisms(space);
     let higher_graphen = higher::projection_result_json(
         space,
         report,
@@ -100,6 +110,7 @@ fn executive_projection(
             "candidate_quality": candidate_quality,
             "proposal_content_summary": proposal_content_summary,
             "recommendation_trace": recommendation_trace,
+            "observation_actions": observation_actions,
             "explicit_hypothesis_matrix": explicit_hypothesis_matrix,
             "explicit_proposal_trace": explicit_proposal_trace,
             "hypothesis_summary": hypothesis_summary
@@ -107,7 +118,9 @@ fn executive_projection(
         "hypotheses": hypotheses,
         "falsifiers": falsifiers,
         "source_boundary": space.metadata.get("source_boundary").cloned().unwrap_or_else(|| json!({})),
-        "projection_loss": projection_loss(space, report),
+        "projection_loss": projection_loss,
+        "projection_loss_metrics": projection_loss_metrics,
+        "schema_morphisms": schema_morphisms,
         "higher_graphen": higher_graphen
     }))
 }
@@ -119,6 +132,14 @@ fn developer_projection(
 ) -> AdvisoryResult<Value> {
     let represented_ids = represented_ids(report);
     let omitted_ids = source_ids(space);
+    let projection_loss = projection_loss(space, report);
+    let projection_loss_metrics = projection_loss_metrics(
+        space,
+        report,
+        &represented_ids,
+        &omitted_ids,
+        &projection_loss,
+    );
     let higher_graphen = higher::projection_result_json(
         space,
         report,
@@ -134,7 +155,9 @@ fn developer_projection(
         "represented_ids": represented_ids,
         "omitted_ids": omitted_ids,
         "actions": completion_candidates(report),
-        "projection_loss": projection_loss(space, report),
+        "projection_loss": projection_loss,
+        "projection_loss_metrics": projection_loss_metrics,
+        "schema_morphisms": schema_morphisms(space),
         "higher_graphen": higher_graphen
     }))
 }
@@ -146,6 +169,14 @@ fn audit_projection(
 ) -> AdvisoryResult<Value> {
     let represented_ids = represented_ids(report);
     let omitted_ids = Vec::new();
+    let projection_loss = projection_loss(space, report);
+    let projection_loss_metrics = projection_loss_metrics(
+        space,
+        report,
+        &represented_ids,
+        &omitted_ids,
+        &projection_loss,
+    );
     let higher_graphen = higher::projection_result_json(
         space,
         report,
@@ -162,7 +193,9 @@ fn audit_projection(
         "omitted_ids": omitted_ids,
         "source_boundary": space.metadata.get("source_boundary").cloned().unwrap_or_else(|| json!({})),
         "report": report,
-        "projection_loss": projection_loss(space, report),
+        "projection_loss": projection_loss,
+        "projection_loss_metrics": projection_loss_metrics,
+        "schema_morphisms": schema_morphisms(space),
         "higher_graphen": higher_graphen
     }))
 }
@@ -180,6 +213,7 @@ fn ai_agent_projection(
     let candidate_quality = candidate_quality_summary(&candidates);
     let proposal_content_summary = proposal_content_summary(&candidates);
     let recommendation_trace = recommendation_trace(&candidates);
+    let observation_actions = observation_actions(&recommendation_trace);
     let hypothesis_promotion_workflow = hypothesis_promotion_workflow(&recommendation_trace);
     let (live_candidates, superseded_candidates) = partition_candidates(&candidates);
     let falsifiers = falsifiers(report);
@@ -188,6 +222,15 @@ fn ai_agent_projection(
     let hypotheses = merged_hypotheses(hypotheses(report), &explicit_hypothesis_matrix);
     let hypothesis_summary = hypothesis_summary(&hypotheses);
     let explicit_proposal_trace = explicit_proposal_trace(space);
+    let projection_loss = projection_loss(space, report);
+    let projection_loss_metrics = projection_loss_metrics(
+        space,
+        report,
+        &represented_ids,
+        &omitted_ids,
+        &projection_loss,
+    );
+    let schema_morphisms = schema_morphisms(space);
     let higher_graphen = higher::projection_result_json(
         space,
         report,
@@ -234,6 +277,7 @@ fn ai_agent_projection(
             "forbidden_operations": [
                 "promote unreviewed candidate structure",
                 "hide projection_loss",
+                "hide projection_loss_metrics",
                 "treat inferred evidence as accepted fact",
                 "rewrite source material outside the bounded snapshot"
             ],
@@ -242,6 +286,8 @@ fn ai_agent_projection(
                 "inspect open_obstructions",
                 "inspect candidate_review_state",
                 "inspect blocker_resolution_state.application_requirements when present",
+                "inspect observation_actions before promoting unsupported hypotheses",
+                "inspect projection_loss_metrics and schema_morphisms before summarizing",
                 "propose missing owner or verification structure",
                 "generate audit_trace before reporting final state"
             ]
@@ -259,6 +305,7 @@ fn ai_agent_projection(
         "candidate_quality": candidate_quality,
         "proposal_content_summary": proposal_content_summary,
         "recommendation_trace": recommendation_trace,
+        "observation_actions": observation_actions,
         "hypothesis_promotion_workflow": hypothesis_promotion_workflow,
         "blocker_resolution_state": resolution_state,
         "frontier_items": frontier_items(&resolution_state),
@@ -271,7 +318,9 @@ fn ai_agent_projection(
             "generate_audit_projection"
         ],
         "close_status": close_status_value(space, report),
-        "projection_loss": projection_loss(space, report),
+        "projection_loss": projection_loss,
+        "projection_loss_metrics": projection_loss_metrics,
+        "schema_morphisms": schema_morphisms,
         "higher_graphen": higher_graphen
     }))
 }
@@ -577,6 +626,82 @@ fn projection_loss(space: &AdvisorySpaceEnvelope, report: &Value) -> Vec<Value> 
         }));
     }
     entries
+}
+
+fn projection_loss_metrics(
+    space: &AdvisorySpaceEnvelope,
+    report: &Value,
+    represented_ids: &[String],
+    omitted_ids: &[String],
+    loss_entries: &[Value],
+) -> Value {
+    let source_ids = source_ids(space);
+    let represented_items = obstructions(report)
+        .into_iter()
+        .chain(completion_candidates(report))
+        .collect::<Vec<_>>();
+    let source_trace_gap_ids = represented_items
+        .iter()
+        .filter(|item| {
+            item.get("source_ids")
+                .and_then(Value::as_array)
+                .is_none_or(Vec::is_empty)
+                && item
+                    .get("evidence_ids")
+                    .and_then(Value::as_array)
+                    .is_none_or(Vec::is_empty)
+        })
+        .filter_map(|item| item.get("id").cloned())
+        .collect::<Vec<_>>();
+    let collapsed_source_distinction_count = source_ids.len().saturating_sub(represented_ids.len());
+    json!({
+        "id": format!("projection-loss-metric:{}", space.space_id.trim_start_matches("space:")),
+        "metric_type": "projection_loss_metric",
+        "source_cardinality": source_ids.len(),
+        "projected_cardinality": represented_ids.len(),
+        "omitted_source_count": omitted_ids.len(),
+        "collapsed_source_distinction_count": collapsed_source_distinction_count,
+        "source_trace_gap_count": source_trace_gap_ids.len(),
+        "source_trace_gap_ids": source_trace_gap_ids,
+        "loss_declaration_count": loss_entries.len(),
+        "missing_loss_declaration": loss_entries.is_empty(),
+        "ambiguity": if collapsed_source_distinction_count > 0 || !omitted_ids.is_empty() {
+            "declared_loss"
+        } else {
+            "none_detected"
+        },
+        "review_status": "unreviewed",
+        "rule": "Finite metric for what the projection collapses, omits, or leaves without source trace."
+    })
+}
+
+fn schema_morphisms(space: &AdvisorySpaceEnvelope) -> Value {
+    let mut morphisms = space
+        .morphisms
+        .iter()
+        .filter_map(|morphism| morphism.get("schema_morphism").cloned())
+        .collect::<Vec<_>>();
+    morphisms.extend(
+        space
+            .metadata
+            .get("schema_morphisms")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default(),
+    );
+    morphisms.sort_by_key(|morphism| {
+        morphism
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    });
+    morphisms.dedup_by(|a, b| a.get("id") == b.get("id"));
+    json!({
+        "count": morphisms.len(),
+        "morphisms": morphisms,
+        "rule": "Schema morphisms describe contract evolution or lift mappings with compatibility, verification, and explicit loss claims."
+    })
 }
 
 fn obstructions(report: &Value) -> Vec<Value> {
@@ -1165,6 +1290,96 @@ fn recommendation_trace(candidates: &[Value]) -> Value {
     })
 }
 
+fn observation_actions(recommendation_trace: &Value) -> Value {
+    let actions = recommendation_trace
+        .get("follow_up_observations")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .flat_map(|item| {
+            item.get("ranked_observation_tasks")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+        })
+        .map(observation_action_from_task)
+        .collect::<Vec<_>>();
+    json!({
+        "count": actions.len(),
+        "actions": actions,
+        "rule": "Observation actions recommend bounded evidence-gathering steps; they do not execute observations or accept the investigated claim."
+    })
+}
+
+fn observation_action_from_task(task: Value) -> Value {
+    let task_id = task
+        .get("task_id")
+        .and_then(Value::as_str)
+        .unwrap_or("observation:unknown");
+    let source_ids = task
+        .get("source_ids_to_inspect")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let review_required = task
+        .pointer("/pass_fail_extraction/review_required")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let mut target_claims = Vec::new();
+    if let Some(hypothesis_id) = task.get("hypothesis_id").and_then(Value::as_str) {
+        target_claims.push(json!(hypothesis_id));
+    } else if let Some(hypothesis_id) = task.get("hypothesis_id").filter(|value| !value.is_null()) {
+        target_claims.push(hypothesis_id.clone());
+    }
+    json!({
+        "id": format!("observation-action:{}", id_fragment(task_id)),
+        "task_id": task_id,
+        "target_claim_ids": target_claims,
+        "candidate_id": task.get("candidate_id").cloned().unwrap_or(Value::Null),
+        "expected_evidence_kind": expected_evidence_kind(task.get("observation_type").and_then(Value::as_str)),
+        "estimated_cost": estimated_observation_cost(source_ids.len()),
+        "expected_information_gain": expected_information_gain(task.get("observation_type").and_then(Value::as_str)),
+        "policy_blockers": if review_required { json!(["review_required"]) } else { json!([]) },
+        "source_ids_to_inspect": source_ids,
+        "expected_observation": task.get("expected_observation").cloned().unwrap_or(Value::Null),
+        "falsifier": task.get("falsifier").cloned().unwrap_or(Value::Null),
+        "output_schema": task.get("output_schema").cloned().unwrap_or(Value::Null),
+        "review_status": "unreviewed",
+        "provenance": {
+            "origin": "inferred",
+            "actor": "advisorygraphen-projection",
+            "confidence": 0.7,
+            "review_status": "unreviewed"
+        }
+    })
+}
+
+fn expected_evidence_kind(observation_type: Option<&str>) -> &'static str {
+    match observation_type {
+        Some("hypothesis_support") => "support_or_falsification_witness",
+        Some("proposal_structure_completion") => "structure_witness",
+        Some("review_readiness") => "review_readiness_witness",
+        _ => "bounded_observation_witness",
+    }
+}
+
+fn expected_information_gain(observation_type: Option<&str>) -> &'static str {
+    match observation_type {
+        Some("hypothesis_support") => "high",
+        Some("proposal_structure_completion") => "medium",
+        Some("review_readiness") => "medium",
+        _ => "unknown",
+    }
+}
+
+fn estimated_observation_cost(source_count: usize) -> &'static str {
+    match source_count {
+        0 | 1 => "low",
+        2 | 3 => "medium",
+        _ => "high",
+    }
+}
+
 fn recommendation_trace_item(candidate: &Value) -> Value {
     json!({
         "candidate_id": candidate.get("id").cloned().unwrap_or(Value::Null),
@@ -1537,6 +1752,11 @@ fn promotion_command_drafts(item: &Value) -> Value {
 
 fn id_tail(id: &str) -> String {
     id.rsplit(':').next().unwrap_or(id).replace('_', "-")
+}
+
+fn id_fragment(id: &str) -> String {
+    id.trim_start_matches("observation:")
+        .replace([':', '_'], "-")
 }
 
 fn close_status_value(space: &AdvisorySpaceEnvelope, report: &Value) -> Value {
