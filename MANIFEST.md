@@ -4,7 +4,8 @@
 
 - `Cargo.toml`: Rust workspace definition for crates and CLI.
 - `Cargo.lock`: locked dependency set for reproducible CLI builds.
-- `README.md`: overview, scope, first commands, design principles.
+- `README.md`: English release README with install, quick start, workflows, and public/private boundary.
+- `README.ja.md`: Japanese release README with the same user-facing content.
 - `MANIFEST.md`: this file.
 - `.github/workflows/ci.yml`: fmt, clippy, tests, acceptance tests, fixture validation.
 

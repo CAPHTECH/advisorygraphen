@@ -1,155 +1,222 @@
-# AdvisoryGraphen 実装ドキュメント群
+# AdvisoryGraphen
 
-AdvisoryGraphen は、コンサルティング業務を HigherGraphen の高次構造へ写像し、根拠、仮説、制約、未解決障害、提案候補、レビュー状態、投影結果を Rust で扱えるようにするための実装可能なプロダクト仕様である。
+AdvisoryGraphen is a Rust CLI for evidence-backed consulting and advisory workflows on HigherGraphen.
 
-HigherGraphen は人間が直接編集する一次UIではなく、AIエージェントが操作する構造基盤として扱う。人間は目的、制約、採否判断を与え、`executive`、`developer_action`、`audit_trace`、`ai_agent` projectionと明示的なreview eventを通じて状態を確認する。
+It turns bounded source material such as strategy notes, operating constraints, architecture notes, ADRs, issue summaries, interview notes, requirements, and verification records into a structured advisory space. From that structure it can detect obstructions, propose reviewable completions, keep case history append-only, and generate audience-specific projections.
 
-このドキュメント群は、最初の実装を **Rust workspace + CLI + JSON schema + agent skill + projection** として立ち上げることを目的にしている。最初から hosted SaaS や複雑な UI を実装しない。まず `advisorygraphen` CLI とファイルベースの構造モデルで、技術顧問・アーキテクチャレビュー・プロダクト意思決定支援の MVP を成立させる。
+The released CLI is intentionally file-based and deterministic. It is not a hosted SaaS, a general task manager, or an AI system that finalizes consulting decisions without review.
 
-## 目的
+The first released interpretation package is `technical_advisory_mvp`, which focuses on technical advisory, architecture review, and product/development decision support. The underlying model is broader: other consulting domains can be supported by adding domain-specific interpretation packages, invariants, and projection policies.
 
-AdvisoryGraphen は次の問題を解く。
+## Install
 
-1. コンサルタントの主張、顧客資料、AI 推論、レビュー済み結論を混同しない。
-2. 提案を即座に事実や承認済み施策に昇格させず、`CompletionCandidate` としてレビュー可能に保つ。
-3. レポートをモデル本体にしない。レポート、開発者向けアクション、監査証跡、AI 操作用ビューは、すべて構造から生成される `Projection` とする。
-4. 継続顧問で、過去の意思決定、根拠、未解決 obstruction、採否済み candidate を append-only に追跡する。
-5. 顧客固有の解釈パッケージや商用ノウハウを、公開コアとは分離して蓄積する。
-
-## AI agent operating model
-
-AdvisoryGraphen の主な操作主体はAIエージェントである。エージェントはdocs、コード、PR、issue、議事録を bounded snapshot にまとめ、`lift`、`check`、`completions propose`、`project`、`case reason` を実行する。HG上の構造変更や補完候補は、review status、provenance、source boundaryを保持したまま扱う。
-
-人間の役割は、HGを直接手作業で編集することではなく、目的・制約・採否を与えることにある。completion candidateのaccept/reject、waive、商用境界の判断、顧客向け説明は人間の明示レビューを必要とする。
-
-`ai_agent` projection は、AIエージェントの再開プロトコルである。次に安全に実行できる操作、禁止操作、未解決obstruction、review gate、projection loss、projection loss metric、observation action、schema morphismをJSONで返し、エージェントが未レビュー候補を承認済み構造として扱わないようにする。
-
-## Hypothesis-first structuring
-
-AdvisoryGraphen は、問題から一度で構造を作るのではなく、AIがまず複数の仮説を立て、観測で支持・反証し、その仮説から提案構造を導出する使い方を一次ワークフローとして扱う。
-
-JSON snapshot では、仮説を `record_type: "hypothesis_seed"` として記録できる。`lift` はこれを `cell_type: "hypothesis"` に変換し、`metadata.expected_observations`、`metadata.falsifiers`、`metadata.candidate_structure_types`、`metadata.hypothesis_status` を保持する。構造提案は `record_type: "structure_proposal"` として記録でき、`lift` はこれを `cell_type: "action"` として扱い、`metadata.structure_proposal: true` と `metadata.structuring_phase: "derived_from_hypothesis"` を付与する。
-
-仮説を練り直す場合は、`record_type: "hypothesis_refinement"` として記録し、`relation_type: "refines"` で refined hypothesis から seed hypothesis へつなぐ。`ai_agent` projection は `explicit_hypothesis_matrix` に `refinement_parent_ids`、`refinement_child_ids`、`refinement_depth`、`refinement_status` を出すため、AIは seed hypothesis を直接結論にせず、観測で狭めた仮説を追跡できる。
-
-提案が仮説に依存する場合は、`relation_type: "derives_from"` で proposal action から hypothesis へつなぐ。`check` は未支持・反証済み仮説から導出された高優先度提案を obstruction として検出する。さらに P0/P1 提案が refinement lineage のない仮説から直接導出される場合は、`high_priority_proposal_missing_hypothesis_refinement` として検出する。`ai_agent` projection は `explicit_hypothesis_matrix` と `explicit_proposal_trace` に、仮説、期待観測、反証条件、refinement lineage、提案トレース、必要な検証を出力する。
-
-## 最初の実装単位
-
-MVP は `technical_advisory` interpretation package に限定する。
-
-対象入力:
-
-- アーキテクチャ説明
-- ADR
-- API/DB/モジュール一覧
-- GitHub Issue / PR 要約
-- 顧客ヒアリングメモ
-- 要求、制約、ロードマップ
-- 既存テストや検証記録
-
-対象出力:
-
-- `executive` projection: 経営判断用要約
-- `developer_action` projection: 実装担当者向けアクション
-- `audit_trace` projection: 根拠、レビュー状態、情報損失
-- `ai_agent` projection: AI エージェントがHGを継続操作するための操作契約、再開状態、禁止操作
-
-## 推奨読み順
-
-1. [`docs/00-product-charter.md`](docs/00-product-charter.md)
-2. [`docs/01-domain-model.md`](docs/01-domain-model.md)
-3. [`docs/02-rust-workspace.md`](docs/02-rust-workspace.md)
-4. [`docs/03-data-contracts.md`](docs/03-data-contracts.md)
-5. [`docs/05-reasoning-invariants.md`](docs/05-reasoning-invariants.md)
-6. [`docs/06-completion-and-review-workflow.md`](docs/06-completion-and-review-workflow.md)
-7. [`docs/07-projections.md`](docs/07-projections.md)
-8. [`docs/08-cli-contract.md`](docs/08-cli-contract.md)
-9. [`docs/12-implementation-roadmap.md`](docs/12-implementation-roadmap.md)
-10. [`docs/13-testing-acceptance.md`](docs/13-testing-acceptance.md)
-
-## リポジトリ構成案
-
-```text
-advisorygraphen/
-  Cargo.toml
-  crates/
-    advisorygraphen-core/
-    advisorygraphen-lift/
-    advisorygraphen-interpretation/
-    advisorygraphen-reasoning/
-    advisorygraphen-projection/
-    advisorygraphen-runtime/
-  tools/
-    advisorygraphen-cli/
-  schemas/
-    advisorygraphen/
-  examples/
-    technical-advisory/
-  skills/
-    advisorygraphen/
-  docs/
-  adrs/
-```
-
-## MVP の CLI イメージ
-
-```sh
-advisorygraphen lift \
-  --input examples/technical-advisory/direct-db-access/advisory.input.json \
-  --package technical_advisory \
-  --output /tmp/advisory.space.json
-
-advisorygraphen check \
-  --space /tmp/advisory.space.json \
-  --ruleset technical_advisory_mvp \
-  --format json \
-  --output /tmp/advisory.check.report.json
-
-advisorygraphen completions propose \
-  --space /tmp/advisory.space.json \
-  --from-report /tmp/advisory.check.report.json \
-  --format json \
-  --output /tmp/advisory.completions.json
-
-advisorygraphen project \
-  --space /tmp/advisory.space.json \
-  --report /tmp/advisory.check.report.json \
-  --audience executive \
-  --format markdown \
-  --output /tmp/executive-review.md
-
-advisorygraphen project \
-  --space /tmp/advisory.space.json \
-  --report /tmp/advisory.check.report.json \
-  --audience audit_trace \
-  --format json \
-  --output /tmp/audit-trace.json
-```
-
-## Install / release
-
-配布パッケージ名は `advisorygraphen-cli`、インストール後の実行コマンドは
-`advisorygraphen` である。
+The crates.io package is `advisorygraphen-cli`. The installed command is `advisorygraphen`.
 
 ```sh
 cargo install advisorygraphen-cli
 advisorygraphen version
 ```
 
-crates.io へ publish する場合は、内部 crate の依存順に公開する。
+Current release: `0.1.1`.
+
+For local development from this repository:
 
 ```sh
-cargo publish -p advisorygraphen-core
-cargo publish -p advisorygraphen-interpretation
-cargo publish -p advisorygraphen-reasoning
-cargo publish -p advisorygraphen-projection
-cargo publish -p advisorygraphen-lift
-cargo publish -p advisorygraphen-runtime
-cargo publish -p advisorygraphen-cli
+cargo run -q -p advisorygraphen-cli -- version
 ```
 
-配布前ゲート:
+## Quick Start
+
+Run the released workflow against the included `technical_advisory_mvp` fixture.
+
+```sh
+advisorygraphen validate \
+  --input examples/technical-advisory/direct-db-access/advisory.input.json \
+  --format json
+
+advisorygraphen lift \
+  --input examples/technical-advisory/direct-db-access/advisory.input.json \
+  --package technical_advisory \
+  --output /tmp/advisory.space.json \
+  --format json
+
+advisorygraphen check \
+  --space /tmp/advisory.space.json \
+  --ruleset technical_advisory_mvp \
+  --output /tmp/advisory.check.report.json \
+  --format json
+
+advisorygraphen completions propose \
+  --space /tmp/advisory.space.json \
+  --from-report /tmp/advisory.check.report.json \
+  --output /tmp/advisory.completions.report.json \
+  --format json
+
+advisorygraphen project \
+  --space /tmp/advisory.space.json \
+  --report /tmp/advisory.check.report.json \
+  --completions-report /tmp/advisory.completions.report.json \
+  --audience executive \
+  --format markdown \
+  --output /tmp/executive-review.md
+```
+
+For agent operations, generate the `ai_agent` projection as the resume protocol:
+
+```sh
+advisorygraphen project \
+  --space /tmp/advisory.space.json \
+  --report /tmp/advisory.check.report.json \
+  --completions-report /tmp/advisory.completions.report.json \
+  --audience ai_agent \
+  --format json \
+  --output /tmp/ai-agent.json
+```
+
+## Core Workflow
+
+AdvisoryGraphen uses this model:
+
+```text
+bounded source snapshot
+  -> advisory space
+  -> invariant check report
+  -> reviewable completion candidates
+  -> audience-specific projections
+  -> append-only case log and case reasoning
+```
+
+Key commands:
+
+| Command | Purpose |
+| --- | --- |
+| `validate` | Validate a snapshot, advisory space, report, projection request, or review event. |
+| `lift` | Convert a bounded source snapshot into an advisory space. |
+| `check` | Evaluate advisory invariants and emit obstructions. |
+| `completions propose` | Generate reviewable completion candidates from obstructions. |
+| `completions dry-run` | Apply candidates in memory and rerun checks without changing a case store. |
+| `project` | Render a projection for a specific audience. |
+| `case import` | Import a space into an append-only local case store. |
+| `case reason` | Replay case state and derive readiness, blockers, frontier, and close status. |
+| `case close-check` | Check whether a case can be closed at a specific revision. |
+| `hypothesis propose` | Propose reviewable hypothesis lifecycle transitions from source-backed signals. |
+| `observation record` | Record bounded observation results before supporting or falsifying hypotheses. |
+| `dogfood repo-snapshot` | Generate a bounded snapshot of this repository for self-review. |
+| `code repo-snapshot` | Generate a bounded lexical code snapshot for code-derived advisory signals. |
+
+Run `advisorygraphen --help` or `advisorygraphen <command> --help` for the current CLI surface.
+
+## Core Ideas
+
+AdvisoryGraphen is built around a few conceptual commitments:
+
+- Reports are projections, not the source of truth. The source of truth is the structured advisory space plus the append-only case log.
+- Source material is bounded input, not automatic truth. Claims, evidence, AI inferences, and reviewed conclusions stay separate.
+- Advisory work should be hypothesis-first, not conclusion-first. Proposals are derived from hypotheses and observations, and unsupported hypotheses remain visible.
+- AI-generated structure is review-gated. A candidate can be useful, concrete, and source-backed without being accepted.
+- Obstructions are first-class consulting objects. They represent what prevents a decision, recommendation, architecture, plan, or case from being safely closed.
+- Projection loss must be explicit. Audience-specific summaries are useful only when they disclose what they omit, collapse, or cannot prove.
+- Domain knowledge belongs in interpretation packages. `technical_advisory_mvp` is the first package, not the limit of the model.
+
+In short, AdvisoryGraphen treats consulting work as structured evidence, hypotheses, constraints, obstructions, proposals, review events, and projections rather than as a single report document.
+
+## Projection Audiences
+
+`project` supports these audiences:
+
+| Audience | Use |
+| --- | --- |
+| `executive` | Decision-focused summary for leadership review. |
+| `developer_action` | Implementation-oriented actions and blockers. |
+| `audit_trace` | Evidence, provenance, review status, and projection loss. |
+| `ai_agent` | Agent resume protocol, allowed commands, forbidden operations, review gates, observation actions, and remaining blockers. |
+| `client_review` | Client-facing executive-style review. |
+| `cli` | CLI-oriented executive-style view. |
+
+Every projection is intentionally lossy. Use `audit_trace` or `ai_agent` when you need to inspect represented IDs, omitted information, projection loss metrics, schema morphisms, or review state.
+
+## Review-Gated Advisory
+
+AdvisoryGraphen separates facts, claims, AI inferences, hypotheses, obstructions, completion candidates, review events, and projections.
+
+Completion candidates are proposals. They are not accepted structure until explicit review events and supported application steps exist. Accepted completion review is also separate from materializing the candidate into the advisory space.
+
+Important review commands:
+
+```sh
+advisorygraphen completions accept \
+  --store .advisorygraphen/store \
+  --candidate-id candidate:example \
+  --from-report /tmp/advisory.completions.report.json \
+  --reviewer reviewer:cto \
+  --reason "Accepted target direction" \
+  --base-revision revision:technical-advisory-smoke-1 \
+  --format json
+
+advisorygraphen completions apply-accepted \
+  --store .advisorygraphen/store \
+  --space-id space:advisory:technical-advisory-direct-db-access \
+  --reviewer ai-agent:codex \
+  --reason "Apply reviewed accepted completion candidates" \
+  --base-revision revision:review-000002 \
+  --format json
+```
+
+The `ai_agent` projection and `case reason` output should be treated as the operational contract for agents. They expose review gates, observation actions, candidate review state, blocker resolution requirements, projection loss metrics, and safe next commands.
+
+## Code-Derived Snapshot
+
+The `code repo-snapshot` adapter creates a bounded lexical snapshot from a local repository. The initial adapter targets deterministic TypeScript, JavaScript, and Next.js signals such as `package.json`, `tsconfig.json`, API route files, test files, database access patterns, and `process.env.*` usage.
+
+```sh
+advisorygraphen code repo-snapshot \
+  --repo . \
+  --output /tmp/advisory-code.input.json \
+  --format json
+```
+
+This adapter is intentionally conservative. It does not resolve TypeScript types or runtime control flow. Use observations and review events to record evidence that the lexical adapter cannot prove.
+
+## Public and Private Boundary
+
+The public release contains:
+
+- Rust core types and CLI workflows.
+- Stable JSON schemas.
+- Generic `technical_advisory_mvp` package behavior for the first technical advisory use case.
+- Synthetic examples and dogfood fixtures.
+- Public documentation and the agent skill.
+
+Keep these outside the public repository and package:
+
+- Customer source material and real engagement case logs.
+- Customer-specific invariants or interpretation packages.
+- Commercial templates, private benchmarks, pricing, sales, and support playbooks.
+- Production infrastructure or hosted-service secrets.
+
+Do not publish real customer data through examples, fixtures, projections, or case logs.
+
+## Repository Map
+
+| Path | Purpose |
+| --- | --- |
+| `tools/advisorygraphen-cli` | `advisorygraphen` command-line binary. |
+| `crates/advisorygraphen-core` | Shared DTOs, IDs, validation, report envelopes, and error policy. |
+| `crates/advisorygraphen-lift` | Snapshot-to-space lift workflow. |
+| `crates/advisorygraphen-reasoning` | Invariant checks, obstructions, completions, and close status. |
+| `crates/advisorygraphen-projection` | Executive, developer, audit, and AI projections. |
+| `crates/advisorygraphen-runtime` | File workflows and local append-only case store. |
+| `schemas/advisorygraphen` | JSON schema contracts. |
+| `examples` | Synthetic advisory and dogfood fixtures. |
+| `skills/advisorygraphen` | Agent-facing operating guidance. |
+| `docs` | Product, domain, CLI, storage, security, and testing documentation. |
+| `adrs` | Architecture decision records. |
+
+See `MANIFEST.md` for the full document map.
+
+## Development
+
+Run the main local checks:
 
 ```sh
 cargo fmt --all --check
@@ -157,131 +224,23 @@ cargo check --workspace
 cargo clippy --workspace --all-targets
 cargo test --workspace
 cargo test --manifest-path tests/advisorygraphen-cli-acceptance/Cargo.toml
+```
+
+Release packaging check:
+
+```sh
 cargo package --workspace
 ```
 
-## Proposal promotion loop
+## More Documentation
 
-Follow-up observations are not primary recommendations. To promote a candidate,
-record the observation, review-gate the hypothesis outcome, then rerun case
-reasoning.
-
-```sh
-advisorygraphen observation record \
-  --store STORE \
-  --space-id SPACE_ID \
-  --from-projection AI_AGENT.json \
-  --task-id TASK_ID \
-  --result OBSERVATION_RESULT.json \
-  --reviewer REVIEWER \
-  --reason REASON \
-  --base-revision CASE_HEAD \
-  --format json
-```
-
-The observation report returns `result.promotion_gate.next_command` with the
-concrete evidence cell id and case head revision for `hypothesis support` or
-`hypothesis falsify`. After that review event, rerun:
-
-```sh
-advisorygraphen case reason --store STORE --space-id SPACE_ID --format json
-```
-
-Candidates derived from the supported hypothesis can then appear as primary
-recommendations instead of follow-up observations.
-
-## Dogfood example
-
-AdvisoryGraphen 自身の HigherGraphen 統合判断を、同じ `technical_advisory`
-パイプラインで検査する例を含めている。
-
-```sh
-advisorygraphen dogfood repo-snapshot \
-  --repo . \
-  --output /tmp/advisorygraphen-dogfood.input.json
-
-advisorygraphen lift \
-  --input /tmp/advisorygraphen-dogfood.input.json \
-  --package technical_advisory \
-  --output /tmp/advisorygraphen-dogfood.space.json
-
-advisorygraphen check \
-  --space /tmp/advisorygraphen-dogfood.space.json \
-  --ruleset technical_advisory_mvp \
-  --format json \
-  --output /tmp/advisorygraphen-dogfood.check.json
-
-advisorygraphen project \
-  --space /tmp/advisorygraphen-dogfood.space.json \
-  --report /tmp/advisorygraphen-dogfood.check.json \
-  --completions-report /tmp/advisorygraphen-dogfood.completions.json \
-  --audience ai_agent \
-  --format json \
-  --output /tmp/advisorygraphen-dogfood.agent.json
-
-advisorygraphen project \
-  --space /tmp/advisorygraphen-dogfood.space.json \
-  --report /tmp/advisorygraphen-dogfood.check.json \
-  --audience audit_trace \
-  --format json \
-  --output /tmp/advisorygraphen-dogfood.audit.json
-
-advisorygraphen case import \
-  --store /tmp/advisorygraphen-dogfood-store \
-  --space /tmp/advisorygraphen-dogfood.space.json \
-  --revision-id revision:dogfood-hg-1
-
-advisorygraphen case reason \
-  --store /tmp/advisorygraphen-dogfood-store \
-  --space-id space:advisory:dogfood-higher-graphen-integration
-```
-
-この例は、HG境界出力が受け入れテストで検証されていることと、
-`higher-graphen-runtime` 採用判断が post-MVP の未検証 follow-up であることを
-同じ構造モデル上で分離して扱う。
-
-`examples/dogfood/higher-graphen-integration/advisory.input.json` は、同じ構造を
-固定fixtureとして保持している。`dogfood repo-snapshot` は実repoファイルから
-bounded snapshotを再生成する。
-
-追加の高度なdogfood fixtureとして、次の自己レビュー領域も同じCLIパイプラインで
-検査する。
-
-- `examples/dogfood/product-governance/advisory.input.json`: MVPリリース、
-  hosted service、商用パッケージ境界の要求、検証、owner gapを扱う。
-- `examples/dogfood/agent-operations/advisory.input.json`: エージェント引き継ぎ、
-  case log、memory audit、prompt boundaryの運用不足を扱う。
-- `examples/dogfood/commercial-boundary/advisory.input.json`: OSS公開範囲、
-  customer data非混入、commercial rules exportのレビュー不足を扱う。
-
-これらは `validate -> lift -> check -> completions propose -> project audit_trace
--> project ai_agent -> case import/reason` まで受け入れテストで通し、HG由来の解釈、
-morphism、obstruction、completion candidate、projection、closeability、AI agent
-operation contractが残ることを確認する。
-
-## 採用する原則
-
-- 観測された入力は完全な真実ではない。
-- AI が作った構造は、明示レビューがない限り accepted fact ではない。
-- completion candidate は承認済み変更ではない。
-- projection は原則として lossy であり、何を省略・圧縮したかを明示する。
-- readiness、frontier、closeable は保存状態ではなく、case log から導出する。
-- 顧客固有データ、商用ルール、非公開評価データは公開リポジトリに入れない。
-
-## 含まれる成果物
-
-- プロダクト要求
-- ドメインモデル
-- Rust workspace / crate 境界
-- JSON schema 契約
-- source adapter 設計
-- invariant / obstruction / completion rule 設計
-- projection 契約
-- CLI 契約
-- AI agent skill
-- case log / storage 設計
-- security / governance
-- 実装ロードマップ
-- テスト戦略
-- ADR
-- 参照入力と期待レポート
+- `CHANGELOG.md`: release history.
+- `docs/00-product-charter.md`: product purpose, users, boundaries, and non-goals.
+- `docs/03-data-contracts.md`: JSON schema and report contracts.
+- `docs/05-reasoning-invariants.md`: invariant and obstruction policy.
+- `docs/06-completion-and-review-workflow.md`: completion candidate lifecycle.
+- `docs/07-projections.md`: projection contracts and projection loss.
+- `docs/08-cli-contract.md`: full CLI contract and exit code policy.
+- `docs/09-agent-integration-and-skill.md`: agent operation model.
+- `docs/10-storage-case-log.md`: append-only case log design.
+- `docs/11-security-governance.md`: data and projection governance.
