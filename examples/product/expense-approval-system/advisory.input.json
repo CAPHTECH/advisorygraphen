@@ -1,0 +1,856 @@
+{
+  "schema": "advisorygraphen.engagement.snapshot.v1",
+  "snapshot_id": "snapshot:product-expense-approval-system-req-def",
+  "engagement_id": "engagement:expense-approval-system-requirements",
+  "captured_at": "2026-05-20T00:00:00Z",
+  "source_boundary": {
+    "included_source_ids": [
+      "source:user-interview-notes",
+      "source:current-workflow-analysis",
+      "source:competitive-research",
+      "source:management-requirements"
+    ],
+    "excluded_summary": [
+      "実案件データは含まない。すべての記録は架空の企業を想定した合成フィクスチャである。",
+      "既存経費精算システムのソースコードおよびデータベース定義は含まない。",
+      "予算交渉記録および個人を特定できる発言は除外した。"
+    ],
+    "extraction_loss": [
+      "インタビュー発言は代表的な声に圧縮されており、全発言の網羅ではない。",
+      "As-Is分析の数値は架空データに基づく。実プロジェクトでは実測値で置き換えること。",
+      "競合調査の定量値はベンチマーク平均であり、個社の実態とは異なる場合がある。"
+    ],
+    "trust_notes": [
+      "要求定義フェーズの仮説検証シミュレーション用合成フィクスチャ。",
+      "架空企業（従業員500名規模、外勤比率20%）の経費精算システム刷新プロジェクトを想定。"
+    ],
+    "adapter_version": "json_snapshot:0.1.0"
+  },
+  "sources": [
+    {
+      "id": "source:user-interview-notes",
+      "source_type": "interview_notes",
+      "title": "ユーザーインタビュー議事録（5名）",
+      "uri": "docs/01-user-interview-notes.md",
+      "captured_at": "2026-04-11T00:00:00Z",
+      "classification": "internal",
+      "metadata": { "interviewee_count": 5, "roles": ["営業", "チームリーダー", "経理", "総務IT"] }
+    },
+    {
+      "id": "source:current-workflow-analysis",
+      "source_type": "business_analysis",
+      "title": "現行業務フロー・As-Is分析",
+      "uri": "docs/02-current-workflow-analysis.md",
+      "captured_at": "2026-03-31T00:00:00Z",
+      "classification": "internal",
+      "metadata": { "sample_size": 2340, "period_months": 12 }
+    },
+    {
+      "id": "source:competitive-research",
+      "source_type": "market_research",
+      "title": "競合調査・ベンチマーク",
+      "uri": "docs/03-competitive-research.md",
+      "captured_at": "2026-03-31T00:00:00Z",
+      "classification": "internal",
+      "metadata": { "products_surveyed": 4 }
+    },
+    {
+      "id": "source:management-requirements",
+      "source_type": "requirements_document",
+      "title": "経営・事業側の要望書（CFO承認）",
+      "uri": "docs/04-management-requirements.md",
+      "captured_at": "2026-03-28T00:00:00Z",
+      "classification": "internal",
+      "metadata": { "approved_by": "CFO" }
+    }
+  ],
+  "records": [
+    {
+      "id": "record:expense-approval-system",
+      "record_type": "component",
+      "title": "経費精算・承認システム（新規開発）",
+      "summary": "Excelと社内メールによる現行運用を置き換える社内業務システム。申請・承認・経理処理・会計連携を一元管理する。",
+      "source_ids": ["source:management-requirements"],
+      "context_hints": ["expense-management"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": { "component_type": "internal_system" }
+    },
+    {
+      "id": "record:dev-lead",
+      "record_type": "owner",
+      "title": "開発リード",
+      "summary": "システム開発の技術的判断と実装計画に責任を持つ。",
+      "source_ids": ["source:management-requirements"],
+      "context_hints": ["development"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": { "role": "engineering" }
+    },
+    {
+      "id": "record:management-planning",
+      "record_type": "owner",
+      "title": "経営管理室",
+      "summary": "CFOが承認した要望書の発行元。経営レポーティングおよびコンプライアンス施策のオーナー。",
+      "source_ids": ["source:management-requirements"],
+      "context_hints": ["governance"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": { "role": "management" }
+    },
+    {
+      "id": "record:req-proxy-approval",
+      "record_type": "requirement",
+      "title": "承認者不在時の代理承認機能",
+      "summary": "承認者が出張・休暇などで不在の場合、事前に指定した代理承認者が代わりに承認できる。代理設定・解除はセルフサービスで行える。",
+      "source_ids": ["source:user-interview-notes", "source:current-workflow-analysis"],
+      "context_hints": ["approval-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "high",
+        "require_verification": true,
+        "stakeholder_sources": ["interview", "as-is-data"]
+      }
+    },
+    {
+      "id": "record:req-approval-speed",
+      "record_type": "requirement",
+      "title": "承認リードタイムを5日から1日以内に短縮",
+      "summary": "申請から最終承認完了までの中央値を現行5.0日から1.0日以内に改善する。KPI測定のためにタイムスタンプをシステムで記録する。",
+      "source_ids": ["source:current-workflow-analysis", "source:management-requirements"],
+      "context_hints": ["approval-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "high",
+        "require_verification": true,
+        "current_value": "5.0日",
+        "target_value": "1.0日以内"
+      }
+    },
+    {
+      "id": "record:req-mobile-app",
+      "record_type": "requirement",
+      "title": "モバイルアプリによる経費申請",
+      "summary": "iOS/Androidアプリから経費申請・添付・承認を行える。外出先や現場でタイムリーに申請できることで申請遅延・漏れを減らすことを目的とする。",
+      "source_ids": ["source:user-interview-notes", "source:competitive-research"],
+      "context_hints": ["mobile", "expense-management"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.7,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "medium",
+        "require_verification": true,
+        "note": "外勤比率20%の組織での投資対効果は未検証"
+      }
+    },
+    {
+      "id": "record:req-ocr-receipt",
+      "record_type": "requirement",
+      "title": "OCRによるレシート自動入力",
+      "summary": "レシートを撮影またはスキャンすると、ベンダー名・日付・金額が自動入力される。入力ミスおよび差し戻し率の削減を目的とする。",
+      "source_ids": ["source:competitive-research", "source:user-interview-notes"],
+      "context_hints": ["expense-management"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.8,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "medium",
+        "require_verification": true,
+        "note": "差し戻しの主因が領収書紛失か入力ミスかによって効果が変わる"
+      }
+    },
+    {
+      "id": "record:req-realtime-dashboard",
+      "record_type": "requirement",
+      "title": "リアルタイム支出ダッシュボード",
+      "summary": "部門別・カテゴリ別の支出をリアルタイムで可視化するダッシュボード。異常値の自動フラグ機能を含む。週次・日次ビューに対応する。",
+      "source_ids": ["source:management-requirements"],
+      "context_hints": ["governance", "reporting"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.75,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "medium",
+        "require_verification": true,
+        "note": "経営側の要望だが、現場・経理ユーザーからの言及は少ない"
+      }
+    },
+    {
+      "id": "record:hyp-approval-delay-cause-absence",
+      "record_type": "hypothesis",
+      "title": "承認遅延の主因は承認者の物理的不在である",
+      "summary": "承認待ち3.5日のうち60%は承認者が出張・外出中の期間に発生している。代理承認機能によって承認者不在時の滞留を解消すれば、承認リードタイムは大幅に改善する。",
+      "source_ids": ["source:current-workflow-analysis", "source:user-interview-notes"],
+      "context_hints": ["approval-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.95,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "hypothesis_status": "strongly_supported",
+        "expected_observations": [
+          "承認待ち3.5日のうち2.1日分が承認者不在期間に集中している",
+          "承認者在席日の承認待ちは1.1日にとどまる"
+        ],
+        "falsifiers": [
+          "承認者が社内にいる日でも3日以上の承認待ちが多数発生している",
+          "代理承認が可能な環境でも承認遅延が解消されないケースが多い"
+        ]
+      }
+    },
+    {
+      "id": "record:hyp-approval-delay-cause-process",
+      "record_type": "hypothesis",
+      "title": "承認遅延の主因は多段階承認プロセスの複雑さである",
+      "summary": "承認フローの段数が多いことが全体の滞留を生んでいる。プロセスをフラット化（承認段数を削減）することで承認速度が改善する。",
+      "source_ids": ["source:current-workflow-analysis"],
+      "context_hints": ["approval-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.45,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "hypothesis_status": "candidate",
+        "expected_observations": [
+          "単段階承認と多段階承認で承認待ち時間に大きな差がある",
+          "プロセス段数の削減が承認速度の改善に直結する"
+        ],
+        "falsifiers": [
+          "単段階と多段階で承認待ち時間の差がほとんどない（As-Is分析で0.3日差のみ）",
+          "データが承認者不在が主因であることを指示している"
+        ]
+      }
+    },
+    {
+      "id": "record:hyp-mobile-increases-adoption",
+      "record_type": "hypothesis",
+      "title": "モバイルアプリにより申請タイムラグと漏れが減少する",
+      "summary": "外出先でその場で申請できる環境を提供することで、月末まとめ申請がなくなり申請タイムラグと漏れ率が改善する。",
+      "source_ids": ["source:user-interview-notes", "source:competitive-research"],
+      "context_hints": ["mobile", "expense-management"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.55,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "hypothesis_status": "candidate",
+        "expected_observations": [
+          "モバイル導入後に申請から領収書発行当日の申請率が上昇する",
+          "外勤ユーザーを中心にモバイルアプリの利用率が60%以上になる"
+        ],
+        "falsifiers": [
+          "外勤比率20%の組織でモバイル採用率が低く、投資対効果が出ない",
+          "PCでも申請できる状況でモバイルを選ぶユーザーが少ない（競合調査での内勤採用率12%）"
+        ]
+      }
+    },
+    {
+      "id": "record:hyp-ocr-reduces-resubmission",
+      "record_type": "hypothesis",
+      "title": "OCR入力補助が差し戻し率を削減する",
+      "summary": "レシートスキャンによる自動入力が金額・日付の転記ミスを排除し、添付ミス起因の差し戻しも減少する。",
+      "source_ids": ["source:competitive-research", "source:user-interview-notes"],
+      "context_hints": ["expense-management"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.7,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "hypothesis_status": "plausible_secondary",
+        "expected_observations": [
+          "競合製品でOCR導入後に差し戻し率が43%減少した実績がある",
+          "入力ミス（転記ミス）は差し戻し原因の31%を占める"
+        ],
+        "falsifiers": [
+          "差し戻しの主因（47%）は領収書添付漏れであり、OCRは紛失そのものを防げない",
+          "当社の差し戻しパターンが競合調査のベンチマークと異なる可能性がある"
+        ]
+      }
+    },
+    {
+      "id": "record:hyp-realtime-visibility-prevents-fraud",
+      "record_type": "hypothesis",
+      "title": "リアルタイム支出可視化が不正・異常支出を抑制する",
+      "summary": "日次・週次でのダッシュボード確認により、通常時との差分が可視化され不正や申請ミスの早期発見が可能になる。",
+      "source_ids": ["source:management-requirements"],
+      "context_hints": ["governance", "reporting"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.5,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "hypothesis_status": "candidate",
+        "expected_observations": [
+          "ダッシュボード導入後に不正・異常支出の検出件数が増加する",
+          "月次から週次への監視頻度向上でインシデント対応速度が改善する"
+        ],
+        "falsifiers": [
+          "現状でも不正件数が極めて少なく（Excelでも検出できている）、リアルタイム化の追加効果が小さい",
+          "管理職がダッシュボードを定期確認する運用が定着しない"
+        ]
+      }
+    },
+    {
+      "id": "record:test-as-is-bottleneck-data",
+      "record_type": "test",
+      "title": "As-Is分析：承認ボトルネックの実測データ",
+      "summary": "過去12ヶ月2,340件の申請記録を分析。承認待ち3.5日の内訳として承認者不在期間が60%（2.1日）を占めることをデータで確認。在席時の承認待ちは1.1日。",
+      "source_ids": ["source:current-workflow-analysis"],
+      "context_hints": ["approval-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "test_type": "data_analysis",
+        "sample_size": 2340,
+        "finding": "承認者不在が承認待ちの60%を説明する"
+      }
+    },
+    {
+      "id": "record:test-user-interview-synthesis",
+      "record_type": "test",
+      "title": "ユーザーインタビュー：承認遅延と代理承認ニーズの確認",
+      "summary": "5名中3名が承認者不在による遅延を最大の課題として言及。チームリーダーC氏（承認者側）は「出張中の代替手段がない」と強く訴えた。代理承認ニーズは申請者・承認者双方から確認された。",
+      "source_ids": ["source:user-interview-notes"],
+      "context_hints": ["approval-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "test_type": "qualitative_research",
+        "mention_count": 3,
+        "finding": "承認者不在への対応ニーズは申請者・承認者双方から確認済み"
+      }
+    },
+    {
+      "id": "record:test-competitive-ocr-benchmark",
+      "record_type": "test",
+      "title": "競合調査：OCR導入効果のベンチマーク",
+      "summary": "複数の競合製品における導入前後比較。OCR導入により差し戻し率43%減・申請入力時間63%減の実績あり。ただし紛失には効果なく、効果は入力補助に限定される。",
+      "source_ids": ["source:competitive-research"],
+      "context_hints": ["expense-management"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.85,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "test_type": "benchmark",
+        "finding": "OCRは入力ミスによる差し戻しを削減するが、領収書紛失は対象外"
+      }
+    },
+    {
+      "id": "record:action-implement-proxy-approval",
+      "record_type": "action",
+      "title": "代理承認機能の設計・実装",
+      "summary": "承認者が不在設定（出張・休暇）をすると、事前に指定した代理承認者に承認権限が一時委譲されるワークフローを実装する。代理設定のUI・通知・監査ログを含む。",
+      "source_ids": ["source:user-interview-notes", "source:current-workflow-analysis"],
+      "context_hints": ["approval-workflow", "development"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.95,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "priority": "P2",
+        "required_verification": "代理承認機能導入後の承認リードタイム中央値が1.5日以内であることをパイロット測定で確認"
+      }
+    },
+    {
+      "id": "record:action-build-mobile-app",
+      "record_type": "action",
+      "title": "iOS/Android モバイルアプリの開発",
+      "summary": "経費申請・領収書添付・承認ができるモバイルアプリを開発する。外勤社員のタイムリー申請を促進し、申請漏れを削減することを目的とする。",
+      "source_ids": ["source:user-interview-notes", "source:competitive-research"],
+      "context_hints": ["mobile", "development"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.6,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "priority": "P2",
+        "note": "外勤比率20%の組織での投資対効果が未検証のまま開発を進めるリスクがある"
+      }
+    },
+    {
+      "id": "record:action-implement-ocr",
+      "record_type": "action",
+      "title": "OCRレシートスキャン機能の実装",
+      "summary": "レシート画像からベンダー名・日付・金額を抽出する OCR 機能を実装する。競合製品と同等の差し戻し削減効果を目指す。",
+      "source_ids": ["source:competitive-research"],
+      "context_hints": ["expense-management", "development"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.75,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "priority": "P2",
+        "required_verification": "OCR導入後の差し戻し率が現行14%から10%以下に改善されることをパイロット測定で確認"
+      }
+    },
+    {
+      "id": "record:action-build-realtime-dashboard",
+      "record_type": "action",
+      "title": "リアルタイム支出ダッシュボードの開発",
+      "summary": "部門別・カテゴリ別の支出をリアルタイムで可視化するダッシュボードを開発する。異常値フラグ機能と週次・日次ビューを含む。",
+      "source_ids": ["source:management-requirements"],
+      "context_hints": ["governance", "reporting", "development"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.6,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "priority": "P2",
+        "required_verification": "ダッシュボード導入後3ヶ月以内に管理職による週次確認が定着していることを利用ログで確認"
+      }
+    },
+    {
+      "id": "record:as-is-verifies-req-proxy-approval",
+      "record_type": "verification_relation",
+      "title": "As-Is分析が代理承認要求を検証",
+      "summary": "承認者不在が承認遅延の60%を占めるというデータが、代理承認機能の必要性を裏付ける。",
+      "source_ids": ["source:current-workflow-analysis"],
+      "context_hints": ["approval-workflow"],
+      "relation": {
+        "relation_type": "verifies",
+        "from_record_id": "record:test-as-is-bottleneck-data",
+        "to_record_id": "record:req-proxy-approval"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:as-is-verifies-req-approval-speed",
+      "record_type": "verification_relation",
+      "title": "As-Is分析が承認スピード要求を検証",
+      "summary": "現状5.0日というデータが目標設定（1日以内）の根拠となり、要求の測定可能性を確保する。",
+      "source_ids": ["source:current-workflow-analysis"],
+      "context_hints": ["approval-workflow"],
+      "relation": {
+        "relation_type": "verifies",
+        "from_record_id": "record:test-as-is-bottleneck-data",
+        "to_record_id": "record:req-approval-speed"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:interview-verifies-req-proxy-approval",
+      "record_type": "verification_relation",
+      "title": "インタビューが代理承認要求を検証",
+      "summary": "申請者・承認者双方から代理承認ニーズが確認されており、要求が現場の実態に即していることを質的に検証する。",
+      "source_ids": ["source:user-interview-notes"],
+      "context_hints": ["approval-workflow"],
+      "relation": {
+        "relation_type": "verifies",
+        "from_record_id": "record:test-user-interview-synthesis",
+        "to_record_id": "record:req-proxy-approval"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:as-is-supports-absence-hypothesis",
+      "record_type": "evidence_relation",
+      "title": "As-Is分析が不在仮説を支持",
+      "summary": "実測データが承認者不在を承認遅延の主因として指示している。",
+      "source_ids": ["source:current-workflow-analysis"],
+      "context_hints": ["approval-workflow"],
+      "relation": {
+        "relation_type": "supports",
+        "from_record_id": "record:test-as-is-bottleneck-data",
+        "to_record_id": "record:hyp-approval-delay-cause-absence"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:interview-supports-absence-hypothesis",
+      "record_type": "evidence_relation",
+      "title": "インタビューが不在仮説を支持",
+      "summary": "インタビューでの発言が承認者不在による遅延を定性的に裏付けている。",
+      "source_ids": ["source:user-interview-notes"],
+      "context_hints": ["approval-workflow"],
+      "relation": {
+        "relation_type": "supports",
+        "from_record_id": "record:test-user-interview-synthesis",
+        "to_record_id": "record:hyp-approval-delay-cause-absence"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.9,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:competitive-supports-ocr-hypothesis",
+      "record_type": "evidence_relation",
+      "title": "競合ベンチマークがOCR仮説を支持",
+      "summary": "複数競合製品でOCR導入後に差し戻し率43%減の実績があり、OCRの効果を定量的に裏付ける。ただし紛失には効果がないという限定も含む。",
+      "source_ids": ["source:competitive-research"],
+      "context_hints": ["expense-management"],
+      "relation": {
+        "relation_type": "supports",
+        "from_record_id": "record:test-competitive-ocr-benchmark",
+        "to_record_id": "record:hyp-ocr-reduces-resubmission"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.85,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:absence-hyp-competes-process-hyp",
+      "record_type": "competition_relation",
+      "title": "不在仮説とプロセス複雑性仮説が競合",
+      "summary": "「遅延の主因は不在か？プロセス段数か？」という問いに対する競合する2つの仮説。As-Is分析データが不在仮説を支持し、プロセス仮説への対抗証拠となっている。",
+      "source_ids": ["source:current-workflow-analysis"],
+      "context_hints": ["approval-workflow"],
+      "relation": {
+        "relation_type": "competes_with",
+        "from_record_id": "record:hyp-approval-delay-cause-absence",
+        "to_record_id": "record:hyp-approval-delay-cause-process"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:dev-lead-owns-proxy-approval-action",
+      "record_type": "ownership_relation",
+      "title": "開発リードが代理承認アクションを所有",
+      "summary": "代理承認機能の実装責任者は開発リード。",
+      "source_ids": ["source:management-requirements"],
+      "context_hints": ["development"],
+      "relation": {
+        "relation_type": "owns",
+        "from_record_id": "record:dev-lead",
+        "to_record_id": "record:action-implement-proxy-approval"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:dev-lead-owns-ocr-action",
+      "record_type": "ownership_relation",
+      "title": "開発リードがOCRアクションを所有",
+      "summary": "OCR機能の実装責任者は開発リード。",
+      "source_ids": ["source:management-requirements"],
+      "context_hints": ["development"],
+      "relation": {
+        "relation_type": "owns",
+        "from_record_id": "record:dev-lead",
+        "to_record_id": "record:action-implement-ocr"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:management-owns-dashboard-action",
+      "record_type": "ownership_relation",
+      "title": "経営管理室がダッシュボードアクションを所有",
+      "summary": "リアルタイムダッシュボードは経営側の要求に基づく機能であり、経営管理室が要件定義と受け入れテストのオーナー。",
+      "source_ids": ["source:management-requirements"],
+      "context_hints": ["governance"],
+      "relation": {
+        "relation_type": "owns",
+        "from_record_id": "record:management-planning",
+        "to_record_id": "record:action-build-realtime-dashboard"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:action-proxy-derives-from-absence-hyp",
+      "record_type": "derivation_relation",
+      "title": "代理承認アクションが不在仮説から派生",
+      "summary": "承認遅延の主因が承認者不在であるという強く支持された仮説から、代理承認機能の実装が導かれる。",
+      "source_ids": ["source:current-workflow-analysis"],
+      "context_hints": ["approval-workflow"],
+      "relation": {
+        "relation_type": "derives_from",
+        "from_record_id": "record:action-implement-proxy-approval",
+        "to_record_id": "record:hyp-approval-delay-cause-absence"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.95,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:action-mobile-derives-from-mobile-hyp",
+      "record_type": "derivation_relation",
+      "title": "モバイルアプリアクションがモバイル仮説から派生",
+      "summary": "モバイル対応で申請タイムラグが減少するという候補仮説（未支持）からモバイルアプリ開発が導かれている。仮説はまだ証拠で支持されていない。",
+      "source_ids": ["source:user-interview-notes"],
+      "context_hints": ["mobile"],
+      "relation": {
+        "relation_type": "derives_from",
+        "from_record_id": "record:action-build-mobile-app",
+        "to_record_id": "record:hyp-mobile-increases-adoption"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.6,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:action-ocr-derives-from-ocr-hyp",
+      "record_type": "derivation_relation",
+      "title": "OCRアクションがOCR仮説から派生",
+      "summary": "競合ベンチマークで部分的に支持されたOCR差し戻し削減仮説からOCR機能実装が導かれる。",
+      "source_ids": ["source:competitive-research"],
+      "context_hints": ["expense-management"],
+      "relation": {
+        "relation_type": "derives_from",
+        "from_record_id": "record:action-implement-ocr",
+        "to_record_id": "record:hyp-ocr-reduces-resubmission"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.75,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:action-dashboard-derives-from-visibility-hyp",
+      "record_type": "derivation_relation",
+      "title": "ダッシュボードアクションが可視化仮説から派生",
+      "summary": "リアルタイム可視化が不正抑止に効果があるという候補仮説（未支持）からダッシュボード開発が導かれている。仮説はまだ証拠で支持されていない。",
+      "source_ids": ["source:management-requirements"],
+      "context_hints": ["governance"],
+      "relation": {
+        "relation_type": "derives_from",
+        "from_record_id": "record:action-build-realtime-dashboard",
+        "to_record_id": "record:hyp-realtime-visibility-prevents-fraud"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.55,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:decision-proxy-approval-confirmed",
+      "record_type": "claim",
+      "title": "決定：代理承認機能をPhase 1必須機能として実装確定",
+      "summary": "As-Is実測データ（承認待ち3.5日の60%が承認者不在起因）およびインタビュー5名中3名からの直接ニーズ確認により、「承認遅延の主因は承認者不在」仮説が強く支持された。競合仮説（プロセス複雑性）はデータ上有意差なし（段数差0.3日）として棄却。代理承認機能を初回リリースの必須スコープとして確定する。受け入れ基準：代理承認導入後の承認リードタイム中央値が1.5日以内（パイロット3ヶ月以内に測定）。",
+      "source_ids": ["source:current-workflow-analysis", "source:user-interview-notes"],
+      "context_hints": ["approval-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.95,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "decision_type": "go",
+        "phase": "phase-1",
+        "rationale": "strongly_supported_by_data_and_interview",
+        "competing_hypothesis_status": "棄却：プロセス複雑性仮説はデータで否定（段数差0.3日）",
+        "acceptance_criterion": "承認リードタイム中央値 ≤ 1.5日（パイロット3ヶ月以内に測定）"
+      }
+    },
+    {
+      "id": "record:decision-ocr-conditional-go",
+      "record_type": "claim",
+      "title": "決定：OCR機能を条件付きで実装確定（差し戻し削減効果の実測義務あり）",
+      "summary": "競合ベンチマーク（差し戻し率43%減・入力時間63%減）を根拠に実装を確定する。ただし、当社の差し戻し主因は領収書紛失（47%）であり OCR では解決できない。実装後に当社環境での実際の差し戻し削減率をパイロット測定し、目標値（現行14%→10%以下）に達しない場合は追加施策（申請フォーム改善・紛失防止運用）を別途検討する。OCR 効果の前提は「入力ミス削減」に限定されることを関係者に共有する。",
+      "source_ids": ["source:competitive-research", "source:user-interview-notes"],
+      "context_hints": ["expense-management"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.8,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "decision_type": "conditional_go",
+        "phase": "phase-1",
+        "rationale": "plausible_secondary_hypothesis_backed_by_competitive_benchmark",
+        "condition": "パイロット測定で差し戻し率 ≤ 10% を確認すること",
+        "risk": "差し戻し主因47%（領収書紛失）はOCRの効果範囲外。効果が限定的になる可能性がある"
+      }
+    },
+    {
+      "id": "record:decision-mobile-app-deferred",
+      "record_type": "claim",
+      "title": "決定：モバイルアプリ開発を保留。外勤利用意向調査を先行実施",
+      "summary": "「モバイルで申請タイムラグが減少する」仮説は証拠未支持のまま。競合外勤採用率68%のデータは当社（外勤比率20%）に直接適用できない。インタビューでも意向が分かれた（積極的2名・消極的1名）。開発前に外勤社員を対象とした利用意向調査（目標50名以上）を実施し、採用率見込みと定量的な投資対効果を算出してから開発可否を再判断する。モバイル予算はその結果が出るまで凍結する。",
+      "source_ids": ["source:user-interview-notes", "source:competitive-research"],
+      "context_hints": ["mobile", "expense-management"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.9,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "decision_type": "deferred",
+        "rationale": "candidate_hypothesis_investment_risk_exceeds_current_evidence",
+        "precondition": "外勤社員50名以上への利用意向調査で採用率見込み50%以上かつROI試算が黒字",
+        "risk": "外勤比率20%の組織では競合事例の投資対効果が再現しない可能性"
+      }
+    },
+    {
+      "id": "record:decision-dashboard-deferred",
+      "record_type": "claim",
+      "title": "決定：リアルタイムダッシュボード本格開発を保留。パイロット計画を先行",
+      "summary": "「リアルタイム可視化が不正抑止に効く」仮説は経営要望書のみに由来し、現場・経理ユーザーからの言及がない。現状の不正発生件数や異常支出の実態も未測定であり、解くべき問題の大きさが不明。経営管理室と協議のうえ3ヶ月のパイロット計画を先行させる。既存データを後付け分析し週次確認の定着可能性と検出件数見込みを確認してから本格開発の要否を再判断する。",
+      "source_ids": ["source:management-requirements"],
+      "context_hints": ["governance", "reporting"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.85,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "decision_type": "deferred",
+        "rationale": "candidate_hypothesis_management_only_problem_size_unknown",
+        "precondition": "3ヶ月パイロット後に不正・異常支出の現状実態が定量化され、管理職週次確認の定着率50%以上が見込める",
+        "risk": "問題の実態が想定より小さい場合、開発コストに見合う効果が出ない"
+      }
+    }
+  ],
+  "metadata": {
+    "fixture": true,
+    "synthetic": true,
+    "domain": "requirement-hypothesis-validation",
+    "industry": "internal-business-system",
+    "purpose": "要求定義フェーズにおける仮説検証シミュレーション。架空企業の経費精算システム刷新プロジェクトを題材に、証拠に支持された要求と未検証の要求を構造的に分離する。"
+  }
+}

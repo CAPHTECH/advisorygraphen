@@ -82,6 +82,79 @@ one bounded problem -> multiple competing hypotheses -> observations/falsifiers
     them, or an explicit conservative policy allows an automated lifecycle
     event.
 
+## Requirements definition workflow
+
+Use this method when the task starts from existing documents (interviews, workflow
+analysis, competitive research, stakeholder requirements) rather than from code or
+architecture. The goal is to derive a validated `advisory.input.json` from
+unstructured sources before running the lift → check pipeline.
+
+### 1. Hypothesis extraction from source documents
+
+Read each source document with these questions:
+
+- What causal claims does this document make? ("X is caused by Y")
+- What assumptions does the proposed solution depend on?
+- What would have to be true for this recommendation to fail?
+
+For each load-bearing claim, write a falsifiable hypothesis with
+`record_type: "hypothesis_seed"`, including `expected_observations` and
+`falsifiers`. Do not record conclusions as hypotheses — a conclusion has no
+falsifier.
+
+Prioritise hypotheses that are directly load-bearing for a proposed action, are
+disputed between sources, or have never been measured.
+
+### 2. Contradiction detection as competing hypothesis seed
+
+When two sources disagree on a claim, treat the disagreement as a competing
+hypothesis pair rather than resolving it editorially.
+
+Example: management document says "mobile is low priority"; interview data says
+"2/5 users want mobile"; competitive benchmark says "mobile adoption is low for
+office workers." Do not pick one. Generate the hypothesis and its competitor,
+link them with `relation_type: "competes_with"`, and let hypothesis classification
+decide.
+
+Do not resolve source contradictions by choosing one source. Both sides belong in
+the snapshot.
+
+### 3. Requirements as verification contracts
+
+Record each in-scope feature as `record_type: "requirement"` with
+`require_verification: true`. AdvisoryGraphen emits `requirement_unverified` for
+any requirement without a `verifies` or `implements` incidence. In requirements
+definition, the "test" is the measurement plan or KPI — record it as
+`record_type: "test_or_verification"` and link it with a `verifies` relation.
+
+Treat `proposal_derived_from_unsupported_hypothesis` as a scope risk signal: the
+proposed feature has no validated need. Do not suppress it; surface it to the
+stakeholder.
+
+### 4. Decision recording
+
+When requirements definition produces a go/no-go decision, record it as
+`record_type: "claim"` with `metadata.decision_type`. Decisions are human
+judgments, not tool outputs — `claim` cells are intentionally excluded from
+obstruction checking and projection views.
+
+```json
+{
+  "id": "record:decision-...",
+  "record_type": "claim",
+  "metadata": {
+    "decision_type": "go | conditional_go | deferred | rejected",
+    "phase": "phase-1",
+    "rationale": "...",
+    "acceptance_criterion": "..."
+  }
+}
+```
+
+Do not record a `go` decision until the relevant hypothesis is classified as
+`supported` or stronger. A `go` on a `candidate` hypothesis is a premature
+decision, not a structured conclusion.
+
 ## Problem-driven hypothesis method
 
 Use this method whenever the user asks for diagnosis, investigation, quality

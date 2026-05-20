@@ -1,0 +1,521 @@
+{
+  "schema": "advisorygraphen.engagement.snapshot.v1",
+  "snapshot_id": "snapshot:dogfood-requirement-hypothesis-validation",
+  "engagement_id": "engagement:advisorygraphen-self-review",
+  "captured_at": "2026-05-20T00:00:00Z",
+  "source_boundary": {
+    "included_source_ids": [
+      "source:requirements-draft",
+      "source:dogfood-run-2026-05-04",
+      "source:advisor-usability-notes"
+    ],
+    "excluded_summary": [
+      "Implementation code and test results from the completed hypothesis layer are excluded.",
+      "GitHub issue discussions and private planning notes are excluded."
+    ],
+    "extraction_loss": [
+      "Requirements are represented as structured records; prose rationale is compressed.",
+      "Dogfood run results are captured as a single test record; the full obstruction frequency table is not replicated.",
+      "Usability notes are compressed into a single evidence source; individual observer sessions are not listed."
+    ],
+    "trust_notes": [
+      "Synthetic dogfood fixture for hypothesis validation in requirements definition.",
+      "The engagement subject is AdvisoryGraphen's own hypothesis-first workflow feature requirements."
+    ],
+    "adapter_version": "json_snapshot:0.1.0"
+  },
+  "sources": [
+    {
+      "id": "source:requirements-draft",
+      "source_type": "repository_documentation",
+      "title": "Hypothesis-first workflow feature requirements draft",
+      "uri": null,
+      "captured_at": "2026-05-10T00:00:00Z",
+      "classification": "public",
+      "metadata": { "repository": "CAPHTECH/advisorygraphen" }
+    },
+    {
+      "id": "source:dogfood-run-2026-05-04",
+      "source_type": "test_result",
+      "title": "Dogfood run results 2026-05-04 (docs/19-hypothesis-dogfood-findings.md)",
+      "uri": "docs/19-hypothesis-dogfood-findings.md",
+      "captured_at": "2026-05-04T00:00:00Z",
+      "classification": "public",
+      "metadata": { "repository": "CAPHTECH/advisorygraphen" }
+    },
+    {
+      "id": "source:advisor-usability-notes",
+      "source_type": "interview_notes",
+      "title": "Internal advisor usability session notes",
+      "uri": null,
+      "captured_at": "2026-05-15T00:00:00Z",
+      "classification": "internal",
+      "metadata": {}
+    }
+  ],
+  "records": [
+    {
+      "id": "record:hypothesis-layer",
+      "record_type": "component",
+      "title": "Hypothesis Layer",
+      "summary": "Feature that adds hypothesis cells, lifecycle commands, and proposal-trace invariants to AdvisoryGraphen.",
+      "source_ids": ["source:requirements-draft"],
+      "context_hints": ["hypothesis-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": { "component_type": "feature" }
+    },
+    {
+      "id": "record:dogfood-corpus",
+      "record_type": "component",
+      "title": "Dogfood Fixture Corpus",
+      "summary": "Set of synthetic AdvisoryGraphen fixtures used to validate the tool against its own advisory outputs.",
+      "source_ids": ["source:dogfood-run-2026-05-04"],
+      "context_hints": ["dogfood"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": { "component_type": "test_corpus" }
+    },
+    {
+      "id": "record:product-lead",
+      "record_type": "owner",
+      "title": "Product Lead",
+      "summary": "Accountable for AdvisoryGraphen product scope and requirements decisions.",
+      "source_ids": ["source:requirements-draft"],
+      "context_hints": ["requirements-definition"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": { "role": "product" }
+    },
+    {
+      "id": "record:req-competing-hypotheses-output",
+      "record_type": "requirement",
+      "title": "Check report must output competing hypotheses per obstruction",
+      "summary": "For each obstruction in a check report, the system must emit the set of competing hypotheses that could explain it, including the primary hypothesis and alternatives.",
+      "source_ids": ["source:requirements-draft"],
+      "context_hints": ["hypothesis-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "high",
+        "require_verification": true
+      }
+    },
+    {
+      "id": "record:req-lifecycle-commands",
+      "record_type": "requirement",
+      "title": "CLI must support symmetric hypothesis lifecycle commands",
+      "summary": "The CLI must provide hypothesis support, falsify, accept, and reject commands so advisors can move hypotheses through their review lifecycle from the terminal.",
+      "source_ids": ["source:requirements-draft"],
+      "context_hints": ["hypothesis-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.85,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "medium",
+        "require_verification": true
+      }
+    },
+    {
+      "id": "record:req-derivation-tracing",
+      "record_type": "requirement",
+      "title": "Actions must be traceable to source hypotheses",
+      "summary": "Each action in a developer_action projection must include the hypothesis that motivated it, so advisors and reviewers can audit the reasoning chain from observation to recommendation.",
+      "source_ids": ["source:requirements-draft"],
+      "context_hints": ["hypothesis-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.8,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "medium",
+        "require_verification": true
+      }
+    },
+    {
+      "id": "record:hyp-owner-gap-primary",
+      "record_type": "hypothesis",
+      "title": "Missing-owner obstructions are the primary advisory signal in practice",
+      "summary": "Real advisory engagements most frequently produce missing_owner obstructions, not boundary_violation. Coverage should prioritise ownership gap hypotheses over architectural boundary hypotheses.",
+      "source_ids": ["source:dogfood-run-2026-05-04"],
+      "context_hints": ["hypothesis-workflow", "dogfood"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.95,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "hypothesis_status": "strongly_supported",
+        "expected_observations": [
+          "missing_owner obstructions appear in every real dogfood fixture",
+          "boundary_violation appears only in the synthetic direct-db-access fixture"
+        ],
+        "falsifiers": [
+          "boundary_violation obstructions appear in non-synthetic real-engagement fixtures",
+          "missing_owner frequency drops in mature organisations with explicit ownership policies"
+        ]
+      }
+    },
+    {
+      "id": "record:hyp-boundary-gap-dormant",
+      "record_type": "hypothesis",
+      "title": "Boundary-violation obstructions are the primary advisory signal in practice",
+      "summary": "Architectural boundary violations drive the most advisory findings. Cross-context database access is a common antipattern that the hypothesis layer should address first.",
+      "source_ids": ["source:requirements-draft"],
+      "context_hints": ["hypothesis-workflow", "dogfood"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.6,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "hypothesis_status": "falsified",
+        "expected_observations": [
+          "boundary_violation obstructions appear in real customer engagement snapshots",
+          "direct database access antipattern is observable in non-synthetic fixtures"
+        ],
+        "falsifiers": [
+          "dogfood corpus shows boundary_violation only in one synthetic fixture",
+          "real dogfood fixtures emit missing_owner and requirement_unverified, not boundary_violation"
+        ]
+      }
+    },
+    {
+      "id": "record:hyp-lifecycle-symmetry-needed",
+      "record_type": "hypothesis",
+      "title": "Advisors need symmetric lifecycle commands to complete hypothesis reviews",
+      "summary": "Without a CLI for hypothesis support/falsify/accept/reject, advisors cannot close the hypothesis review loop without workarounds. Lifecycle symmetry is required for practical adoption.",
+      "source_ids": ["source:advisor-usability-notes"],
+      "context_hints": ["hypothesis-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.65,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "hypothesis_status": "candidate",
+        "expected_observations": [
+          "advisors ask for lifecycle commands in usability sessions",
+          "review sessions stall without a clear command for recording hypothesis outcomes"
+        ],
+        "falsifiers": [
+          "advisors complete full hypothesis reviews using only completions accept/reject",
+          "lifecycle commands remain unused after introduction in follow-up sessions"
+        ]
+      }
+    },
+    {
+      "id": "record:test-dogfood-frequency-analysis",
+      "record_type": "test",
+      "title": "Dogfood obstruction frequency analysis",
+      "summary": "Run lift and check across all dogfood fixtures; record obstruction types and hypothesis emission counts. The result table in docs/19 is the authoritative evidence.",
+      "source_ids": ["source:dogfood-run-2026-05-04"],
+      "context_hints": ["dogfood", "hypothesis-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "test_type": "acceptance",
+        "verification_method": "run all dogfood fixtures through lift + check and inspect obstruction frequency table"
+      }
+    },
+    {
+      "id": "record:test-cli-acceptance-hypothesis-commands",
+      "record_type": "test",
+      "title": "CLI acceptance tests for hypothesis lifecycle commands",
+      "summary": "End-to-end acceptance tests verifying that hypothesis support, falsify, accept, and reject commands produce correct review events and project outputs.",
+      "source_ids": ["source:requirements-draft"],
+      "context_hints": ["hypothesis-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.9,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "test_type": "acceptance",
+        "maturity": "planned"
+      }
+    },
+    {
+      "id": "record:action-implement-missing-owner-hypothesis",
+      "record_type": "action",
+      "title": "Implement hypothesis generation for missing-owner obstructions",
+      "summary": "Add competing hypotheses and falsifiers for missing_owner obstructions to the check report. The primary hypothesis is that the owner is unassigned because no team currently holds the action.",
+      "source_ids": ["source:requirements-draft"],
+      "context_hints": ["hypothesis-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.9,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "priority": "P2",
+        "required_verification": "dogfood fixtures that previously emitted missing_owner obstructions now emit 3 competing hypotheses each"
+      }
+    },
+    {
+      "id": "record:action-implement-lifecycle-commands",
+      "record_type": "action",
+      "title": "Implement hypothesis lifecycle CLI commands",
+      "summary": "Add hypothesis support, falsify, accept, and reject commands to the CLI. Commands must append review events to the case log and update hypothesis lifecycle status.",
+      "source_ids": ["source:requirements-draft"],
+      "context_hints": ["hypothesis-workflow"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.75,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "priority": "P2"
+      }
+    },
+    {
+      "id": "record:action-run-advisor-usability-study",
+      "record_type": "action",
+      "title": "Run advisor usability study for hypothesis review workflow",
+      "summary": "Conduct structured usability sessions with 3+ advisors to observe whether hypothesis lifecycle commands are adopted or bypassed. Use findings to falsify or support the lifecycle-symmetry hypothesis.",
+      "source_ids": ["source:advisor-usability-notes"],
+      "context_hints": ["requirements-definition"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.7,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "priority": "P2",
+        "required_verification": "study report documents at least 3 advisor sessions with outcome classification"
+      }
+    },
+    {
+      "id": "record:dogfood-verifies-competing-hypotheses-output",
+      "record_type": "verification_relation",
+      "title": "Dogfood run verifies competing hypotheses output requirement",
+      "summary": "The dogfood frequency analysis confirms that check reports emit competing hypotheses for missing_owner and requirement_unverified obstructions.",
+      "source_ids": ["source:dogfood-run-2026-05-04"],
+      "context_hints": ["hypothesis-workflow", "dogfood"],
+      "relation": {
+        "relation_type": "verifies",
+        "from_record_id": "record:test-dogfood-frequency-analysis",
+        "to_record_id": "record:req-competing-hypotheses-output"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:dogfood-supports-owner-gap-hypothesis",
+      "record_type": "evidence_relation",
+      "title": "Dogfood analysis supports missing-owner hypothesis",
+      "summary": "The dogfood obstruction frequency table shows missing_owner in every real fixture, supporting the claim that it is the primary advisory signal.",
+      "source_ids": ["source:dogfood-run-2026-05-04"],
+      "context_hints": ["hypothesis-workflow", "dogfood"],
+      "relation": {
+        "relation_type": "supports",
+        "from_record_id": "record:test-dogfood-frequency-analysis",
+        "to_record_id": "record:hyp-owner-gap-primary"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:dogfood-falsifies-boundary-hypothesis",
+      "record_type": "evidence_relation",
+      "title": "Dogfood analysis falsifies boundary-violation hypothesis",
+      "summary": "The dogfood run shows boundary_violation obstructions appear only in the synthetic direct-db-access fixture; real fixtures show none. This falsifies the hypothesis that boundary violations are the primary signal.",
+      "source_ids": ["source:dogfood-run-2026-05-04"],
+      "context_hints": ["hypothesis-workflow", "dogfood"],
+      "relation": {
+        "relation_type": "falsifies",
+        "from_record_id": "record:test-dogfood-frequency-analysis",
+        "to_record_id": "record:hyp-boundary-gap-dormant"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:owner-gap-competes-boundary-gap",
+      "record_type": "competition_relation",
+      "title": "Missing-owner hypothesis competes with boundary-violation hypothesis",
+      "summary": "These two hypotheses offer competing explanations for which obstruction type most warrants hypothesis layer coverage. Dogfood resolved the competition in favour of missing-owner.",
+      "source_ids": ["source:dogfood-run-2026-05-04"],
+      "context_hints": ["hypothesis-workflow", "dogfood"],
+      "relation": {
+        "relation_type": "competes_with",
+        "from_record_id": "record:hyp-owner-gap-primary",
+        "to_record_id": "record:hyp-boundary-gap-dormant"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:product-lead-owns-implement-missing-owner",
+      "record_type": "ownership_relation",
+      "title": "Product lead owns implement-missing-owner action",
+      "summary": "The product lead is accountable for the missing-owner hypothesis layer implementation decision.",
+      "source_ids": ["source:requirements-draft"],
+      "context_hints": ["requirements-definition"],
+      "relation": {
+        "relation_type": "owns",
+        "from_record_id": "record:product-lead",
+        "to_record_id": "record:action-implement-missing-owner-hypothesis"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:product-lead-owns-usability-study",
+      "record_type": "ownership_relation",
+      "title": "Product lead owns usability study action",
+      "summary": "The product lead is accountable for commissioning and reviewing the advisor usability study.",
+      "source_ids": ["source:requirements-draft"],
+      "context_hints": ["requirements-definition"],
+      "relation": {
+        "relation_type": "owns",
+        "from_record_id": "record:product-lead",
+        "to_record_id": "record:action-run-advisor-usability-study"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:action-impl-missing-owner-derives-from-hyp",
+      "record_type": "derivation_relation",
+      "title": "Implement-missing-owner action derives from primary owner-gap hypothesis",
+      "summary": "The implementation action for missing-owner hypothesis generation is derived from the strongly-supported hypothesis that missing_owner is the primary advisory signal.",
+      "source_ids": ["source:requirements-draft"],
+      "context_hints": ["hypothesis-workflow"],
+      "relation": {
+        "relation_type": "derives_from",
+        "from_record_id": "record:action-implement-missing-owner-hypothesis",
+        "to_record_id": "record:hyp-owner-gap-primary"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:action-lifecycle-derives-from-hyp",
+      "record_type": "derivation_relation",
+      "title": "Implement-lifecycle-commands action derives from lifecycle-symmetry hypothesis",
+      "summary": "The CLI lifecycle commands implementation derives from the candidate hypothesis that advisors need symmetric lifecycle commands. The hypothesis is not yet supported by evidence.",
+      "source_ids": ["source:requirements-draft"],
+      "context_hints": ["hypothesis-workflow"],
+      "relation": {
+        "relation_type": "derives_from",
+        "from_record_id": "record:action-implement-lifecycle-commands",
+        "to_record_id": "record:hyp-lifecycle-symmetry-needed"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.75,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:action-study-derives-from-hyp",
+      "record_type": "derivation_relation",
+      "title": "Usability study action derives from lifecycle-symmetry hypothesis",
+      "summary": "The advisor usability study is proposed to collect evidence that would support or falsify the lifecycle-symmetry hypothesis.",
+      "source_ids": ["source:advisor-usability-notes"],
+      "context_hints": ["requirements-definition", "hypothesis-workflow"],
+      "relation": {
+        "relation_type": "derives_from",
+        "from_record_id": "record:action-run-advisor-usability-study",
+        "to_record_id": "record:hyp-lifecycle-symmetry-needed"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.7,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    }
+  ],
+  "metadata": {
+    "fixture": true,
+    "dogfood": true,
+    "domain": "requirement-hypothesis-validation",
+    "purpose": "Dogfood AdvisoryGraphen hypothesis validation on its own requirements definition for the hypothesis-first workflow feature."
+  }
+}
