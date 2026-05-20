@@ -28,6 +28,17 @@ one bounded problem -> multiple competing hypotheses -> observations/falsifiers
 -> project proposal trace and remaining uncertainty
 ```
 
+## Phase references
+
+Read the relevant reference before starting each phase:
+
+| Phase | When | Reference |
+| --- | --- | --- |
+| Requirements definition | Task starts from existing documents (interviews, requirements, research) | `skills/advisorygraphen/references/requirements-definition.md` |
+| Hypothesis diagnosis | Diagnosis, investigation, root-cause analysis, evidence-backed proposals | `skills/advisorygraphen/references/hypothesis-diagnosis.md` |
+| Proposal review | Evaluating completion candidates, hypothesis lifecycle, dry-run | `skills/advisorygraphen/references/proposal-review.md` |
+| Projection / output | Reading ai_agent projection, interpreting output fields | `skills/advisorygraphen/references/projection.md` |
+
 ## Safety rules
 
 - Do not treat AI-inferred structure as accepted fact.
@@ -66,12 +77,9 @@ one bounded problem -> multiple competing hypotheses -> observations/falsifiers
    corrective action is needed.
 12. Generate `advisorygraphen project --audience ai_agent` with
    `--completions-report`.
-13. Inspect `proposal_content_summary`, `recommendation_trace`,
-   `observation_actions`, `hypothesis_promotion_workflow`,
-   `candidate_review_state`, `blocker_resolution_state`, `frontier_items`,
-   `waiting_items`, `close_status`, `projection_loss`,
-   `projection_loss_metrics`, and `schema_morphisms`.
-14. Classify each candidate using its `proposal_content`.
+13. Inspect projection fields (see `references/projection.md`).
+14. Classify each candidate using its `proposal_content`
+    (see `references/proposal-review.md`).
 15. Generate the requested human projection or `audit_trace`, including the
     hypothesis classification, proposal trace, falsified/secondary hypotheses,
     and remaining uncertainty.
@@ -82,320 +90,16 @@ one bounded problem -> multiple competing hypotheses -> observations/falsifiers
     them, or an explicit conservative policy allows an automated lifecycle
     event.
 
-## Requirements definition workflow
-
-Use this method when the task starts from existing documents (interviews, workflow
-analysis, competitive research, stakeholder requirements) rather than from code or
-architecture. The goal is to derive a validated `advisory.input.json` from
-unstructured sources before running the lift → check pipeline.
-
-### 0. Incremental reading strategy
-
-**Only add what the source explicitly states.** Do not add records for actions,
-owners, or decisions unless the source document names them. Do not promote
-`origin: inferred` to `origin: source_backed`. If a concept feels implied but
-is not written, leave it out — the lift → check pipeline will surface the gap
-as an obstruction or missing candidate.
-
-Read sources one at a time. After each source, write extracted structure into
-`advisory.input.json` before reading the next source. Use the accumulated
-structure as working memory when reading subsequent sources.
-
-```
-read source-1 → write hypotheses/requirements/claims to advisory.input.json
-read source-2 + current advisory.input.json
-  → does source-2 support, contradict, or refine existing hypotheses?
-  → add supports/competes_with/refines relations; add new hypotheses if needed
-read source-3 + current advisory.input.json
-  → repeat
-...
-run lift → check only after all sources are processed
-```
-
-This way the agent never needs all source content in context simultaneously.
-The JSON file serves as inter-source working memory, and contradictions become
-visible by comparing new content against already-formalised structure.
-
-Before reading each subsequent source, extract only the working-memory skeleton
-from the accumulated file rather than reading the full JSON:
-
-```sh
-jq '[.records[] | {
-  id,
-  type: .record_type,
-  label: .metadata.label,
-  status: .metadata.hypothesis_status,
-  rel: (if .relation then "\(.relation.relation_type):\(.relation.from_record_id)→\(.relation.to_record_id)" else null end)
-}]' advisory.input.json
-```
-
-This reduces token cost by ~75% while preserving all information needed to
-detect support, contradiction, or redundancy against the next source.
-
-### 1. Hypothesis extraction from source documents
-
-Read each source document with these questions:
-
-- What causal claims does this document make? ("X is caused by Y")
-- What assumptions does the proposed solution depend on?
-- What would have to be true for this recommendation to fail?
-
-For each load-bearing claim, write a falsifiable hypothesis with
-`record_type: "hypothesis_seed"`, including `expected_observations` and
-`falsifiers`. Do not record conclusions as hypotheses — a conclusion has no
-falsifier.
-
-Prioritise hypotheses that are directly load-bearing for a proposed action, are
-disputed between sources, or have never been measured.
-
-### 2. Contradiction detection as competing hypothesis seed
-
-When two sources disagree on a claim, treat the disagreement as a competing
-hypothesis pair rather than resolving it editorially.
-
-Example: management document says "mobile is low priority"; interview data says
-"2/5 users want mobile"; competitive benchmark says "mobile adoption is low for
-office workers." Do not pick one. Generate the hypothesis and its competitor,
-link them with `relation_type: "competes_with"`, and let hypothesis classification
-decide.
-
-Do not resolve source contradictions by choosing one source. Both sides belong in
-the snapshot.
-
-### 3. Requirements as verification contracts
-
-Record each in-scope feature as `record_type: "requirement"` with
-`require_verification: true`. AdvisoryGraphen emits `requirement_unverified` for
-any requirement without a `verifies` or `implements` incidence. In requirements
-definition, the "test" is the measurement plan or KPI — record it as
-`record_type: "test_or_verification"` and link it with a `verifies` relation.
-
-Treat `proposal_derived_from_unsupported_hypothesis` as a scope risk signal: the
-proposed feature has no validated need. Do not suppress it; surface it to the
-stakeholder.
-
-### 4. Decision recording
-
-When requirements definition produces a go/no-go decision, record it as
-`record_type: "claim"` with `metadata.decision_type`. Decisions are human
-judgments, not tool outputs — `claim` cells are intentionally excluded from
-obstruction checking and projection views.
-
-```json
-{
-  "id": "record:decision-...",
-  "record_type": "claim",
-  "metadata": {
-    "decision_type": "go | conditional_go | deferred | rejected",
-    "phase": "phase-1",
-    "rationale": "...",
-    "acceptance_criterion": "..."
-  }
-}
-```
-
-Do not record a `go` decision until the relevant hypothesis is classified as
-`supported` or stronger. A `go` on a `candidate` hypothesis is a premature
-decision, not a structured conclusion.
-
-## Problem-driven hypothesis method
-
-Use this method whenever the user asks for diagnosis, investigation, quality
-assessment, root-cause analysis, or evidence-backed proposal generation.
-
-1. State the problem as a single falsifiable question. Example: "Is the default
-   unit-test lane a trustworthy quality gate?"
-2. Generate multiple hypotheses that could explain the same problem. Avoid
-   making the first plausible explanation the default conclusion.
-3. For each hypothesis, record:
-   - expected observations if true;
-   - observations that would weaken or falsify it;
-   - source IDs or commands needed to check it;
-   - initial confidence as unreviewed or inferred unless source-backed.
-   In JSON snapshots, prefer `record_type: "hypothesis_seed"` for these
-   records. AdvisoryGraphen lifts them to `cell_type: "hypothesis"` and
-   preserves `metadata.expected_observations`, `metadata.falsifiers`, and
-   `metadata.candidate_structure_types`.
-4. Run the cheapest discriminating observations first. A useful observation is
-   one that separates at least two hypotheses, not merely one that adds detail.
-   When an observation narrows or revises a hypothesis, record the next version
-   as `record_type: "hypothesis_refinement"` and connect it to the earlier
-   hypothesis with `relation_type: "refines"`. Prefer deriving proposals from
-   the refined hypothesis, not the initial seed.
-5. Classify hypotheses explicitly:
-   - `strongly_supported`: direct observation supports it and major competing
-     explanations are weakened.
-   - `supported`: source-backed evidence supports it, but another plausible
-     explanation remains.
-   - `supported_needs_followup`: evidence supports it, but a blocker prevents a
-     decisive measurement.
-   - `plausible_secondary`: evidence suggests it may matter, but it is not the
-     direct observed cause.
-   - `falsified`: observed evidence contradicts the hypothesis.
-   - `insufficient_evidence`: no discriminating observation was collected.
-6. Build proposals from supported hypotheses only. Proposal priority should
-   follow causal order: unblock observation first, fix false-positive/failure
-   semantics next, then improve policy, ownership, or performance.
-   In JSON snapshots, record these as `record_type: "structure_proposal"` and
-   connect them to their source hypotheses with a `derives_from` relation.
-   AdvisoryGraphen lifts them to proposal actions and checks whether the
-   underlying hypothesis is supported before the action can be treated as a
-   primary recommendation.
-   For P0/P1 proposals, ensure the source hypothesis has refinement lineage.
-   Otherwise AdvisoryGraphen emits
-   `high_priority_proposal_missing_hypothesis_refinement`.
-7. Report proposal trace in this shape:
-   `problem -> hypothesis -> evidence -> classification -> proposal -> required
-   verification/owner`.
-8. Preserve non-winning hypotheses in the projection. They are useful because
-   they show why the chosen proposal is not just a single-agent guess.
-
 ## Agent operating model
 
-HigherGraphen is operated primarily by AI agents through AdvisoryGraphen. Humans set goals, constraints, and explicit accept/reject decisions; they do not need to hand-edit HG structure.
+HigherGraphen is operated primarily by AI agents through AdvisoryGraphen.
+Humans set goals, constraints, and explicit accept/reject decisions; they do
+not need to hand-edit HG structure.
 
-Treat `ai_agent` projection and `case reason` output as the resume protocol. If a candidate is accepted, do not mark the obstruction resolved until the required cells and incidences in `blocker_resolution_state.application_requirements` have been applied and `check`/`case reason` have been rerun.
-
-## Proposal content evaluation
-
-Completion candidates include `proposal_content`. Use it to evaluate the
-substance of a proposal, not only its existence.
-
-Inspect these fields for every candidate:
-
-- `proposal_content.scenario.status`
-- `proposal_content.scenario.changed_structures`
-- `proposal_content.morphism`
-- `proposal_content.invariant_checks`
-- `proposal_content.derivation`
-- `proposal_content.witnesses`
-- `proposal_content.valuation`
-- `proposal_content.policy`
-- `proposal_content.content_obstructions`
-- `hypothesis_trace`
-- `supported_hypothesis_ids`
-- `unsupported_hypothesis_ids`
-- `recommendation_role`
-- `recommendation_trace.follow_up_observations[].ranked_observation_tasks`
-- `hypothesis_promotion_workflow`
-- `application_plan`
-- `proposed_cell_ids`
-- `proposed_incidence_ids`
-
-Classify candidates as:
-
-- `ready_for_review`: scenario status is `candidate`, content obstructions are
-  empty, the candidate proposes concrete cells or incidences, and
-  `application_plan.dry_run_supported` is true.
-- `needs_structure`: content obstruction
-  `proposal_content_underspecified` is present or both `proposed_cell_ids` and
-  `proposed_incidence_ids` are empty.
-- `needs_source_witness`: content obstruction
-  `proposal_content_missing_source_witness` is present or `source_ids` is empty.
-- `needs_derivation_review`: derivation has `failure_mode` other than `none`,
-  or `verification_status` remains `unverified` for a high-impact decision.
-- `needs_hypothesis_support`: `recommendation_role` is
-  `follow_up_observation`, `supported_hypothesis_ids` is empty, or content
-  obstruction `proposal_depends_on_unsupported_hypothesis` is present.
-- `review_gated`: policy rules or `review_status: unreviewed` require human or
-  policy-approved review before promotion.
-
-Do not treat `ready_for_review` as accepted. It means the candidate is concrete
-enough to dry-run or submit for review.
-
-Only treat a candidate as a primary recommendation when `recommendation_role` is
-`primary`. Candidates with `recommendation_role: follow_up_observation` identify
-the next observation or review needed before recommendation, even when they
-propose concrete cells or incidences.
-
-For follow-up observations, use
-`recommendation_trace.follow_up_observations[].ranked_observation_tasks` before
-asking broad questions. Each task should identify the hypothesis being tested,
-source IDs to inspect, command template, required inputs, output schema,
-pass/fail extraction rule, expected observation, falsifier, and promotion
-effect.
-Use `hypothesis_promotion_workflow` to sequence observation -> evidence ->
-review-gated hypothesis support/acceptance -> rerun projection.
-After `observation record`, prefer `result.promotion_gate.next_command` over
-hand-building a `hypothesis support` or `hypothesis falsify` command. It carries
-the concrete evidence cell id and case head revision needed for the next
-review-gated step.
-
-## Candidate-specific actions
-
-Use candidate type and proposed structure to decide the next action.
-
-| Candidate type | Meaning | Agent action |
-| --- | --- | --- |
-| `owner_assignment` | Existing owner cell can be linked to the blocked action | Present the proposed `owns` incidence for review; do not silently apply it. |
-| `ownership_clarification` | Owner is still unknown | Ask for or add bounded owner evidence; do not invent a team. |
-| `lift_verification_link` | Existing test, metric, or verification cell can be linked | Present the proposed `verifies` incidence for review. |
-| `proposed_test` | Verification structure is missing | Ask for or create a concrete test/metric cell with source-backed rationale. |
-| `proposed_interface` | Boundary-safe interface cell is proposed | Review interface owner, contract, compatibility, and verification witnesses. |
-| `proposed_refactor_action` | Refactor action cell is proposed | Review migration plan, rollback, and regression evidence. |
-| `proposed_auth_guard` | Auth control is proposed | Check shared middleware, intentional-public policy, and route-specific evidence. |
-
-When `proposed_incidence_ids` is non-empty, the proposal is usually more
-specific than a placeholder because it reuses existing structure. Still require
-review before adding the incidence to the case space.
-
-## Hypothesis lifecycle
-
-Hypotheses explain obstructions; they are not accepted facts.
-
-Use `hypothesis propose` when the space includes agent observations or
-source-backed signals such as `metadata.supports_hypothesis_id` or
-`metadata.falsifies_hypothesis_id`.
-
-Interpret lifecycle proposals as follows:
-
-- `supported`: evidence supports a candidate hypothesis; review is still
-  required for acceptance.
-- `falsified`: evidence refutes a candidate hypothesis; downstream candidates
-  may need reframing.
-- `review_conflict`: support and falsification signals conflict; ask for human
-  review.
-
-Only use `hypothesis apply-proposals` when an explicit autonomy policy allows
-the outcome and evidence trust level. The default conservative policy should
-skip inferred-only evidence and should not apply `accept` or `reject`.
-
-## Projection use
-
-The `ai_agent` projection is the operational contract. Read it before deciding
-the next command.
-
-Use:
-
-- `recommendation_trace` to separate primary recommendations, alternatives,
-  and follow-up observations. Primary recommendations must derive from
-  supported or accepted hypotheses. Follow-up observations include ranked
-  observation tasks.
-- `hypothesis_promotion_workflow` to see which unsupported hypotheses block
-  each candidate and which review-gated steps are needed before promotion.
-- `proposal_content_summary` to see how many candidates are structurally
-  concrete versus blocked by content obstructions.
-- `candidate_quality` to distinguish source-derived, code-derived,
-  requirement-derived, and generic candidates.
-- `blocker_resolution_state.application_requirements` to know which cells and
-  incidences must exist after a candidate is accepted.
-- `frontier_items` for agent-actionable work.
-- `waiting_items` for human review, source evidence, or blocked states.
-- `projection_loss` to disclose omitted source text, lexical caveats, and
-  compression loss.
-- `projection_loss_metrics` to quantify what the projection collapses, omits,
-  or leaves without source trace.
-- `observation_actions` to choose bounded next evidence-gathering steps before
-  promoting weak hypotheses.
-- `schema_morphisms` to understand the lift or contract mapping and declared
-  compatibility/loss.
-
-For human-facing output:
-
-- Use `executive` for concise status, risks, candidate quality, and projection
-  loss.
-- Use `developer_action` for candidate/action details.
-- Use `audit_trace` when the user needs the full machine-readable trail.
+Treat `ai_agent` projection and `case reason` output as the resume protocol.
+If a candidate is accepted, do not mark the obstruction resolved until the
+required cells and incidences in `blocker_resolution_state.application_requirements`
+have been applied and `check`/`case reason` have been rerun.
 
 ## External source boundary
 
@@ -436,45 +140,6 @@ advisorygraphen hypothesis support --store STORE --from-report CHECK.json --hypo
 advisorygraphen hypothesis accept  --store STORE --from-report CHECK.json --hypothesis-id HYPOTHESIS --evidence EVIDENCE_ID --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
 advisorygraphen hypothesis reject  --store STORE --from-report CHECK.json --hypothesis-id HYPOTHESIS --evidence EVIDENCE_ID --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
 ```
-
-## Output interpretation
-
-- `obstructions` means the tool found structured blockers; it is not a tool failure.
-- `completion_candidates` are proposals, not accepted changes.
-- `review_status: unreviewed` means do not present as accepted.
-- `recommendation_trace.follow_up_observations[].ranked_observation_tasks`
-  lists the cheapest next observations before a follow-up can be promoted. Each
-  task should include `command_template`, `required_inputs`, `output_schema`,
-  and `pass_fail_extraction`.
-- `hypothesis_promotion_workflow.items[]` is the AI-agent sequence for turning
-  a follow-up observation into a reviewable recommendation.
-- `observation record` validates an observation result against the selected
-  task's `output_schema`, materializes it as an evidence cell in the imported
-  case, and returns suggested `hypothesis support` / `hypothesis falsify`
-  command drafts.
-- `proposal_content.scenario.status: candidate` means proposal content is
-  concrete enough for review, not accepted.
-- `proposal_content.scenario.status: blocked` means the proposal itself has
-  unresolved content obstructions.
-- `proposal_content_summary.blocked_content > 0` means some candidates need
-  more source or structure before review.
-- `application_plan` is the candidate's unreviewed operation preview; it does
-  not prove the blocker will resolve.
-- `completion_dry_run.result.dry_runs[].check_delta` is the evidence for what a
-  candidate resolves or introduces on a cloned space.
-- `proposed_incidence_ids` means the candidate proposes a concrete relation,
-  usually `owns` or `verifies`, based on existing related structure.
-- `agent_operation_contract` lists safe next commands and review-gated commands.
-- `blocker_resolution_state` describes whether a blocker has no candidate, pending review, all candidates rejected, or an accepted candidate pending structural application.
-- `frontier_items` lists agent-actionable next work; `waiting_items` lists review or source-structure waits.
-- `application_requirements` names the cells and incidences an AI agent must create before treating a blocker as resolved.
-- `case_head_revision` from `case reason` is the base revision for the next `case close-check`.
-- Run `case close-check` before reporting a case as closeable.
-- `review_gated_commands` require explicit human review before accept/reject events.
-- `hypothesis apply-proposals` can apply only policy-allowed `supported` / `falsified` proposal events; it must skip inferred-only evidence under the default conservative policy.
-- For imported case stores, `completions accept` and `completions reject` require `--base-revision`; missing or stale base revision is a stale-write error.
-- `projection_loss` must be disclosed when summarizing the projection.
-- `evidence_origin: inferred` cannot satisfy hard evidence requirements by default.
 
 ## Minimum external smoke test
 
