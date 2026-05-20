@@ -91,6 +91,12 @@ unstructured sources before running the lift → check pipeline.
 
 ### 0. Incremental reading strategy
 
+**Only add what the source explicitly states.** Do not add records for actions,
+owners, or decisions unless the source document names them. Do not promote
+`origin: inferred` to `origin: source_backed`. If a concept feels implied but
+is not written, leave it out — the lift → check pipeline will surface the gap
+as an obstruction or missing candidate.
+
 Read sources one at a time. After each source, write extracted structure into
 `advisory.input.json` before reading the next source. Use the accumulated
 structure as working memory when reading subsequent sources.
