@@ -89,6 +89,27 @@ analysis, competitive research, stakeholder requirements) rather than from code 
 architecture. The goal is to derive a validated `advisory.input.json` from
 unstructured sources before running the lift → check pipeline.
 
+### 0. Incremental reading strategy
+
+Read sources one at a time. After each source, write extracted structure into
+`advisory.input.json` before reading the next source. Use the accumulated
+structure as working memory when reading subsequent sources.
+
+```
+read source-1 → write hypotheses/requirements/claims to advisory.input.json
+read source-2 + current advisory.input.json
+  → does source-2 support, contradict, or refine existing hypotheses?
+  → add supports/competes_with/refines relations; add new hypotheses if needed
+read source-3 + current advisory.input.json
+  → repeat
+...
+run lift → check only after all sources are processed
+```
+
+This way the agent never needs all source content in context simultaneously.
+The JSON file serves as inter-source working memory, and contradictions become
+visible by comparing new content against already-formalised structure.
+
 ### 1. Hypothesis extraction from source documents
 
 Read each source document with these questions:
