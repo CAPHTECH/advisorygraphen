@@ -110,6 +110,22 @@ This way the agent never needs all source content in context simultaneously.
 The JSON file serves as inter-source working memory, and contradictions become
 visible by comparing new content against already-formalised structure.
 
+Before reading each subsequent source, extract only the working-memory skeleton
+from the accumulated file rather than reading the full JSON:
+
+```sh
+jq '[.records[] | {
+  id,
+  type: .record_type,
+  label: .metadata.label,
+  status: .metadata.hypothesis_status,
+  rel: (if .relation then "\(.relation.relation_type):\(.relation.from_record_id)→\(.relation.to_record_id)" else null end)
+}]' advisory.input.json
+```
+
+This reduces token cost by ~75% while preserving all information needed to
+detect support, contradiction, or redundancy against the next source.
+
 ### 1. Hypothesis extraction from source documents
 
 Read each source document with these questions:
