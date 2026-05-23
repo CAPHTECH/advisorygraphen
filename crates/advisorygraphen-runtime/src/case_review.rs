@@ -67,7 +67,11 @@ fn review_summary(payload: &Value) -> Value {
         "outcome": payload.get("outcome"),
         "reviewer_id": payload.get("reviewer_id"),
         "reviewed_at": payload.get("reviewed_at"),
-        "reason": payload.get("reason")
+        "reason": payload.get("reason"),
+        "higher_graphen_gluing_policy": payload
+            .pointer("/metadata/higher_graphen_gluing_policy")
+            .cloned()
+            .unwrap_or(Value::Null)
     })
 }
 
@@ -80,4 +84,33 @@ fn space_log_path(store: &Path, space_id: &str) -> std::path::PathBuf {
         .join("spaces")
         .join(space_id.replace([':', '/'], "-"))
         .join("logs/morphism-log.jsonl")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn review_summary_preserves_gluing_policy_metadata() {
+        let payload = json!({
+            "review_event_id": "review:accepted:candidate-000001",
+            "outcome": "accepted",
+            "reviewer_id": "reviewer:test",
+            "reviewed_at": "2026-05-23T00:00:00Z",
+            "reason": "reviewed gluing blocker",
+            "metadata": {
+                "higher_graphen_gluing_policy": {
+                    "policy_blockers": ["gluing_failure_requires_explicit_review"],
+                    "policy_override": "explicit_completion_review"
+                }
+            }
+        });
+
+        let summary = review_summary(&payload);
+
+        assert_eq!(
+            summary["higher_graphen_gluing_policy"]["policy_override"],
+            "explicit_completion_review"
+        );
+    }
 }

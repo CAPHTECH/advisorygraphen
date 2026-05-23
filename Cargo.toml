@@ -27,12 +27,12 @@ advisorygraphen-runtime = { version = "0.1.1", path = "crates/advisorygraphen-ru
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive", "env"] }
-higher-graphen-core = { version = "0.4.1", path = "../higher-graphen/crates/higher-graphen-core" }
-higher-graphen-evidence = { version = "0.4.1", path = "../higher-graphen/crates/higher-graphen-evidence" }
-higher-graphen-interpretation = { version = "0.4.1", path = "../higher-graphen/crates/higher-graphen-interpretation" }
-higher-graphen-projection = { version = "0.4.1", path = "../higher-graphen/crates/higher-graphen-projection" }
-higher-graphen-reasoning = { version = "0.4.1", path = "../higher-graphen/crates/higher-graphen-reasoning" }
-higher-graphen-structure = { version = "0.4.1", path = "../higher-graphen/crates/higher-graphen-structure" }
+higher-graphen-core = { version = "0.5.0", path = "../higher-graphen/crates/higher-graphen-core" }
+higher-graphen-evidence = { version = "0.5.0", path = "../higher-graphen/crates/higher-graphen-evidence" }
+higher-graphen-interpretation = { version = "0.5.0", path = "../higher-graphen/crates/higher-graphen-interpretation" }
+higher-graphen-projection = { version = "0.5.0", path = "../higher-graphen/crates/higher-graphen-projection" }
+higher-graphen-reasoning = { version = "0.5.0", path = "../higher-graphen/crates/higher-graphen-reasoning" }
+higher-graphen-structure = { version = "0.5.0", path = "../higher-graphen/crates/higher-graphen-structure" }
 indexmap = { version = "2", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

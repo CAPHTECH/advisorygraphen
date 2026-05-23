@@ -48,6 +48,10 @@ Read the relevant reference before starting each phase:
 - Do not present unsupported claims as evidence-backed conclusions.
 - Do not treat accepted completion review as structural application; inspect `blocker_resolution_state.application_requirements` first.
 - Do not autonomously apply hypothesis lifecycle proposals unless a policy allows the outcome and evidence trust level.
+- Do not ignore HigherGraphen gluing blockers. Treat
+  `higher_graphen_gluing_review.policy_blockers` and
+  `higher_graphen_gluing_policy.policy_blockers` as evidence requiring
+  candidate revision or explicit completion review.
 
 ## Workflow
 
@@ -80,13 +84,16 @@ Read the relevant reference before starting each phase:
 13. Inspect projection fields (see `references/projection.md`).
 14. Classify each candidate using its `proposal_content`
     (see `references/proposal-review.md`).
-15. Generate the requested human projection or `audit_trace`, including the
+15. For candidates that may be accepted, run `advisorygraphen completions
+    dry-run` and inspect `higher_graphen_gluing_review` before asking for
+    review or recording an acceptance.
+16. Generate the requested human projection or `audit_trace`, including the
     hypothesis classification, proposal trace, falsified/secondary hypotheses,
     and remaining uncertainty.
-16. When follow-up observation tasks are present, run the bounded observation,
+17. When follow-up observation tasks are present, run the bounded observation,
     record it with `observation record`, then use `result.promotion_gate` to
     support or falsify the hypothesis before rerunning `case reason`.
-17. Keep candidates unreviewed unless the user explicitly accepts or rejects
+18. Keep candidates unreviewed unless the user explicitly accepts or rejects
     them, or an explicit conservative policy allows an automated lifecycle
     event.
 
@@ -100,6 +107,27 @@ Treat `ai_agent` projection and `case reason` output as the resume protocol.
 If a candidate is accepted, do not mark the obstruction resolved until the
 required cells and incidences in `blocker_resolution_state.application_requirements`
 have been applied and `check`/`case reason` have been rerun.
+
+In the AI-agent projection, inspect `agent_operation_contract` before taking
+action. Treat `review_gated_commands` as commands that require explicit review,
+inspect `correspondence_analysis` for HigherGraphen overlap, difference, and
+gluing failures, and prefer concrete `ranked_observation_tasks` from the
+`hypothesis_promotion_workflow` over broad follow-up questions.
+
+For completion work, treat HigherGraphen gluing output as part of the review
+contract:
+
+- `completions dry-run` exposes `higher_graphen_gluing_review` for each
+  candidate-specific application attempt.
+- `completions accept` records `higher_graphen_gluing_policy` in review-event
+  metadata. If blockers remain and the reviewer still accepts, the event must
+  carry `policy_override: "explicit_completion_review"`.
+- `completions apply-accepted` carries `higher_graphen_gluing_review`,
+  `policy_blockers`, and `policy_override` into applied-structure output.
+
+Do not interpret gluing success as acceptance. Do not interpret gluing failure
+as automatic rejection. It is review evidence that must be resolved by revising
+the candidate or by an explicit completion review decision.
 
 ## External source boundary
 
@@ -132,6 +160,7 @@ advisorygraphen case reason --store STORE --space-id SPACE_ID --format json
 advisorygraphen case close-check --store STORE --space-id SPACE_ID --base-revision REVISION --format json
 advisorygraphen completions accept --store STORE --candidate-id CANDIDATE --from-report COMPLETIONS.json --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
 advisorygraphen completions reject --store STORE --candidate-id CANDIDATE --from-report COMPLETIONS.json --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
+advisorygraphen completions apply-accepted --store STORE --space-id SPACE_ID --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
 advisorygraphen hypothesis propose --space SPACE.json --from-report CHECK.json --output HYPOTHESIS_PROPOSALS.json --format json
 advisorygraphen observation record --store STORE --space-id SPACE_ID --from-projection AI_AGENT.json --task-id TASK_ID --result OBSERVATION_RESULT.json --reviewer REVIEWER --reason REASON --base-revision REVISION --format json
 advisorygraphen hypothesis apply-proposals --store STORE --from-report HYPOTHESIS_PROPOSALS.json --reviewer ai-agent:codex --reason REASON --base-revision REVISION --format json
@@ -150,6 +179,7 @@ advisorygraphen validate --input examples/dogfood/agent-operations/advisory.inpu
 advisorygraphen lift --input examples/dogfood/agent-operations/advisory.input.json --package technical_advisory_mvp --output /tmp/advisory.space.json --format json
 advisorygraphen check --space /tmp/advisory.space.json --ruleset technical_advisory_mvp --output /tmp/advisory.check.json --format json
 advisorygraphen completions propose --space /tmp/advisory.space.json --from-report /tmp/advisory.check.json --output /tmp/advisory.completions.json --format json
+advisorygraphen completions dry-run --space /tmp/advisory.space.json --from-report /tmp/advisory.completions.json --output /tmp/advisory.dry-run.json --format json
 advisorygraphen project --space /tmp/advisory.space.json --report /tmp/advisory.check.json --completions-report /tmp/advisory.completions.json --audience ai_agent --output /tmp/advisory.ai-agent.json --format json
 ```
 
@@ -159,5 +189,7 @@ Expected smoke result:
 - obstructions may be present and are domain findings, not CLI failures;
 - completion candidates remain `review_status: unreviewed`;
 - `proposal_content_summary` is present in the AI-agent projection;
+- `correspondence_analysis` is present in the AI-agent projection;
+- dry-run entries include `higher_graphen_gluing_review`;
 - projection loss is present and must be disclosed;
 - no candidate is treated as accepted structure.

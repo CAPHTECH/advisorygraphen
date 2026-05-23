@@ -11,4 +11,5 @@ advisorygraphen-core.workspace = true
 advisorygraphen-reasoning.workspace = true
 higher-graphen-core.workspace = true
 higher-graphen-projection.workspace = true
+higher-graphen-reasoning.workspace = true
 serde_json.workspace = true

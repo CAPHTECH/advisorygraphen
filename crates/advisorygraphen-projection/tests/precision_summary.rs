@@ -194,6 +194,64 @@ fn ai_agent_projection_exposes_hypothesis_promotion_workflow() {
 }
 
 #[test]
+fn ai_agent_projection_exposes_higher_graphen_correspondence_gluing() {
+    let space = correspondence_space();
+    let report = check_report(
+        vec![correspondence_obstruction_with_failed_invariant()],
+        vec![correspondence_candidate_with_satisfied_invariant()],
+    );
+
+    let projection = build_projection(&space, &report, "ai_agent").unwrap();
+
+    let analysis = projection
+        .pointer("/correspondence_analysis")
+        .expect("correspondence analysis present");
+    assert_eq!(
+        analysis["source"],
+        json!("highergraphen_0_5_correspondence_overlap_gluing")
+    );
+    assert!(
+        analysis["candidate_count"].as_u64().unwrap_or(0) > 0,
+        "expected at least one correspondence candidate: {analysis:#}"
+    );
+    assert!(
+        analysis["emitted_candidate_count"].as_u64().unwrap_or(0)
+            <= analysis["max_emitted_candidates"].as_u64().unwrap_or(0),
+        "AI-agent projection should emit only bounded review-focus correspondence candidates: {analysis:#}"
+    );
+    assert!(
+        analysis["review_focus_candidates"].as_array().unwrap()[0]["selection_reasons"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|reason| reason == "gluing_failure"),
+        "review focus should prioritize gluing failures: {analysis:#}"
+    );
+    assert!(
+        analysis["gluing_summary"]["failure"].as_u64().unwrap_or(0) > 0,
+        "falsifier/hypothesis mismatch should block silent gluing: {analysis:#}"
+    );
+    assert_eq!(
+        analysis["candidates"][0]["reviewStatus"],
+        json!("candidate"),
+        "HG correspondence must stay reviewable"
+    );
+    assert!(
+        analysis["ai_agent_projections"][0]["projectionLoss"].is_object(),
+        "HG projection should preserve explicit projection loss"
+    );
+    assert!(
+        analysis["candidates"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|candidate| candidate["overlapWitnesses"].as_array().unwrap())
+            .all(|witness| witness["witnessKind"] != json!("PredicateSet")),
+        "a single direct incidence must not be treated as a shared predicate: {analysis:#}"
+    );
+}
+
+#[test]
 fn projections_expose_explicit_hypothesis_matrix_and_proposal_trace() {
     let space = explicit_hypothesis_space();
     let report = check_report(vec![], vec![]);
@@ -428,6 +486,84 @@ fn explicit_hypothesis_space() -> AdvisorySpaceEnvelope {
         "metadata": { "method": "one-problem-multiple-hypotheses-observe-classify-propose" }
     }))
     .unwrap()
+}
+
+fn correspondence_space() -> AdvisorySpaceEnvelope {
+    from_value(json!({
+        "schema": "advisorygraphen.space.v1",
+        "space_id": "space:advisory:correspondence-test",
+        "engagement_id": "engagement:correspondence-test",
+        "snapshot_id": "snapshot:correspondence-test",
+        "package_id": "technical_advisory_mvp",
+        "cells": [
+            {
+                "id": "cell:hypothesis-missing-auth",
+                "cell_type": "hypothesis",
+                "title": "The route is genuinely missing authentication",
+                "summary": null,
+                "context_ids": ["context:route"],
+                "source_ids": ["source:route"],
+                "structure_refs": [],
+                "lifecycle_status": "candidate",
+                "provenance": { "derivation": "inferred", "review_status": "unreviewed" },
+                "metadata": { "hypothesis_status": "candidate" }
+            },
+            {
+                "id": "cell:falsifier-shared-middleware",
+                "cell_type": "falsifier",
+                "title": "Shared middleware already authenticates the route",
+                "summary": null,
+                "context_ids": ["context:route"],
+                "source_ids": ["source:route"],
+                "structure_refs": [],
+                "provenance": { "derivation": "inferred", "review_status": "unreviewed" },
+                "metadata": { "falsifies": "cell:hypothesis-missing-auth" }
+            }
+        ],
+        "contexts": [],
+        "incidences": [
+            {
+                "id": "incidence:falsifier-shared-middleware-falsifies-hypothesis",
+                "relation_type": "falsifies",
+                "from_id": "cell:falsifier-shared-middleware",
+                "to_id": "cell:hypothesis-missing-auth",
+                "source_ids": ["source:route"],
+                "evidence_ids": ["source:route"],
+                "provenance": { "derivation": "inferred", "review_status": "unreviewed" },
+                "metadata": {}
+            }
+        ],
+        "morphisms": [],
+        "invariants": [],
+        "policies": [],
+        "metadata": {}
+    }))
+    .unwrap()
+}
+
+fn correspondence_obstruction_with_failed_invariant() -> Value {
+    json!({
+        "id": "obstruction:auth-invariant-failed",
+        "severity": "high",
+        "message": "Route auth invariant is currently violated",
+        "blocked_ids": ["cell:hypothesis-missing-auth"],
+        "source_ids": ["source:route"],
+        "violated_invariant_id": "invariant:route-auth"
+    })
+}
+
+fn correspondence_candidate_with_satisfied_invariant() -> Value {
+    json!({
+        "id": "candidate:auth-invariant-satisfied",
+        "title": "Treat the route auth invariant as satisfied",
+        "candidate_type": "proposed_test",
+        "confidence": 0.7,
+        "source_ids": ["source:route"],
+        "resolves_obstruction_ids": ["obstruction:auth-invariant-failed"],
+        "affected_invariant_ids": ["invariant:route-auth"],
+        "metadata": { "specificity": "requirement_derived" },
+        "proposal_content": {}
+    })
 }
 
 fn code_derived_obstruction() -> Value {

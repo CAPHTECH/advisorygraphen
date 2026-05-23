@@ -4,6 +4,7 @@ use advisorygraphen_reasoning::{
 };
 use serde_json::{json, Value};
 
+mod correspondence;
 mod higher;
 mod hypotheses;
 
@@ -238,6 +239,14 @@ fn ai_agent_projection(
         represented_ids.clone(),
         omitted_ids.clone(),
     )?;
+    let correspondence_analysis = correspondence::correspondence_analysis(
+        space,
+        &open_obstructions,
+        &hypotheses,
+        &falsifiers,
+        &candidates,
+        &argumentation_incidences,
+    )?;
     Ok(json!({
         "schema": "advisorygraphen.projection.v1",
         "projection_id": format!("projection:ai-agent:{}", space.space_id.trim_start_matches("space:advisory:")),
@@ -285,6 +294,7 @@ fn ai_agent_projection(
                 "read close_status",
                 "inspect open_obstructions",
                 "inspect candidate_review_state",
+                "inspect correspondence_analysis for shared evidence, conflicts, and gluing failures",
                 "inspect blocker_resolution_state.application_requirements when present",
                 "inspect observation_actions before promoting unsupported hypotheses",
                 "inspect projection_loss_metrics and schema_morphisms before summarizing",
@@ -296,6 +306,7 @@ fn ai_agent_projection(
         "hypotheses": hypotheses,
         "falsifiers": falsifiers,
         "argumentation_incidences": argumentation_incidences,
+        "correspondence_analysis": correspondence_analysis,
         "hypothesis_summary": hypothesis_summary,
         "explicit_hypothesis_matrix": explicit_hypothesis_matrix,
         "explicit_proposal_trace": explicit_proposal_trace,

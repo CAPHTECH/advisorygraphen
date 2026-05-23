@@ -61,6 +61,9 @@ A generated candidate starts as:
 ## Accept workflow
 
 Accepting a candidate must append a review event. In case-log mode, it must append a review morphism. It must not mutate the candidate in place without history.
+The review event metadata includes `higher_graphen_gluing_policy`, which reruns
+candidate-level dry-run gluing and records `policy_blockers`. Acceptance is an
+explicit review override for those blockers; it is not silent promotion.
 
 ```sh
 advisorygraphen completions accept \
@@ -93,6 +96,13 @@ Inspect `result.dry_runs[].check_delta.resolved_obstruction_ids` and
 blocker but introduces a new obstruction should be treated as needing revision,
 not acceptance.
 
+Also inspect `result.dry_runs[].higher_graphen_gluing_review`. It records the
+HigherGraphen correspondence candidates and gluing attempts between the
+candidate, the pre-apply obstruction, and the dry-run materialized structures.
+`gluing_summary.failure` and non-empty `blocking_difference_ids` are review
+blockers; preserved structure and invariant IDs describe what the dry-run kept
+through the candidate application.
+
 ## Reject workflow
 
 Rejecting a candidate records reason and leaves the original candidate visible in audit projection.
@@ -110,7 +120,9 @@ advisorygraphen completions reject \
 The source completion report is required. The event metadata includes the
 HigherGraphen `CompletionReviewRecord`, preserving the candidate snapshot and
 creating a separate accepted or rejected result without mutating the candidate
-itself.
+itself. The same metadata includes `higher_graphen_gluing_policy`, so later
+application can show which gluing failures or blocking differences were
+explicitly reviewed.
 The event `engagement_id` is copied from the imported case space so replayed
 review decisions remain tied to the original advisory engagement.
 

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/advisorygraphen/completion-dry-run-gluing-review.schema.json",
+  "title": "AdvisoryGraphen completion dry-run gluing review",
+  "type": "object",
+  "required": [
+    "schema",
+    "source",
+    "subject_count",
+    "correspondence_count",
+    "gluing_summary",
+    "preserved_structure_ids",
+    "preserved_invariant_ids",
+    "blocking_difference_ids",
+    "correspondences",
+    "policy_blockers",
+    "review_rule"
+  ],
+  "properties": {
+    "schema": {
+      "const": "advisorygraphen.completion_dry_run.gluing_review.v1"
+    },
+    "source": {
+      "const": "highergraphen_0_5_correspondence_overlap_gluing"
+    },
+    "subject_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "correspondence_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "gluing_summary": {
+      "type": "object",
+      "required": ["failure", "review_candidate", "success"],
+      "properties": {
+        "failure": { "type": "integer", "minimum": 0 },
+        "review_candidate": { "type": "integer", "minimum": 0 },
+        "success": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "preserved_structure_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "preserved_invariant_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "blocking_difference_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "correspondences": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "policy_blockers": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "gluing_failure_requires_explicit_review",
+          "gluing_candidate_requires_review",
+          "blocking_difference_requires_revision_or_override",
+          "dry_run_candidate_not_materialized"
+        ]
+      }
+    },
+    "skip_reason": {
+      "type": "string"
+    },
+    "review_rule": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

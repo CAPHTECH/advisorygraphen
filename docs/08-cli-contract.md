@@ -131,7 +131,11 @@ advisorygraphen completions dry-run \
 
 If `--candidate-id` is omitted, the command dry-runs all candidates in the
 completion report. The output report type is `completion_dry_run`; each entry
-contains `applied_structure`, `check_delta`, and `after_close_status`.
+contains `applied_structure`, `check_delta`, `after_close_status`, and
+`higher_graphen_gluing_review`. The gluing review is generated with
+HigherGraphen correspondence / overlap / gluing primitives and should be read
+as review evidence: failures and blocking differences mean the candidate cannot
+be silently promoted without explicit review or revision.
 
 ### `hypothesis propose`
 
@@ -251,7 +255,10 @@ candidate remains unmutated and unreviewed; the review event records the
 accepted or rejected outcome. The report `input.space_id` must
 match the candidate snapshot `higher_graphen.space_id`; missing values or
 mismatches are rejected as validation errors before any review event is
-appended.
+appended. The review event also embeds `higher_graphen_gluing_policy`, which
+contains the candidate dry-run gluing review and `policy_blockers`; accepting a
+candidate records an explicit review override rather than silently clearing
+those blockers.
 
 The completion report `space_id` must already be imported into the case store.
 `--base-revision` is required and checked against that space's case-store
@@ -286,7 +293,12 @@ remain review-visible. `--dry-run` returns the cells and incidences that would
 be written without changing `materialized/space.json` or `HEAD`. Successful
 application appends a `advisorygraphen.completion.application.v1` case-log
 event, advances `HEAD`, and includes `post_apply_case_reason` so an agent can
-verify whether the blocker actually disappeared.
+verify whether the blocker actually disappeared. Each applied structure carries
+`higher_graphen_gluing_review`, `policy_blockers`, and `policy_override` so
+operators can audit which gluing failures were overridden by explicit
+completion review. When current gluing blockers exist, `policy_override` is
+copied from the recorded completion review event; apply must not synthesize an
+override that was not recorded at accept time.
 
 ### `project`
 

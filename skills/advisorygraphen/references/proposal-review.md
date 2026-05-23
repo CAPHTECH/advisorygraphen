@@ -25,6 +25,7 @@ Inspect these fields for every candidate:
 - `application_plan`
 - `proposed_cell_ids`
 - `proposed_incidence_ids`
+- dry-run `higher_graphen_gluing_review`
 
 Classify candidates as:
 
@@ -42,9 +43,28 @@ Classify candidates as:
   `proposal_depends_on_unsupported_hypothesis` is present.
 - `review_gated`: policy rules or `review_status: unreviewed` require human or
   policy-approved review before promotion.
+- `needs_gluing_review`: dry-run
+  `higher_graphen_gluing_review.policy_blockers` is non-empty, or
+  `gluing_summary.failure > 0`. The candidate may still be accepted, but only
+  as an explicit completion review override or after revising the candidate.
 
 Do not treat `ready_for_review` as accepted. It means the candidate is concrete
 enough to dry-run or submit for review.
+
+Run `completions dry-run` before accepting a candidate when application is in
+scope. Inspect `higher_graphen_gluing_review` together with
+`proposal_content`. The gluing review answers whether the candidate can be
+joined with the current advisory space without silent loss; it does not replace
+the reviewer decision.
+
+Interpret gluing review fields as follows:
+
+- `preserved_structure_ids` and `preserved_invariant_ids` are evidence that
+  existing structures survive the candidate application.
+- `blocking_difference_ids` and `policy_blockers` identify conflicts that need
+  revision or explicit completion review.
+- `correspondences` are diagnostic candidates. They must not be promoted into
+  accepted advisory facts by confidence alone.
 
 Only treat a candidate as a primary recommendation when `recommendation_role` is
 `primary`. Candidates with `recommendation_role: follow_up_observation` identify
@@ -76,6 +96,14 @@ hand-building a `hypothesis support` or `hypothesis falsify` command.
 When `proposed_incidence_ids` is non-empty, the proposal is usually more
 specific than a placeholder because it reuses existing structure. Still require
 review before adding the incidence to the case space.
+
+After explicit acceptance, inspect review-event metadata
+`higher_graphen_gluing_policy`. If it contains blockers and the outcome is
+accepted, require `policy_override: "explicit_completion_review"` in the
+record. During `completions apply-accepted`, preserve the emitted
+`higher_graphen_gluing_review`, `policy_blockers`, and `policy_override` in
+the final report. Treat apply-time `policy_override` as an audit copy from the
+review event, not as a new override created by application.
 
 ## Hypothesis lifecycle
 

@@ -351,6 +351,89 @@ fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
 }
 
 #[test]
+fn static_higher_graphen_example_surfaces_0_5_correspondence_and_gluing() {
+    let dir = clean_case_dir("dogfood-higher-graphen-0-5-example");
+    let space = dir.join("advisory.space.json");
+    let check = dir.join("advisory.check.report.json");
+    let completions = dir.join("advisory.completions.report.json");
+    let dry_run = dir.join("advisory.dry-run.report.json");
+    let ai_agent = dir.join("ai-agent.json");
+
+    let validate = run_cli(["validate", "--input", DOGFOOD_FIXTURE, "--format", "json"]);
+    assert_success(&validate);
+
+    let lift = run_cli([
+        "lift",
+        "--input",
+        DOGFOOD_FIXTURE,
+        "--package",
+        PACKAGE_NAME,
+        "--output",
+        path_str(&space),
+        "--format",
+        "json",
+    ]);
+    assert_success(&lift);
+    assert_file_contains(&space, "source:hg-0-5-correspondence-adoption");
+
+    check_space(&space, &check);
+    assert_file_contains(&check, "obstruction:hg-0-5-correspondence-review-requirement-missing-verification");
+    assert_file_contains(&check, "obstruction:hg-0-5-review-policy-action-missing-owner");
+
+    propose_completions(&space, &check, &completions);
+    assert_file_contains(
+        &completions,
+        "candidate:hg-0-5-correspondence-review-requirement-missing-verification-link-runtime-adoption-review-plan",
+    );
+    assert_file_contains(
+        &completions,
+        "candidate:hg-0-5-review-policy-action-missing-owner-owner",
+    );
+
+    let dry_run_output = run_cli([
+        "completions",
+        "dry-run",
+        "--space",
+        path_str(&space),
+        "--from-report",
+        path_str(&completions),
+        "--output",
+        path_str(&dry_run),
+        "--format",
+        "json",
+    ]);
+    assert_success(&dry_run_output);
+    assert_file_contains(&dry_run, "highergraphen_0_5_correspondence_overlap_gluing");
+    assert_file_contains(&dry_run, "higher_graphen_gluing_review");
+    assert_file_contains(&dry_run, "gluing_failure_requires_explicit_review");
+    assert_file_contains(&dry_run, "blocking_difference_requires_revision_or_override");
+
+    let project_agent = run_cli([
+        "project",
+        "--space",
+        path_str(&space),
+        "--report",
+        path_str(&check),
+        "--completions-report",
+        path_str(&completions),
+        "--audience",
+        "ai_agent",
+        "--format",
+        "json",
+        "--output",
+        path_str(&ai_agent),
+    ]);
+    assert_success(&project_agent);
+    assert_file_contains(&ai_agent, "correspondence_analysis");
+    assert_file_contains(&ai_agent, "highergraphen_0_5_correspondence_overlap_gluing");
+    assert_file_contains(&ai_agent, "highergraphen.correspondence.projection.v1");
+    assert_file_contains(
+        &ai_agent,
+        "inspect correspondence_analysis for shared evidence, conflicts, and gluing failures",
+    );
+}
+
+#[test]
 fn adversarial_dogfood_fixture_is_regression_oracle_for_hypothesis_gates() {
     let dir = clean_case_dir("dogfood-adversarial-hypothesis-gates");
     let input = dir.join("adversarial.input.json");

@@ -1,0 +1,4 @@
+interface:
+  display_name: "AdvisoryGraphen PR Review"
+  short_description: "Use AdvisoryGraphen to turn PR diffs into human review focus."
+  default_prompt: "Use AdvisoryGraphen PR Review to analyze the current PR and suggest where a human should review."

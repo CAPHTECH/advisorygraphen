@@ -963,6 +963,28 @@ fn accepted_completion_candidate_materializes_required_owner_structure() {
         .iter()
         .any(|id| id == "obstruction:ship-release-action-missing-owner"));
     assert_eq!(run["after_close_status"]["closeable"], true);
+    let gluing = &run["higher_graphen_gluing_review"];
+    assert_eq!(
+        gluing["schema"],
+        "advisorygraphen.completion_dry_run.gluing_review.v1"
+    );
+    assert_eq!(
+        gluing["source"],
+        "highergraphen_0_5_correspondence_overlap_gluing"
+    );
+    assert!(
+        gluing["correspondence_count"].as_u64().unwrap_or(0) > 0,
+        "dry-run should emit candidate-specific HG correspondence: {gluing:#}"
+    );
+    assert!(
+        gluing["gluing_summary"]["failure"].as_u64().unwrap_or(0) > 0,
+        "pre-apply obstruction should block silent gluing: {gluing:#}"
+    );
+    assert!(gluing["preserved_structure_ids"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|id| id == "candidate:ship-release-action-missing-owner-owner"));
 
     case_import_workflow(&CaseImportOptions {
         store: store_path.clone(),
@@ -970,7 +992,7 @@ fn accepted_completion_candidate_materializes_required_owner_structure() {
         revision_id: "revision:initial".to_string(),
     })
     .unwrap();
-    review_workflow(&ReviewOptions {
+    let review = review_workflow(&ReviewOptions {
         store: store_path.clone(),
         candidate_id,
         from_report: Some(completions_path),
@@ -980,6 +1002,16 @@ fn accepted_completion_candidate_materializes_required_owner_structure() {
         base_revision: Some("revision:initial".to_string()),
     })
     .unwrap();
+    let review_policy = &review["metadata"]["higher_graphen_gluing_policy"];
+    assert!(review_policy["policy_blockers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item == "gluing_failure_requires_explicit_review"));
+    assert_eq!(
+        review_policy["policy_override"],
+        "explicit_completion_review"
+    );
     let review_head = fs::read_to_string(
         store_path
             .join("spaces")
@@ -1001,6 +1033,15 @@ fn accepted_completion_candidate_materializes_required_owner_structure() {
     assert_eq!(
         apply["result"]["applied_structures"][0]["cell_ids"][0],
         "cell:auto-owner-ship-release-action"
+    );
+    assert!(apply["result"]["applied_structures"][0]["policy_blockers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item == "gluing_failure_requires_explicit_review"));
+    assert_eq!(
+        apply["result"]["applied_structures"][0]["policy_override"],
+        "explicit_completion_review"
     );
     assert_eq!(
         apply["result"]["post_apply_case_reason"]["close_status"]["closeable"],

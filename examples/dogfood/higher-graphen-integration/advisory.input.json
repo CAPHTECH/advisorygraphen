@@ -6,15 +6,18 @@
   "source_boundary": {
     "included_source_ids": [
       "source:source-alignment",
-      "source:testing-acceptance"
+      "source:testing-acceptance",
+      "source:hg-0-5-correspondence-adoption"
     ],
     "excluded_summary": [
       "No repository history, issue tracker, or pull request review comments were ingested.",
-      "The HigherGraphen workspace implementation is represented only through AdvisoryGraphen integration notes."
+      "The HigherGraphen workspace implementation is represented only through AdvisoryGraphen integration notes.",
+      "HigherGraphen 0.5.0 API behavior is represented through the local adoption proposal and CLI output, not upstream source prose."
     ],
     "extraction_loss": [
       "The repository's design documents are represented as structured review records, not full prose.",
-      "Code-level details are summarized as advisory claims for deterministic dogfood coverage."
+      "Code-level details are summarized as advisory claims for deterministic dogfood coverage.",
+      "The example intentionally leaves one HG 0.5.0 review requirement unverified and one HG 0.5.0 action unowned so completion dry-run gluing output is observable."
     ],
     "trust_notes": [
       "Dogfood fixture for AdvisoryGraphen reviewing its own HigherGraphen integration posture.",
@@ -43,6 +46,18 @@
       "classification": "public",
       "metadata": {
         "repository": "CAPHTECH/advisorygraphen"
+      }
+    },
+    {
+      "id": "source:hg-0-5-correspondence-adoption",
+      "source_type": "repository_documentation",
+      "title": "docs/proposals/hg-2026-correspondence-overlap-adoption.md",
+      "uri": "docs/proposals/hg-2026-correspondence-overlap-adoption.md",
+      "captured_at": "2026-05-23T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "repository": "CAPHTECH/advisorygraphen",
+        "higher_graphen_version": "0.5.0"
       }
     }
   ],
@@ -186,6 +201,59 @@
       "metadata": {
         "criticality": "medium",
         "require_verification": true
+      }
+    },
+    {
+      "id": "record:hg-0-5-correspondence-review-requirement",
+      "record_type": "requirement",
+      "title": "HG 0.5 correspondence and gluing output must be review gated",
+      "summary": "AdvisoryGraphen should expose HigherGraphen 0.5.0 correspondence_analysis and higher_graphen_gluing_review as review evidence without promoting generated correspondences as accepted facts.",
+      "source_ids": [
+        "source:hg-0-5-correspondence-adoption",
+        "source:testing-acceptance"
+      ],
+      "context_hints": [
+        "higher-graphen",
+        "correspondence",
+        "review-gate"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "high",
+        "require_verification": true,
+        "higher_graphen_version": "0.5.0",
+        "expected_observation": "ai_agent.correspondence_analysis and completion dry-run higher_graphen_gluing_review are present"
+      }
+    },
+    {
+      "id": "record:hg-0-5-review-policy-action",
+      "record_type": "action",
+      "title": "Exercise HG 0.5 gluing blockers in completion review",
+      "summary": "Run completions dry-run and accept/apply review paths against an HG 0.5.0 candidate so policy_blockers and explicit_completion_review overrides remain visible to agents.",
+      "source_ids": [
+        "source:hg-0-5-correspondence-adoption"
+      ],
+      "context_hints": [
+        "higher-graphen",
+        "correspondence",
+        "review-gate"
+      ],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.95,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "priority": "now",
+        "higher_graphen_version": "0.5.0"
       }
     },
     {
@@ -365,6 +433,6 @@
   "metadata": {
     "fixture": true,
     "dogfood": true,
-    "purpose": "Review AdvisoryGraphen's own HigherGraphen integration and expose post-MVP runtime adoption gaps."
+    "purpose": "Review AdvisoryGraphen's own HigherGraphen integration and expose HigherGraphen 0.5.0 correspondence/gluing review effects."
   }
 }
