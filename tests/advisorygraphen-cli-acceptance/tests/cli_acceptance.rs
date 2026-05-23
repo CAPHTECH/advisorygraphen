@@ -16,11 +16,11 @@ fn version_command_reports_planned_cli_version() {
     let dashed = run_cli(["--version"]);
     assert_success(&dashed);
     assert_output_contains(&dashed, BINARY);
-    assert_output_contains(&dashed, "0.1.1");
+    assert_output_contains(&dashed, "0.1.2");
 
     let subcommand = run_cli(["version"]);
     assert_success(&subcommand);
-    assert_output_contains(&subcommand, "0.1.1");
+    assert_output_contains(&subcommand, "0.1.2");
 }
 
 #[test]

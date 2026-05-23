@@ -115,6 +115,16 @@ cargo publish --dry-run --workspace
 cargo run -q -p advisorygraphen-cli -- validate --input examples/technical-advisory/direct-db-access/advisory.input.json --format json
 ```
 
+## Acceptance definition for v0.1.2
+
+v0.1.2 can be tagged when:
+
+1. workspace tests, clippy, and CLI acceptance tests pass;
+2. crates.io publish dry-run passes for the workspace;
+3. `ai_agent` projection exposes bounded HigherGraphen correspondence counts, review focus candidates, and gluing summaries;
+4. completion dry-run gluing keeps blockers and policy overrides review-visible until explicit review;
+5. PR review skill guidance emphasizes AI authority, persistence, evidence-to-fact, public output/schema, and dependency/version boundaries.
+
 ## Acceptance definition for v0.1.1
 
 v0.1.1 can be tagged when:
