@@ -227,6 +227,44 @@ export async function GET() {
 }
 
 #[test]
+fn micro_review_flags_small_ai_answer_risks_without_full_lift() {
+    let dir = clean_case_dir("micro-review");
+    let input = dir.join("ai-answer.txt");
+    let output = dir.join("micro-review.json");
+    fs::write(
+        &input,
+        "The auth fix is done and safe. It probably failed because middleware order changed. Tests passed: cargo test auth_guard.",
+    )
+    .unwrap();
+
+    let review = run_cli([
+        "micro",
+        "review",
+        "--input",
+        path_str(&input),
+        "--output",
+        path_str(&output),
+        "--format",
+        "json",
+    ]);
+    assert_success(&review);
+    assert_file_contains(&output, r#""report_type": "micro_review""#);
+    assert_file_contains(&output, "ai_answer_self_review");
+    assert_file_contains(&output, "unsupported_strong_claim");
+    assert_file_contains(&output, "requires_confirmation_or_downgrade");
+    assert_file_contains(&output, "high_blast_radius_claims");
+    assert_file_contains(&output, "alternative_hypotheses");
+    assert_file_contains(&output, "structure_error_risks");
+    assert_file_contains(&output, "structure_error_risk_summary");
+    assert_file_contains(&output, "relative_error_risk_not_probability");
+    assert_file_contains(&output, "missing_source_witness");
+    assert_file_contains(&output, "unsupported_strong_claim");
+    assert_file_contains(&output, "falsification_checks");
+    assert_file_contains(&output, "Try to falsify the completion/safety claim");
+    assert_file_contains(&output, "cargo test auth_guard");
+}
+
+#[test]
 fn dogfood_fixture_surfaces_higher_graphen_runtime_followups() {
     let dir = clean_case_dir("dogfood-higher-graphen");
     let generated = dir.join("generated.advisory.input.json");

@@ -26,6 +26,13 @@ pub struct CheckOptions {
 }
 
 #[derive(Debug, Clone)]
+pub struct MicroReviewOptions {
+    pub input: PathBuf,
+    pub output: Option<PathBuf>,
+    pub command: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct CompletionProposeOptions {
     pub space: PathBuf,
     pub from_report: PathBuf,

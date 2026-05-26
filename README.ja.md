@@ -27,6 +27,17 @@ cargo run -q -p advisorygraphen-cli -- version
 
 ## Quick Start
 
+小さな AI 回答、メモ、Issue、PR コメントには、まず `micro review` を使えます。Snapshot や advisory space は不要です。
+
+```sh
+advisorygraphen micro review \
+  --input ai-answer.txt \
+  --output /tmp/micro-review.report.json \
+  --format json
+```
+
+この report は、unsupported strong claim、assumption、structure error risk、falsification check、missing check、alternative hypothesis、full workflow へ escalation すべきかを出力します。
+
 同梱の `technical_advisory_mvp` fixture で、リリース済みワークフローを実行します。
 
 ```sh
@@ -93,6 +104,7 @@ bounded source snapshot
 | `validate` | snapshot、advisory space、report、projection request、review event を検証する。 |
 | `lift` | bounded source snapshot を advisory space に変換する。 |
 | `check` | advisory invariant を評価し、obstruction を出力する。 |
+| `micro review` | 小さなテキスト入力を claim、assumption、evidence gap、structure error risk、falsification check、missing check、escalation need に分解する。 |
 | `completions propose` | obstruction からレビュー可能な completion candidate を生成する。 |
 | `completions dry-run` | case store を変更せず、candidate をメモリ上で適用して再チェックする。 |
 | `project` | audience ごとの projection を生成する。 |

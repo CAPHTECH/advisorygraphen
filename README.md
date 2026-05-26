@@ -27,6 +27,20 @@ cargo run -q -p advisorygraphen-cli -- version
 
 ## Quick Start
 
+For a small AI answer, note, issue, or PR comment, use `micro review` first. It
+does not require a snapshot or advisory space:
+
+```sh
+advisorygraphen micro review \
+  --input ai-answer.txt \
+  --output /tmp/micro-review.report.json \
+  --format json
+```
+
+The report flags unsupported strong claims, assumptions, structure error risk,
+falsification checks, missing checks, alternative hypotheses, and whether the
+input should escalate to the full workflow.
+
 Run the released workflow against the included `technical_advisory_mvp` fixture.
 
 ```sh
@@ -93,6 +107,7 @@ Key commands:
 | `validate` | Validate a snapshot, advisory space, report, projection request, or review event. |
 | `lift` | Convert a bounded source snapshot into an advisory space. |
 | `check` | Evaluate advisory invariants and emit obstructions. |
+| `micro review` | Review small text inputs for claims, assumptions, evidence gaps, structure error risk, falsification checks, missing checks, and escalation need. |
 | `completions propose` | Generate reviewable completion candidates from obstructions. |
 | `completions dry-run` | Apply candidates in memory and rerun checks without changing a case store. |
 | `project` | Render a projection for a specific audience. |

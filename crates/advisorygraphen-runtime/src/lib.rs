@@ -21,6 +21,7 @@ mod dogfood;
 mod dry_run_gluing;
 mod hypothesis_propagation;
 mod hypothesis_review;
+mod micro_review;
 mod options;
 mod projection_report;
 mod review;
@@ -38,7 +39,8 @@ pub use options::{
     CaseCloseCheckOptions, CaseImportOptions, CaseReasonOptions, CheckOptions,
     CompletionApplyAcceptedOptions, CompletionDryRunOptions, CompletionProposeOptions,
     HypothesisApplyProposalsOptions, HypothesisFalsifyOptions, HypothesisProposeOptions,
-    LiftOptions, ObservationRecordOptions, ProjectOptions, ReviewOptions, ValidateOptions,
+    LiftOptions, MicroReviewOptions, ObservationRecordOptions, ProjectOptions, ReviewOptions,
+    ValidateOptions,
 };
 use projection_report::{attach_completion_report, read_projection_report};
 use review::{higher_graphen_completion_review, review_report_path, review_space_id};
@@ -67,6 +69,23 @@ pub fn check_workflow(options: &CheckOptions) -> AdvisoryResult<ReportEnvelope> 
     write_json_if_requested(&options.output, &report)?;
     Ok(report)
 }
+
+pub fn micro_review_workflow(options: &MicroReviewOptions) -> AdvisoryResult<ReportEnvelope> {
+    let input_text = fs::read_to_string(&options.input)?;
+    let result = micro_review::analyze(&input_text);
+    let report = ReportEnvelope::new(
+        "micro_review",
+        options.command.as_deref(),
+        json!({
+            "input": options.input,
+            "mode": "small_scope_ai_answer_review"
+        }),
+        result,
+    );
+    write_json_if_requested(&options.output, &report)?;
+    Ok(report)
+}
+
 pub fn completions_propose_workflow(
     options: &CompletionProposeOptions,
 ) -> AdvisoryResult<ReportEnvelope> {

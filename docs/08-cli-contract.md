@@ -65,6 +65,37 @@ advisorygraphen check --space advisory.space.json --fail-on high
 
 Without `--fail-on`, high-severity findings still exit `0`.
 
+### `micro review`
+
+Review a small AI answer, note, issue, or PR comment without first lifting it
+into a full advisory space. This mode is intentionally cheap: it surfaces
+claims, evidence status, assumptions, missing checks, alternative hypotheses,
+structure error risk, falsification checks, and whether the input should
+escalate to the full AdvisoryGraphen workflow.
+
+```sh
+advisorygraphen micro review \
+  --input ai-answer.txt \
+  --format json \
+  --output micro-review.report.json
+```
+
+The report type is `micro_review`. It is useful when the target is small enough
+that an AI can create a plausible structure directly, but the user still needs a
+bounded review of unsupported confidence:
+
+- `claims`: claim units with `evidence_status`.
+- `assumptions`: claims marked as likely, assumed, or inferred.
+- `missing_checks`: concrete observations needed before accepting strong or
+  high-blast-radius claims.
+- `alternative_hypotheses`: competing explanations for cause claims.
+- `structure_error_risks`: per-claim relative error risk, risk factors, and
+  falsification checks. `risk_score` is explicitly uncalibrated and must not be
+  read as an error probability.
+- `structure_error_risk_summary`: low/medium/high counts and the highest-risk
+  structure IDs for review prioritization.
+- `mode`: `micro_review` or `full_advisory_workflow_recommended`.
+
 ### `completions propose`
 
 Generate reviewable completion candidates from obstructions. Each candidate is

@@ -19,6 +19,18 @@ bounded source -> lift -> check -> hypotheses/completions -> ai_agent projection
 -> inspect proposal content -> request or apply reviewed structure -> rerun check
 ```
 
+For small inputs where a full advisory space would be heavier than the task,
+start with micro review instead of forcing the full loop:
+
+```text
+small AI answer / note / issue -> micro review -> inspect claims, evidence
+status, assumptions, structure error risk, falsification checks, missing checks,
+alternative hypotheses, and escalation mode
+```
+
+Use the full loop only when micro review reports high blast radius, many claims,
+many unsupported claims, or the user needs durable review-gated structure.
+
 For advisory work about a problem, default to a problem-driven hypothesis
 workflow:
 
@@ -147,6 +159,7 @@ the missing structure rather than fabricating facts.
 
 ```sh
 advisorygraphen validate --input INPUT.json --format json
+advisorygraphen micro review --input AI_ANSWER_OR_NOTE.txt --output MICRO_REVIEW.json --format json
 advisorygraphen dogfood adversarial-fixture --output ADVERSARIAL_INPUT.json --format json
 advisorygraphen lift --input INPUT.json --package technical_advisory --output SPACE.json --format json
 advisorygraphen check --space SPACE.json --ruleset technical_advisory_mvp --output CHECK.json --format json

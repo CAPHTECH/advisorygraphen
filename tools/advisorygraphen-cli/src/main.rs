@@ -6,13 +6,14 @@ use advisorygraphen_runtime::{
     completions_propose_workflow, dogfood_adversarial_fixture_workflow,
     dogfood_repo_snapshot_workflow, hypothesis_accept_workflow,
     hypothesis_apply_proposals_workflow, hypothesis_falsify_workflow, hypothesis_propose_workflow,
-    hypothesis_reject_workflow, hypothesis_support_workflow, lift_workflow,
+    hypothesis_reject_workflow, hypothesis_support_workflow, lift_workflow, micro_review_workflow,
     observation_record_workflow, project_workflow, review_workflow, validate_workflow,
     CaseCloseCheckOptions, CaseImportOptions, CaseReasonOptions, CheckOptions,
     CodeRepoSnapshotOptions, CompletionApplyAcceptedOptions, CompletionDryRunOptions,
     CompletionProposeOptions, DogfoodAdversarialFixtureOptions, DogfoodRepoSnapshotOptions,
     HypothesisApplyProposalsOptions, HypothesisFalsifyOptions, HypothesisProposeOptions,
-    LiftOptions, ObservationRecordOptions, ProjectOptions, ReviewOptions, ValidateOptions,
+    LiftOptions, MicroReviewOptions, ObservationRecordOptions, ProjectOptions, ReviewOptions,
+    ValidateOptions,
 };
 use clap::{Args, Parser, Subcommand};
 use serde::Serialize;
@@ -35,6 +36,10 @@ enum Command {
     Validate(ValidateArgs),
     Lift(LiftArgs),
     Check(CheckArgs),
+    Micro {
+        #[command(subcommand)]
+        command: MicroCommand,
+    },
     Completions {
         #[command(subcommand)]
         command: CompletionsCommand,
@@ -75,6 +80,11 @@ enum HypothesisCommand {
 #[derive(Debug, Subcommand)]
 enum ObservationCommand {
     Record(ObservationRecordArgs),
+}
+
+#[derive(Debug, Subcommand)]
+enum MicroCommand {
+    Review(MicroReviewArgs),
 }
 
 #[derive(Debug, Args)]
@@ -212,6 +222,16 @@ struct CheckArgs {
     format: String,
     #[arg(long)]
     fail_on: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct MicroReviewArgs {
+    #[arg(long)]
+    input: PathBuf,
+    #[arg(long)]
+    output: Option<PathBuf>,
+    #[arg(long, default_value = "json")]
+    format: String,
 }
 
 #[derive(Debug, Args)]
@@ -397,6 +417,17 @@ fn run() -> Result<(), AdvisoryError> {
             })?;
             print_json(&report)
         }
+        Command::Micro { command } => match command {
+            MicroCommand::Review(args) => {
+                require_json_format(&args.format)?;
+                let report = micro_review_workflow(&MicroReviewOptions {
+                    input: args.input,
+                    output: args.output,
+                    command: Some(command_string()),
+                })?;
+                print_json(&report)
+            }
+        },
         Command::Completions { command } => match command {
             CompletionsCommand::Propose(args) => {
                 require_json_format(&args.format)?;
