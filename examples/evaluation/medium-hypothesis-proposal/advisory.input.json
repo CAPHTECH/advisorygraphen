@@ -1,0 +1,387 @@
+{
+  "schema": "advisorygraphen.engagement.snapshot.v1",
+  "snapshot_id": "snapshot:medium-hypothesis-proposal",
+  "engagement_id": "engagement:checkout-latency-advisory",
+  "captured_at": "2026-05-27T00:00:00Z",
+  "source_boundary": {
+    "included_source_ids": [
+      "source:incident-note",
+      "source:ai-baseline-proposal",
+      "source:operations-review-note"
+    ],
+    "excluded_summary": [
+      "Raw tracing data, deploy logs, and production database metrics are not included.",
+      "Customer impact analysis and incident command chat are not included."
+    ],
+    "extraction_loss": [
+      "The incident timeline is compressed into structured records.",
+      "The AI baseline proposal is represented as a proposal record rather than the full prose answer.",
+      "Only review-relevant hypotheses are modeled."
+    ],
+    "trust_notes": [
+      "Synthetic medium-scale fixture for testing hypothesis-to-proposal governance.",
+      "The fixture intentionally includes an AI proposal that converges on one cause before support exists."
+    ],
+    "adapter_version": "json_snapshot:0.1.0"
+  },
+  "sources": [
+    {
+      "id": "source:incident-note",
+      "source_type": "incident_note",
+      "title": "Checkout latency incident summary",
+      "uri": null,
+      "captured_at": "2026-05-27T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "fixture_role": "ambiguous_medium_scale_problem"
+      }
+    },
+    {
+      "id": "source:ai-baseline-proposal",
+      "source_type": "ai_agent_output",
+      "title": "AI baseline proposal that converges on cache TTL",
+      "uri": null,
+      "captured_at": "2026-05-27T00:05:00Z",
+      "classification": "public",
+      "metadata": {
+        "fixture_role": "early_convergence_and_overproposal"
+      }
+    },
+    {
+      "id": "source:operations-review-note",
+      "source_type": "review_note",
+      "title": "Operations review note",
+      "uri": null,
+      "captured_at": "2026-05-27T00:10:00Z",
+      "classification": "public",
+      "metadata": {
+        "fixture_role": "missing_observation_and_ownership_context"
+      }
+    }
+  ],
+  "records": [
+    {
+      "id": "record:checkout-service",
+      "record_type": "component",
+      "title": "Checkout Service",
+      "summary": "Service handling checkout confirmation and inventory availability checks.",
+      "source_ids": ["source:incident-note"],
+      "context_hints": ["checkout", "incident-response"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "component_type": "service"
+      }
+    },
+    {
+      "id": "record:inventory-service",
+      "record_type": "component",
+      "title": "Inventory Service",
+      "summary": "Service that owns inventory availability decisions and inventory storage.",
+      "source_ids": ["source:incident-note"],
+      "context_hints": ["inventory"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "component_type": "service"
+      }
+    },
+    {
+      "id": "record:inventory-db",
+      "record_type": "data_store",
+      "title": "Inventory DB",
+      "summary": "Inventory database owned by Inventory Service.",
+      "source_ids": ["source:incident-note"],
+      "context_hints": ["inventory"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "store_type": "database"
+      }
+    },
+    {
+      "id": "record:incident-lead",
+      "record_type": "owner",
+      "title": "Incident Lead",
+      "summary": "Accountable for incident mitigation recommendations.",
+      "source_ids": ["source:operations-review-note"],
+      "context_hints": ["incident-response"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "role": "incident_commander"
+      }
+    },
+    {
+      "id": "record:inventory-service-owns-inventory-db",
+      "record_type": "ownership_relation",
+      "title": "Inventory Service owns Inventory DB",
+      "summary": "Inventory Service owns the inventory database boundary.",
+      "source_ids": ["source:incident-note"],
+      "context_hints": ["inventory"],
+      "relation": {
+        "relation_type": "owns",
+        "from_record_id": "record:inventory-service",
+        "to_record_id": "record:inventory-db"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:checkout-service-accesses-inventory-db",
+      "record_type": "access_relation",
+      "title": "Checkout Service reads Inventory DB directly",
+      "summary": "Checkout Service reads Inventory DB directly during checkout confirmation.",
+      "source_ids": ["source:incident-note"],
+      "context_hints": ["checkout", "inventory"],
+      "relation": {
+        "relation_type": "accesses",
+        "from_record_id": "record:checkout-service",
+        "to_record_id": "record:inventory-db"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.9,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "access_type": "direct_database_read"
+      }
+    },
+    {
+      "id": "record:req-mitigation-evidence",
+      "record_type": "requirement",
+      "title": "Incident mitigation proposals must be hypothesis-backed",
+      "summary": "Primary remediation recommendations must trace to a supported hypothesis and a falsification check for competing causes.",
+      "source_ids": ["source:operations-review-note"],
+      "context_hints": ["incident-response", "hypothesis-governance"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "high",
+        "require_verification": true
+      }
+    },
+    {
+      "id": "record:hyp-cache-ttl-root-cause",
+      "record_type": "hypothesis",
+      "title": "Cache TTL regression caused checkout latency",
+      "summary": "The AI baseline converges on cache TTL as the root cause and treats raising TTL as the primary mitigation.",
+      "source_ids": ["source:ai-baseline-proposal"],
+      "context_hints": ["incident-response", "hypothesis-governance"],
+      "relation": null,
+      "provenance": {
+        "origin": "inferred",
+        "actor": "ai-agent:baseline",
+        "confidence": 0.68,
+        "review_status": "unreviewed"
+      },
+      "metadata": {
+        "hypothesis_status": "candidate",
+        "expected_observations": [
+          "Trace samples show cache misses dominating checkout latency.",
+          "Increasing TTL in a controlled canary reduces checkout p95 without changing DB access."
+        ],
+        "falsifiers": [
+          "Checkout latency remains high when cache hit rate is restored.",
+          "Inventory DB lock waits or direct DB query fanout explain most latency."
+        ]
+      }
+    },
+    {
+      "id": "record:hyp-direct-inventory-db-coupling",
+      "record_type": "hypothesis",
+      "title": "Direct Inventory DB coupling caused checkout latency",
+      "summary": "The direct cross-context Inventory DB read may be the dominant latency source rather than cache TTL.",
+      "source_ids": ["source:incident-note"],
+      "context_hints": ["checkout", "inventory", "hypothesis-governance"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.72,
+        "review_status": "unreviewed"
+      },
+      "metadata": {
+        "hypothesis_status": "candidate",
+        "expected_observations": [
+          "Checkout traces show direct Inventory DB calls on the slow path.",
+          "Removing direct DB fanout lowers latency even when cache TTL is unchanged."
+        ],
+        "falsifiers": [
+          "Direct Inventory DB calls are rare or outside the slow checkout path.",
+          "Inventory DB latency is normal during the incident window."
+        ]
+      }
+    },
+    {
+      "id": "record:hyp-upstream-rate-limit",
+      "record_type": "hypothesis",
+      "title": "Upstream payment rate limiting caused checkout latency",
+      "summary": "Payment provider rate limiting may explain checkout latency independently of cache TTL or Inventory DB reads.",
+      "source_ids": ["source:incident-note"],
+      "context_hints": ["checkout", "payment", "hypothesis-governance"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 0.55,
+        "review_status": "unreviewed"
+      },
+      "metadata": {
+        "hypothesis_status": "candidate",
+        "expected_observations": [
+          "Payment provider response headers show throttling or backoff.",
+          "Checkout latency correlates with provider retry windows."
+        ],
+        "falsifiers": [
+          "Payment provider latency remains normal during the incident window.",
+          "Slow traces spend most time before payment authorization."
+        ]
+      }
+    },
+    {
+      "id": "record:cache-ttl-competes-direct-db",
+      "record_type": "competition_relation",
+      "title": "Cache TTL hypothesis competes with direct DB hypothesis",
+      "summary": "These hypotheses explain the same latency symptom with different remediations.",
+      "source_ids": ["source:operations-review-note"],
+      "context_hints": ["hypothesis-governance"],
+      "relation": {
+        "relation_type": "competes_with",
+        "from_record_id": "record:hyp-cache-ttl-root-cause",
+        "to_record_id": "record:hyp-direct-inventory-db-coupling"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:cache-ttl-competes-rate-limit",
+      "record_type": "competition_relation",
+      "title": "Cache TTL hypothesis competes with upstream rate limit hypothesis",
+      "summary": "Both hypotheses can explain checkout latency but require different observations.",
+      "source_ids": ["source:operations-review-note"],
+      "context_hints": ["hypothesis-governance"],
+      "relation": {
+        "relation_type": "competes_with",
+        "from_record_id": "record:hyp-cache-ttl-root-cause",
+        "to_record_id": "record:hyp-upstream-rate-limit"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:proposal-raise-cache-ttl",
+      "record_type": "proposal",
+      "title": "Raise cache TTL globally as primary incident fix",
+      "summary": "The AI baseline proposes raising cache TTL globally and presenting it as the primary incident mitigation before competing causes are tested.",
+      "source_ids": ["source:ai-baseline-proposal"],
+      "context_hints": ["incident-response", "hypothesis-governance"],
+      "relation": null,
+      "provenance": {
+        "origin": "inferred",
+        "actor": "ai-agent:baseline",
+        "confidence": 0.74,
+        "review_status": "unreviewed"
+      },
+      "metadata": {
+        "priority": "p1",
+        "required_verification": "Canary proves TTL increase lowers checkout p95 and falsifies direct DB coupling and upstream rate limiting as dominant causes.",
+        "derived_from_hypothesis": "record:hyp-cache-ttl-root-cause"
+      }
+    },
+    {
+      "id": "record:proposal-raise-cache-ttl-derives-from-cache-hypothesis",
+      "record_type": "derivation_relation",
+      "title": "Cache TTL proposal derives from unsupported cache hypothesis",
+      "summary": "The AI proposal derives from the cache TTL hypothesis, which has not been supported by observations.",
+      "source_ids": ["source:ai-baseline-proposal"],
+      "context_hints": ["hypothesis-governance"],
+      "relation": {
+        "relation_type": "derives_from",
+        "from_record_id": "record:proposal-raise-cache-ttl",
+        "to_record_id": "record:hyp-cache-ttl-root-cause"
+      },
+      "provenance": {
+        "origin": "inferred",
+        "actor": "ai-agent:baseline",
+        "confidence": 0.74,
+        "review_status": "unreviewed"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:incident-lead-owns-cache-ttl-proposal",
+      "record_type": "ownership_relation",
+      "title": "Incident Lead owns cache TTL proposal review",
+      "summary": "The incident lead is accountable for deciding whether the cache TTL proposal can be promoted after evidence is collected.",
+      "source_ids": ["source:operations-review-note"],
+      "context_hints": ["incident-response"],
+      "relation": {
+        "relation_type": "owns",
+        "from_record_id": "record:incident-lead",
+        "to_record_id": "record:proposal-raise-cache-ttl"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    }
+  ],
+  "metadata": {
+    "fixture": true,
+    "evaluation": true,
+    "domain": "medium-hypothesis-proposal",
+    "method": "hypothesis_to_proposal_governance",
+    "ai_baseline_failure_mode": "early_convergence_and_overproposal",
+    "expected_control": [
+      "candidate hypotheses stay visible as competing explanations",
+      "unsupported proposal is blocked from primary recommendation",
+      "follow-up observations are produced before proposal promotion"
+    ]
+  }
+}

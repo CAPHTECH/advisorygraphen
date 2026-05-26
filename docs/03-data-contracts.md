@@ -259,7 +259,7 @@ All report-producing commands must return a stable envelope.
   "report_version": 1,
   "tool": {
     "name": "advisorygraphen",
-    "version": "0.1.2"
+    "version": "0.1.3"
   },
   "input": {},
   "result": {},

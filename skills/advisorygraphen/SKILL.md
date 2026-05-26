@@ -206,3 +206,29 @@ Expected smoke result:
 - dry-run entries include `higher_graphen_gluing_review`;
 - projection loss is present and must be disclosed;
 - no candidate is treated as accepted structure.
+
+## Hypothesis-to-proposal evaluation smoke
+
+Run this medium fixture when validating AdvisoryGraphen's main value:
+controlling early AI convergence and over-proposal before recommendations
+become primary.
+
+```sh
+advisorygraphen validate --input examples/evaluation/medium-hypothesis-proposal/advisory.input.json --format json
+advisorygraphen lift --input examples/evaluation/medium-hypothesis-proposal/advisory.input.json --package technical_advisory --output /tmp/medium-hypothesis.space.json --format json
+advisorygraphen check --space /tmp/medium-hypothesis.space.json --ruleset technical_advisory_mvp --output /tmp/medium-hypothesis.check.json --format json
+advisorygraphen completions propose --space /tmp/medium-hypothesis.space.json --from-report /tmp/medium-hypothesis.check.json --output /tmp/medium-hypothesis.completions.json --format json
+advisorygraphen project --space /tmp/medium-hypothesis.space.json --report /tmp/medium-hypothesis.check.json --completions-report /tmp/medium-hypothesis.completions.json --audience ai_agent --output /tmp/medium-hypothesis.ai-agent.json --format json
+```
+
+Expected evaluation result:
+
+- `check` contains `proposal_derived_from_unsupported_hypothesis`;
+- `check` contains `high_priority_proposal_missing_hypothesis_refinement`;
+- completion candidates are `follow_up_observation`, not `primary`;
+- `ai_agent.recommendation_trace.primary_count` is `0`;
+- `ai_agent.recommendation_trace.follow_up_observation_count` is non-zero;
+- `ai_agent` exposes `ranked_observation_tasks`;
+- `ai_agent` exposes `hypothesis_promotion_workflow`;
+- the fixture demonstrates that unsupported or unrefined AI proposals remain
+  observation tasks until supporting evidence is recorded and reviewed.

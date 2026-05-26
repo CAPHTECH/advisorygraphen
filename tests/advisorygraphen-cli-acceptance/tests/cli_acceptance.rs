@@ -6,6 +6,10 @@ use support::*;
 
 const FIXTURE: &str = "examples/technical-advisory/direct-db-access/advisory.input.json";
 const DOGFOOD_FIXTURE: &str = "examples/dogfood/higher-graphen-integration/advisory.input.json";
+const MEDIUM_HYPOTHESIS_FIXTURE: &str =
+    "examples/evaluation/medium-hypothesis-proposal/advisory.input.json";
+const MEDIUM_PR_REVIEW_FIXTURE: &str =
+    "examples/evaluation/medium-pr-review/advisory.input.json";
 const PACKAGE_NAME: &str = "technical_advisory";
 const RULESET: &str = "technical_advisory_mvp";
 const SPACE_ID: &str = "space:advisory:technical-advisory-direct-db-access";
@@ -16,11 +20,11 @@ fn version_command_reports_planned_cli_version() {
     let dashed = run_cli(["--version"]);
     assert_success(&dashed);
     assert_output_contains(&dashed, BINARY);
-    assert_output_contains(&dashed, "0.1.2");
+    assert_output_contains(&dashed, "0.1.3");
 
     let subcommand = run_cli(["version"]);
     assert_success(&subcommand);
-    assert_output_contains(&subcommand, "0.1.2");
+    assert_output_contains(&subcommand, "0.1.3");
 }
 
 #[test]
@@ -639,6 +643,197 @@ fn adversarial_dogfood_fixture_is_regression_oracle_for_hypothesis_gates() {
     ]);
     assert_success(&reason);
     assert_output_contains(&reason, r#""case_head_revision": "revision:observation-000001""#);
+}
+
+#[test]
+fn medium_hypothesis_fixture_controls_early_convergence_and_overproposal() {
+    let dir = clean_case_dir("medium-hypothesis-proposal");
+    let space = dir.join("advisory.space.json");
+    let check = dir.join("advisory.check.json");
+    let completions = dir.join("advisory.completions.json");
+    let ai_agent = dir.join("advisory.ai-agent.json");
+
+    let validate = run_cli([
+        "validate",
+        "--input",
+        MEDIUM_HYPOTHESIS_FIXTURE,
+        "--format",
+        "json",
+    ]);
+    assert_success(&validate);
+
+    let lift = run_cli([
+        "lift",
+        "--input",
+        MEDIUM_HYPOTHESIS_FIXTURE,
+        "--package",
+        PACKAGE_NAME,
+        "--output",
+        path_str(&space),
+        "--format",
+        "json",
+    ]);
+    assert_success(&lift);
+    assert_file_contains(
+        &repo_root().join(MEDIUM_HYPOTHESIS_FIXTURE),
+        "early_convergence_and_overproposal",
+    );
+    assert_file_contains(&space, "cell:hyp-cache-ttl-root-cause");
+    assert_file_contains(&space, "cell:hyp-direct-inventory-db-coupling");
+    assert_file_contains(&space, "cell:hyp-upstream-rate-limit");
+    assert_file_contains(&space, "cell:proposal-raise-cache-ttl");
+
+    check_space(&space, &check);
+    assert_file_contains(&check, "boundary_violation");
+    assert_file_contains(&check, "proposal_derived_from_unsupported_hypothesis");
+    assert_file_contains(&check, "high_priority_proposal_missing_hypothesis_refinement");
+    assert_file_contains(
+        &check,
+        "collect supporting observations before promoting this action as a primary proposal",
+    );
+    assert_file_contains(&check, "hypothesis_status");
+    assert_file_contains(&check, "candidate");
+    assert_file_contains(&check, "competes_with");
+
+    propose_completions(&space, &check, &completions);
+    assert_file_contains(&completions, r#""recommendation_role": "follow_up_observation""#);
+    assert_file_not_contains(&completions, r#""recommendation_role": "primary""#);
+    assert_file_contains(&completions, "proposal_depends_on_unsupported_hypothesis");
+    assert_file_contains(&completions, "support_required_for_primary_recommendation");
+    assert_file_contains(&completions, "unsupported_hypothesis_ids");
+
+    let project = run_cli([
+        "project",
+        "--space",
+        path_str(&space),
+        "--report",
+        path_str(&check),
+        "--completions-report",
+        path_str(&completions),
+        "--audience",
+        "ai_agent",
+        "--format",
+        "json",
+        "--output",
+        path_str(&ai_agent),
+    ]);
+    assert_success(&project);
+    assert_file_contains(&ai_agent, r#""primary_count": 0"#);
+    assert_file_contains(&ai_agent, r#""follow_up_observation_count": 3"#);
+    assert_file_contains(&ai_agent, r#""unsupported_hypothesis_candidate_count": 3"#);
+    assert_file_contains(&ai_agent, "ranked_observation_tasks");
+    assert_file_contains(&ai_agent, "hypothesis_promotion_workflow");
+    assert_file_contains(&ai_agent, "Only candidates derived from supported or accepted hypotheses can be primary recommendations.");
+    assert_file_contains(&ai_agent, "obstruction:proposal-raise-cache-ttl-proposal_derived_from_unsupported_hypothesis");
+}
+
+#[test]
+fn medium_pr_review_fixture_produces_review_priority_map() {
+    let dir = clean_case_dir("medium-pr-review");
+    let space = dir.join("advisory.space.json");
+    let check = dir.join("advisory.check.json");
+    let completions = dir.join("advisory.completions.json");
+    let ai_agent = dir.join("advisory.ai-agent.json");
+
+    let validate = run_cli([
+        "validate",
+        "--input",
+        MEDIUM_PR_REVIEW_FIXTURE,
+        "--format",
+        "json",
+    ]);
+    assert_success(&validate);
+    assert_file_contains(
+        &repo_root().join(MEDIUM_PR_REVIEW_FIXTURE),
+        "medium_large_review_priority_map",
+    );
+
+    let lift = run_cli([
+        "lift",
+        "--input",
+        MEDIUM_PR_REVIEW_FIXTURE,
+        "--package",
+        PACKAGE_NAME,
+        "--output",
+        path_str(&space),
+        "--format",
+        "json",
+    ]);
+    assert_success(&lift);
+    assert_file_contains(&space, "cell:req-authz-tenant-isolation");
+    assert_file_contains(&space, "cell:req-migration-rollback-safety");
+    assert_file_contains(&space, "cell:req-public-api-compatibility");
+    assert_file_contains(&space, "cell:req-docs-changelog-updated");
+    assert_file_contains(&space, "cell:req-ui-copy-snapshot-stable");
+
+    check_space(&space, &check);
+    assert_file_contains(
+        &check,
+        "obstruction:req-authz-tenant-isolation-missing-verification",
+    );
+    assert_file_contains(
+        &check,
+        "obstruction:req-migration-rollback-safety-missing-verification",
+    );
+    assert_file_contains(
+        &check,
+        "obstruction:req-public-api-compatibility-missing-verification",
+    );
+    assert_file_not_contains(
+        &check,
+        "obstruction:req-docs-changelog-updated-missing-verification",
+    );
+    assert_file_not_contains(
+        &check,
+        "obstruction:req-ui-copy-snapshot-stable-missing-verification",
+    );
+
+    propose_completions(&space, &check, &completions);
+    assert_file_contains(
+        &completions,
+        "candidate:req-authz-tenant-isolation-missing-verification-verification",
+    );
+    assert_file_contains(
+        &completions,
+        "candidate:req-migration-rollback-safety-missing-verification-verification",
+    );
+    assert_file_contains(
+        &completions,
+        "candidate:req-public-api-compatibility-missing-verification-verification",
+    );
+    assert_file_not_contains(
+        &completions,
+        "candidate:req-docs-changelog-updated-missing-verification-verification",
+    );
+    assert_file_not_contains(
+        &completions,
+        "candidate:req-ui-copy-snapshot-stable-missing-verification-verification",
+    );
+
+    let project = run_cli([
+        "project",
+        "--space",
+        path_str(&space),
+        "--report",
+        path_str(&check),
+        "--completions-report",
+        path_str(&completions),
+        "--audience",
+        "ai_agent",
+        "--format",
+        "json",
+        "--output",
+        path_str(&ai_agent),
+    ]);
+    assert_success(&project);
+    assert_file_contains(&ai_agent, r#""unsupported_hypothesis_candidate_count": 3"#);
+    assert_file_contains(&ai_agent, r#""primary_count": 0"#);
+    assert_file_contains(&ai_agent, "waiting_items");
+    assert_file_contains(&ai_agent, "ranked_observation_tasks");
+    assert_file_contains(&ai_agent, "correspondence_analysis");
+    assert_file_contains(&ai_agent, "projection_loss_metrics");
+    assert_file_contains(&ai_agent, "req-authz-tenant-isolation");
+    assert_file_not_contains(&ai_agent, "obstruction:req-docs-changelog-updated-missing-verification");
 }
 
 #[test]

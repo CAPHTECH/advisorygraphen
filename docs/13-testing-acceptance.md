@@ -28,6 +28,52 @@ Expected findings:
 9. Executive projection discloses the boundary violation.
 10. Audit projection exposes source boundary and projection loss.
 
+## Hypothesis-to-proposal evaluation
+
+`examples/evaluation/medium-hypothesis-proposal/advisory.input.json`
+
+This medium-scale fixture checks the main advisory use case: controlling early
+AI convergence and over-proposal before a recommendation becomes primary.
+
+Expected findings:
+
+1. The fixture includes an AI baseline proposal that converges on cache TTL as
+   the root cause.
+2. Competing hypotheses for direct Inventory DB coupling and upstream rate
+   limiting remain visible.
+3. The cache TTL proposal is derived from an unsupported hypothesis.
+4. `check` emits `proposal_derived_from_unsupported_hypothesis`.
+5. High-priority proposal promotion also requires hypothesis refinement.
+6. `completions propose` keeps all generated recommendations as
+   `follow_up_observation`.
+7. The `ai_agent` projection reports `primary_count: 0`.
+8. Ranked observation tasks describe the evidence needed before proposal
+   promotion.
+
+## Medium/large PR review evaluation
+
+`examples/evaluation/medium-pr-review/advisory.input.json`
+
+This medium-scale fixture checks whether AdvisoryGraphen is useful for review:
+it must turn a broad PR surface into a bounded review priority map instead of
+asking the reviewer to inspect every changed area equally.
+
+Expected findings:
+
+1. The fixture contains five review-area requirements across auth, migration,
+   public API, docs, and UI copy changes.
+2. Auth tenant isolation, billing migration rollback safety, and public API
+   compatibility remain unresolved verification requirements.
+3. `check` emits `requirement_unverified` obstructions for those three
+   contract areas.
+4. Docs changelog and UI copy requirements are verified by explicit test
+   outputs, so they do not emit missing-verification obstructions.
+5. `completions propose` creates verification candidates only for the
+   unresolved review targets.
+6. The `ai_agent` projection exposes ranked observation tasks,
+   correspondence analysis, and projection-loss metrics for the remaining
+   review work.
+
 ## CLI acceptance test
 
 ```sh
@@ -114,6 +160,19 @@ cargo package --workspace
 cargo publish --dry-run --workspace
 cargo run -q -p advisorygraphen-cli -- validate --input examples/technical-advisory/direct-db-access/advisory.input.json --format json
 ```
+
+## Acceptance definition for v0.1.3
+
+v0.1.3 can be tagged when:
+
+1. workspace tests, clippy, and CLI acceptance tests pass;
+2. crates.io publish dry-run passes for the workspace;
+3. micro review reports relative structure-error risk, falsification checks,
+   and escalation guidance for small AI answers or PR notes;
+4. hypothesis-to-proposal evaluation keeps unsupported proposals out of
+   primary recommendations and exposes ranked observation tasks;
+5. medium/large PR review evaluation distinguishes Must Review and Can Skim
+   areas with an executable priority-map fixture.
 
 ## Acceptance definition for v0.1.2
 

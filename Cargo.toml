@@ -14,16 +14,16 @@ resolver = "2"
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/CAPHTECH/advisorygraphen"
-version = "0.1.2"
+version = "0.1.3"
 description = "Evidence-backed technical advisory and proposal governance on HigherGraphen."
 
 [workspace.dependencies]
-advisorygraphen-core = { version = "0.1.2", path = "crates/advisorygraphen-core" }
-advisorygraphen-interpretation = { version = "0.1.2", path = "crates/advisorygraphen-interpretation" }
-advisorygraphen-lift = { version = "0.1.2", path = "crates/advisorygraphen-lift" }
-advisorygraphen-projection = { version = "0.1.2", path = "crates/advisorygraphen-projection" }
-advisorygraphen-reasoning = { version = "0.1.2", path = "crates/advisorygraphen-reasoning" }
-advisorygraphen-runtime = { version = "0.1.2", path = "crates/advisorygraphen-runtime" }
+advisorygraphen-core = { version = "0.1.3", path = "crates/advisorygraphen-core" }
+advisorygraphen-interpretation = { version = "0.1.3", path = "crates/advisorygraphen-interpretation" }
+advisorygraphen-lift = { version = "0.1.3", path = "crates/advisorygraphen-lift" }
+advisorygraphen-projection = { version = "0.1.3", path = "crates/advisorygraphen-projection" }
+advisorygraphen-reasoning = { version = "0.1.3", path = "crates/advisorygraphen-reasoning" }
+advisorygraphen-runtime = { version = "0.1.3", path = "crates/advisorygraphen-runtime" }
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive", "env"] }

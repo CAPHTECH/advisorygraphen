@@ -152,16 +152,17 @@ pub fn analyze(input_text: &str) -> Value {
             "risk_flags": risk_flags
         }));
 
-        let structure_error_risk = structure_error_risk(
-            &claim_id,
-            unit,
+        let risk_input = StructureRiskInput {
+            claim_id: &claim_id,
+            text: unit,
             evidence_status,
-            &markers,
-            &assumption_markers,
-            &strong_markers,
-            &risk_markers,
-            &cause_markers,
-        );
+            evidence_markers: &markers,
+            assumption_markers: &assumption_markers,
+            strong_markers: &strong_markers,
+            risk_markers: &risk_markers,
+            cause_markers: &cause_markers,
+        };
+        let structure_error_risk = structure_error_risk(risk_input);
         if structure_error_risk
             .get("error_risk")
             .and_then(Value::as_str)
@@ -256,21 +257,23 @@ pub fn analyze(input_text: &str) -> Value {
     })
 }
 
-fn structure_error_risk(
-    claim_id: &str,
-    text: &str,
-    evidence_status: &str,
-    evidence_markers: &[String],
-    assumption_markers: &[String],
-    strong_markers: &[String],
-    risk_markers: &[String],
-    cause_markers: &[String],
-) -> Value {
+struct StructureRiskInput<'a> {
+    claim_id: &'a str,
+    text: &'a str,
+    evidence_status: &'a str,
+    evidence_markers: &'a [String],
+    assumption_markers: &'a [String],
+    strong_markers: &'a [String],
+    risk_markers: &'a [String],
+    cause_markers: &'a [String],
+}
+
+fn structure_error_risk(input: StructureRiskInput<'_>) -> Value {
     let mut risk_score = 0.05_f64;
     let mut risk_factors = Vec::new();
     let mut falsification_checks = Vec::new();
 
-    if evidence_markers.is_empty() {
+    if input.evidence_markers.is_empty() {
         add_factor(
             &mut risk_factors,
             &mut falsification_checks,
@@ -282,8 +285,8 @@ fn structure_error_risk(
         );
     }
 
-    if evidence_status == "unsupported_strong_claim"
-        || (!strong_markers.is_empty() && evidence_markers.is_empty())
+    if input.evidence_status == "unsupported_strong_claim"
+        || (!input.strong_markers.is_empty() && input.evidence_markers.is_empty())
     {
         add_factor(
             &mut risk_factors,
@@ -296,7 +299,7 @@ fn structure_error_risk(
         );
     }
 
-    if !assumption_markers.is_empty() {
+    if !input.assumption_markers.is_empty() {
         add_factor(
             &mut risk_factors,
             &mut falsification_checks,
@@ -308,19 +311,21 @@ fn structure_error_risk(
         );
     }
 
-    if !risk_markers.is_empty() {
+    if !input.risk_markers.is_empty() {
         add_factor(
             &mut risk_factors,
             &mut falsification_checks,
             "high_blast_radius_structure",
             0.20,
             "security, authorization, database, deletion, migration, payment, or billing marker detected",
-            &suggested_observation(text, true),
+            &suggested_observation(input.text, true),
             &mut risk_score,
         );
     }
 
-    if !cause_markers.is_empty() && !matches!(evidence_status, "source_backed" | "test_backed") {
+    if !input.cause_markers.is_empty()
+        && !matches!(input.evidence_status, "source_backed" | "test_backed")
+    {
         add_factor(
             &mut risk_factors,
             &mut falsification_checks,
@@ -332,7 +337,7 @@ fn structure_error_risk(
         );
     }
 
-    if has_ambiguous_structure_terms(text) && evidence_markers.is_empty() {
+    if has_ambiguous_structure_terms(input.text) && input.evidence_markers.is_empty() {
         add_factor(
             &mut risk_factors,
             &mut falsification_checks,
@@ -360,9 +365,9 @@ fn structure_error_risk(
     }
 
     json!({
-        "structure_id": claim_id,
-        "source_claim_id": claim_id,
-        "claim_text": text,
+        "structure_id": input.claim_id,
+        "source_claim_id": input.claim_id,
+        "claim_text": input.text,
         "error_risk": error_risk,
         "risk_score": round_score(risk_score),
         "calibration_status": "uncalibrated",
@@ -420,7 +425,7 @@ fn structure_error_risk_summary(risks: &[Value]) -> Value {
 }
 
 fn has_ambiguous_structure_terms(text: &str) -> bool {
-    matching_markers(
+    !matching_markers(
         text,
         &[
             "owner",
@@ -442,7 +447,6 @@ fn has_ambiguous_structure_terms(text: &str) -> bool {
         ],
     )
     .is_empty()
-        == false
 }
 
 fn round_score(score: f64) -> f64 {

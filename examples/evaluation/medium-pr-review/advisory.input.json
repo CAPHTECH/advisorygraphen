@@ -1,0 +1,327 @@
+{
+  "schema": "advisorygraphen.engagement.snapshot.v1",
+  "snapshot_id": "snapshot:medium-pr-review-priority-map",
+  "engagement_id": "engagement:medium-pr-review",
+  "captured_at": "2026-05-27T00:00:00Z",
+  "source_boundary": {
+    "included_source_ids": [
+      "source:diff-auth-middleware",
+      "source:diff-billing-migration",
+      "source:diff-public-api",
+      "source:diff-docs",
+      "source:diff-ui-copy",
+      "source:test-docs-lint",
+      "source:test-ui-snapshot"
+    ],
+    "excluded_summary": [
+      "Full PR patch text is compressed into review-area sources.",
+      "CI logs outside docs lint and UI snapshot are not included.",
+      "Production telemetry and staged rollout data are not included."
+    ],
+    "extraction_loss": [
+      "Changed files are grouped by review contract rather than represented line-by-line.",
+      "Only verification-relevant test outputs are modeled.",
+      "Low-risk formatting-only changes are omitted."
+    ],
+    "trust_notes": [
+      "Synthetic medium-scale PR review fixture for proving review-priority-map usefulness.",
+      "The fixture intentionally mixes unresolved contract changes with verified low-risk changes."
+    ],
+    "adapter_version": "json_snapshot:0.1.0"
+  },
+  "sources": [
+    {
+      "id": "source:diff-auth-middleware",
+      "source_type": "diff_summary",
+      "title": "Auth middleware and tenant policy changes",
+      "uri": null,
+      "captured_at": "2026-05-27T00:00:00Z",
+      "classification": "public",
+      "metadata": {
+        "changed_files": [
+          "src/auth/middleware.rs",
+          "src/auth/tenant_policy.rs"
+        ],
+        "fixture_role": "must_review_unverified_contract"
+      }
+    },
+    {
+      "id": "source:diff-billing-migration",
+      "source_type": "diff_summary",
+      "title": "Billing schema migration and rollback changes",
+      "uri": null,
+      "captured_at": "2026-05-27T00:01:00Z",
+      "classification": "public",
+      "metadata": {
+        "changed_files": [
+          "migrations/20260527_add_invoice_state.sql",
+          "src/billing/invoice_store.rs"
+        ],
+        "fixture_role": "must_review_unverified_contract"
+      }
+    },
+    {
+      "id": "source:diff-public-api",
+      "source_type": "diff_summary",
+      "title": "Public invoice API response shape changes",
+      "uri": null,
+      "captured_at": "2026-05-27T00:02:00Z",
+      "classification": "public",
+      "metadata": {
+        "changed_files": [
+          "src/api/invoices.rs",
+          "openapi/invoices.yaml"
+        ],
+        "fixture_role": "must_review_unverified_contract"
+      }
+    },
+    {
+      "id": "source:diff-docs",
+      "source_type": "diff_summary",
+      "title": "Changelog and review policy documentation changes",
+      "uri": null,
+      "captured_at": "2026-05-27T00:03:00Z",
+      "classification": "public",
+      "metadata": {
+        "changed_files": [
+          "CHANGELOG.md",
+          "docs/review-policy.md"
+        ],
+        "fixture_role": "can_skim_verified_area"
+      }
+    },
+    {
+      "id": "source:diff-ui-copy",
+      "source_type": "diff_summary",
+      "title": "Invoice status UI copy changes",
+      "uri": null,
+      "captured_at": "2026-05-27T00:04:00Z",
+      "classification": "public",
+      "metadata": {
+        "changed_files": [
+          "web/invoices/status-banner.tsx"
+        ],
+        "fixture_role": "can_skim_verified_area"
+      }
+    },
+    {
+      "id": "source:test-docs-lint",
+      "source_type": "test_output",
+      "title": "Docs lint passed",
+      "uri": null,
+      "captured_at": "2026-05-27T00:05:00Z",
+      "classification": "public",
+      "metadata": {
+        "command": "pnpm docs:lint",
+        "result": "passed"
+      }
+    },
+    {
+      "id": "source:test-ui-snapshot",
+      "source_type": "test_output",
+      "title": "Invoice status UI snapshot passed",
+      "uri": null,
+      "captured_at": "2026-05-27T00:06:00Z",
+      "classification": "public",
+      "metadata": {
+        "command": "pnpm test -- invoices/status-banner",
+        "result": "passed"
+      }
+    }
+  ],
+  "records": [
+    {
+      "id": "record:req-authz-tenant-isolation",
+      "record_type": "requirement",
+      "title": "Tenant isolation authorization must be reviewed",
+      "summary": "The auth middleware change may alter tenant isolation and must be verified before the PR is treated as low-risk.",
+      "source_ids": ["source:diff-auth-middleware"],
+      "context_hints": ["auth", "authorization", "tenant-isolation"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "high",
+        "require_verification": true,
+        "expected_priority": "must_review"
+      }
+    },
+    {
+      "id": "record:req-migration-rollback-safety",
+      "record_type": "requirement",
+      "title": "Billing migration rollback must be verified",
+      "summary": "The billing migration changes persistent invoice state and needs explicit rollback and data compatibility review.",
+      "source_ids": ["source:diff-billing-migration"],
+      "context_hints": ["billing", "migration", "persistence"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "high",
+        "require_verification": true,
+        "expected_priority": "must_review"
+      }
+    },
+    {
+      "id": "record:req-public-api-compatibility",
+      "record_type": "requirement",
+      "title": "Public invoice API compatibility must be checked",
+      "summary": "The public API response shape changed and needs compatibility review against downstream clients.",
+      "source_ids": ["source:diff-public-api"],
+      "context_hints": ["api", "compatibility", "public-contract"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "medium",
+        "require_verification": true,
+        "expected_priority": "must_review"
+      }
+    },
+    {
+      "id": "record:req-docs-changelog-updated",
+      "record_type": "requirement",
+      "title": "Changelog documents the review policy change",
+      "summary": "The documentation-only review policy change should be covered by docs lint evidence.",
+      "source_ids": ["source:diff-docs"],
+      "context_hints": ["docs", "changelog"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "low",
+        "require_verification": true,
+        "expected_priority": "can_skim"
+      }
+    },
+    {
+      "id": "record:req-ui-copy-snapshot-stable",
+      "record_type": "requirement",
+      "title": "Invoice status UI copy snapshot remains stable",
+      "summary": "The visible UI copy change should be covered by the invoice status snapshot test.",
+      "source_ids": ["source:diff-ui-copy"],
+      "context_hints": ["ui", "snapshot"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "criticality": "low",
+        "require_verification": true,
+        "expected_priority": "can_skim"
+      }
+    },
+    {
+      "id": "record:test-docs-lint",
+      "record_type": "test_or_verification",
+      "title": "Docs lint passed for documentation changes",
+      "summary": "Docs lint completed successfully for the changelog and review policy documentation.",
+      "source_ids": ["source:test-docs-lint"],
+      "context_hints": ["docs", "verification"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "verification_type": "automated_test"
+      }
+    },
+    {
+      "id": "record:test-ui-snapshot",
+      "record_type": "test_or_verification",
+      "title": "Invoice status UI snapshot passed",
+      "summary": "The invoice status UI snapshot test completed successfully for the changed copy.",
+      "source_ids": ["source:test-ui-snapshot"],
+      "context_hints": ["ui", "verification"],
+      "relation": null,
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {
+        "verification_type": "automated_test"
+      }
+    },
+    {
+      "id": "record:docs-lint-verifies-changelog",
+      "record_type": "verification_relation",
+      "title": "Docs lint verifies changelog requirement",
+      "summary": "Docs lint verifies the documentation-only changelog requirement.",
+      "source_ids": ["source:test-docs-lint", "source:diff-docs"],
+      "context_hints": ["docs", "verification"],
+      "relation": {
+        "relation_type": "verifies",
+        "from_record_id": "record:test-docs-lint",
+        "to_record_id": "record:req-docs-changelog-updated"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "record:ui-snapshot-verifies-copy",
+      "record_type": "verification_relation",
+      "title": "UI snapshot verifies copy requirement",
+      "summary": "The UI snapshot verifies the invoice status copy requirement.",
+      "source_ids": ["source:test-ui-snapshot", "source:diff-ui-copy"],
+      "context_hints": ["ui", "verification"],
+      "relation": {
+        "relation_type": "verifies",
+        "from_record_id": "record:test-ui-snapshot",
+        "to_record_id": "record:req-ui-copy-snapshot-stable"
+      },
+      "provenance": {
+        "origin": "source_backed",
+        "actor": "source-adapter:json",
+        "confidence": 1.0,
+        "review_status": "accepted"
+      },
+      "metadata": {}
+    }
+  ],
+  "metadata": {
+    "fixture": true,
+    "evaluation": true,
+    "domain": "medium-pr-review",
+    "purpose": "medium_large_review_priority_map",
+    "expected_review_priority_map": {
+      "must_review": [
+        "record:req-authz-tenant-isolation",
+        "record:req-migration-rollback-safety",
+        "record:req-public-api-compatibility"
+      ],
+      "can_skim": [
+        "record:req-docs-changelog-updated",
+        "record:req-ui-copy-snapshot-stable"
+      ]
+    }
+  }
+}
