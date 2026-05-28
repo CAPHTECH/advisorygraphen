@@ -74,6 +74,24 @@ Expected findings:
    correspondence analysis, and projection-loss metrics for the remaining
    review work.
 
+## Facade workflow evaluation
+
+The top-level facade commands are covered by CLI acceptance tests against
+`examples/evaluation/medium-hypothesis-proposal/advisory.input.json`.
+
+Expected findings:
+
+1. `propose --input ... --case ...` creates
+   `advisorygraphen.case-manifest.json`.
+2. The manifest records input, space, check report, completion report,
+   hypothesis report, `ai_agent` projection, store path, and head revision.
+3. `status --case ...` reports the current case head, blockers, frontier
+   items, waiting items, and close status.
+4. `report --case ... --audience ai_agent` renders the current agent
+   projection from case state.
+5. `review completion reject --case ...` records a review event using
+   manifest-derived paths and updates the manifest head revision.
+
 ## CLI acceptance test
 
 ```sh
@@ -167,8 +185,9 @@ v0.1.3 can be tagged when:
 
 1. workspace tests, clippy, and CLI acceptance tests pass;
 2. crates.io publish dry-run passes for the workspace;
-3. micro review reports relative structure-error risk, falsification checks,
-   and escalation guidance for small AI answers or PR notes;
+3. micro review enforces structural honesty on self-classified claims
+   (uncited evidence-backed claims, declared strong claims, and unsupported
+   high-blast-radius claims become obstructions) and emits escalation guidance;
 4. hypothesis-to-proposal evaluation keeps unsupported proposals out of
    primary recommendations and exposes ranked observation tasks;
 5. medium/large PR review evaluation distinguishes Must Review and Can Skim

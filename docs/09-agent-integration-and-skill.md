@@ -10,6 +10,7 @@ MVP uses:
 
 ```text
 advisorygraphen CLI
+  -> propose/status/report/review facade for normal agent operation
   -> stable JSON report schema
   -> repository-owned skill
   -> ai_agent projection operation contract
@@ -44,16 +45,20 @@ CLI command: `advisorygraphen`
 
 ```text
 1. Identify the bounded source snapshot.
-2. Create or validate engagement snapshot JSON.
-3. Run advisorygraphen lift.
-4. Run advisorygraphen check.
-5. Inspect obstructions and evidence gaps.
-6. Run advisorygraphen completions propose.
-7. Generate advisorygraphen project --audience ai_agent with --completions-report.
-8. Follow the returned agent_operation_contract and close_status.
-9. Run case close-check before reporting closure.
-10. Generate requested human projection or audit_trace.
-11. Keep candidates unreviewed unless the user explicitly reviews them.
+2. Run `advisorygraphen propose --input <snapshot> --case <case-dir>`.
+3. Inspect the returned manifest path, recommendation trace, blockers, and
+   waiting items.
+4. Run `advisorygraphen status --case <case-dir>` before resuming later work.
+5. Run `advisorygraphen report --case <case-dir> --audience ai_agent` before
+   choosing review or observation commands.
+6. Use `advisorygraphen review ... --case <case-dir>` for explicit
+   completion or hypothesis review decisions.
+7. Generate requested human projection or audit_trace.
+8. Keep candidates unreviewed unless the user explicitly reviews them.
+
+The low-level `validate`, `lift`, `check`, `completions propose`, `project`,
+`case`, `hypothesis`, and `observation` commands remain the stable primitive
+surface for CI, debugging, and custom orchestration.
 ```
 
 The agent should treat `ai_agent` projection as its resume protocol. It should use `open_obstructions`, `candidate_review_state`, `blocker_resolution_state`, `observation_actions`, `projection_loss_metrics`, `schema_morphisms`, `review_gated_commands`, and `forbidden_operations` before deciding the next command. `candidate_review_state` and `blocker_resolution_state` are populated when the agent supplies the completion proposal report to `project`; `case reason` derives the same state for the current case log while overlaying recorded review events. `observation_actions` are bounded evidence-gathering steps for weak or blocked hypotheses, `projection_loss_metrics` quantify omitted/collapsed/source-gap risk, and `schema_morphisms` disclose the lift or contract mapping with declared loss. When a candidate is accepted, the agent must inspect `blocker_resolution_state.application_requirements` and create the required cells/incidences before treating the blocker as resolved. The human does not need to edit HG directly; the human reviews projections and explicit accept/reject/waive events.

@@ -15,21 +15,30 @@ obstructions, hypotheses, reviewable completion candidates, proposal content,
 and audience-specific projections. The primary agent loop is:
 
 ```text
-bounded source -> lift -> check -> hypotheses/completions -> ai_agent projection
--> inspect proposal content -> request or apply reviewed structure -> rerun check
+bounded source -> propose facade -> status/report -> review or observe
+-> inspect proposal content -> request or apply reviewed structure -> rerun status
 ```
 
 For small inputs where a full advisory space would be heavier than the task,
-start with micro review instead of forcing the full loop:
+start with micro review instead of forcing the full loop. You classify each
+claim; the command does not pattern-match prose. Build an
+`advisorygraphen.micro_review.request.v1` document where every claim carries a
+`classification` (`test_backed`, `source_backed`, `assumption`,
+`unsupported_strong_claim`, or `unsupported`) and, for any evidence-backed
+claim, concrete `evidence_refs`:
 
 ```text
-small AI answer / note / issue -> micro review -> inspect claims, evidence
-status, assumptions, structure error risk, falsification checks, missing checks,
-alternative hypotheses, and escalation mode
+small AI answer / note / issue -> classify each claim honestly -> micro review
+-> inspect obstructions (supported-without-evidence, unsupported strong claims,
+high-blast-radius), assumptions, missing checks, alternative hypotheses, and
+escalation mode
 ```
 
-Use the full loop only when micro review reports high blast radius, many claims,
-many unsupported claims, or the user needs durable review-gated structure.
+A claim marked `source_backed`/`test_backed` without `evidence_refs` becomes a
+`claim_marked_supported_without_evidence` obstruction — do not certify support
+you cannot cite. Use the full loop only when micro review escalates (high blast
+radius, many claims, two or more unsupported strong claims, many unsupported
+claims) or the user needs durable review-gated structure.
 
 For advisory work about a problem, default to a problem-driven hypothesis
 workflow:
@@ -77,9 +86,15 @@ Read the relevant reference before starting each phase:
 4. Collect observations that can support, weaken, or falsify the hypotheses.
    Prefer direct command output, repository files, tests, metrics, or reviewed
    source material over agent inference.
-5. Validate input JSON.
-6. Run `advisorygraphen lift`.
-7. Run `advisorygraphen check`.
+5. For normal operation, run
+   `advisorygraphen propose --input <snapshot> --case <case-dir> --format json`.
+   This validates, lifts, checks, proposes completions, proposes hypothesis
+   lifecycle transitions, generates `ai_agent`, imports the case, and writes
+   `advisorygraphen.case-manifest.json`.
+6. Run `advisorygraphen status --case <case-dir> --format json` before
+   resuming an existing case.
+7. Run `advisorygraphen report --case <case-dir> --audience ai_agent --format json`
+   before choosing review, observation, or reporting steps.
 8. Inspect `obstructions`, `hypotheses`, `falsifiers`, and
    `argumentation_incidences`.
 9. Classify each hypothesis as `strongly_supported`, `supported`,
@@ -89,10 +104,13 @@ Read the relevant reference before starting each phase:
 10. Derive recommendations only from hypotheses with support. If a proposal
     depends on a weak or untested hypothesis, mark it as follow-up observation
     rather than primary action.
-11. Run `advisorygraphen completions propose` when missing structure or
-   corrective action is needed.
-12. Generate `advisorygraphen project --audience ai_agent` with
-   `--completions-report`.
+11. Use `advisorygraphen review completion accept|reject --case <case-dir>`
+    or `advisorygraphen review hypothesis support|falsify|accept|reject --case
+    <case-dir>` only for explicit review decisions.
+12. Use low-level `validate`, `lift`, `check`, `completions propose`,
+    `hypothesis propose`, `project`, and `case` commands for CI, debugging, or
+    custom orchestration; in that mode still generate
+    `project --audience ai_agent` before deciding the next agent operation.
 13. Inspect projection fields (see `references/projection.md`).
 14. Classify each candidate using its `proposal_content`
     (see `references/proposal-review.md`).
@@ -159,7 +177,7 @@ the missing structure rather than fabricating facts.
 
 ```sh
 advisorygraphen validate --input INPUT.json --format json
-advisorygraphen micro review --input AI_ANSWER_OR_NOTE.txt --output MICRO_REVIEW.json --format json
+advisorygraphen micro review --input MICRO_REVIEW_REQUEST.json --output MICRO_REVIEW.json --format json
 advisorygraphen dogfood adversarial-fixture --output ADVERSARIAL_INPUT.json --format json
 advisorygraphen lift --input INPUT.json --package technical_advisory --output SPACE.json --format json
 advisorygraphen check --space SPACE.json --ruleset technical_advisory_mvp --output CHECK.json --format json

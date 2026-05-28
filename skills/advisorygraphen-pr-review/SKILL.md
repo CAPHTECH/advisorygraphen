@@ -19,25 +19,33 @@ When the PR is small, or when the input is primarily an AI work summary, PR
 description, review note, or compact local diff summary, run `micro review`
 before building a full advisory snapshot:
 
+Classify each claim in the PR summary yourself — `micro review` does not
+pattern-match prose — and write an `advisorygraphen.micro_review.request.v1`
+document. Mark each claim `test_backed`, `source_backed`, `assumption`,
+`unsupported_strong_claim`, or `unsupported`, and give every evidence-backed
+claim concrete `evidence_refs` (changed files, test commands, source ids). Add
+`risk_surface` tags for high-blast-radius areas (auth, database, billing, etc.).
+
 ```sh
 advisorygraphen micro review \
-  --input target/tmp/pr-review-<slug>/pr-note.txt \
+  --input target/tmp/pr-review-<slug>/micro-review.request.json \
   --output target/tmp/pr-review-<slug>/micro-review.json \
   --format json
 ```
 
 Use the result as a cheap review-orientation gate:
 
-- Treat `structure_error_risks` with `error_risk: "high"` as initial
-  **Must Review** candidates.
-- Use `risk_factors` as the reason the structure or claim may be wrong.
-- Use `falsification_checks` as concrete reviewer checks.
-- Preserve `calibration_status` and `interpretation`; `risk_score` is a
-  relative, uncalibrated review-priority score, not an error probability.
+- Treat each `obstructions` entry as an initial **Must Review** candidate, by
+  `obstruction_type`: `claim_marked_supported_without_evidence` (you asserted a
+  fact you cannot cite), `unsupported_strong_claim`, and
+  `high_blast_radius_claim_without_evidence`.
+- Use the obstruction `message` as the reason the claim may be wrong, and
+  `required_resolution` plus `missing_checks` as concrete reviewer checks.
+- A claim marked `source_backed`/`test_backed` without `evidence_refs` is a
+  structural failure, not a judgement call: cite the witness or downgrade it.
 - Escalate to the full AdvisoryGraphen PR-review workflow when
   `mode.recommended` is `full_advisory_workflow_recommended`, when multiple
-  high-risk structures exist, or when the reviewer needs durable graph
-  artifacts.
+  obstructions exist, or when the reviewer needs durable graph artifacts.
 
 Skip this step only when the review surface is already large enough that the
 full snapshot workflow is clearly required.
@@ -65,7 +73,7 @@ The output must help a human decide:
 
 - **Must Review**: changed contracts, high/medium obstructions, blocked
   proposal content, gluing failures, unresolved verification requirements, or
-  high `structure_error_risks`.
+  micro review `obstructions`.
 - **Should Review**: medium-risk areas with partial evidence, projection loss,
   unreviewed candidate clusters, or uncertain correspondence differences.
 - **Can Skim**: areas with accepted evidence, no open requirement, no
@@ -155,9 +163,9 @@ If the repository uses `cargo run`, `./target/debug/advisorygraphen`, or another
 
 Read the graph output as review guidance:
 
-- `micro-review.json.result.structure_error_risks` identifies risky claims or
-  structures before snapshot modeling; carry high-risk entries into review
-  priorities or into explicit `requirement` records in the full snapshot
+- `micro-review.json.result.obstructions` identifies risky claims before
+  snapshot modeling; carry each obstruction into review priorities or into
+  explicit `requirement` records in the full snapshot
 - open `requirement_unverified` obstructions are expected review targets
 - `missing_owner` on review-focus records usually means the snapshot modeled a review target as an `action`; fix the snapshot and rerun
 - `higher_graphen_gluing_review.policy_blockers` identify completion proposals that should not be silently applied
@@ -185,10 +193,12 @@ Lead with where the human should spend attention. Use this shape:
 - Projection loss or blocked content: summary
 
 **Structure Error Risk**
-- High-risk structure: claim/file/area
-- Why it may be wrong: `risk_factors`
-- Falsification checks: concrete checks from `falsification_checks`
-- Calibration note: `risk_score` is relative_error_risk_not_probability
+- Risky claim: claim/file/area from an `obstructions` entry
+- Why it may be wrong: obstruction `message` and `obstruction_type`
+- Reviewer checks: `required_resolution` and `missing_checks`
+- Note: micro review enforces structure (uncited support, declared strong
+  claims, unsupported high-blast-radius claims); claim classification is the
+  agent's judgement, not a tool heuristic
 
 **Must Review**
 - Area: why it is risky, which evidence points to it, what to check
@@ -219,9 +229,8 @@ priority map. If it did not, repair the snapshot before reporting findings.
 
 If the first run produces suspicious findings, repair the method before reporting:
 
-- If micro triage flags high `structure_error_risks` that are absent from the
-  full snapshot, add matching `requirement` records or explain why they are out
-  of scope.
+- If micro triage flags `obstructions` that are absent from the full snapshot,
+  add matching `requirement` records or explain why they are out of scope.
 - If unowned actions dominate, remodel review targets as `requirement`.
 - If the output cannot distinguish changed areas, split broad requirements by behavior or file group.
 - If a medium/large review marks every area Must Review or Can Skim, split

@@ -141,3 +141,45 @@ pub struct ObservationRecordOptions {
     pub reason: String,
     pub base_revision: Option<String>,
 }
+
+#[derive(Debug, Clone)]
+pub struct FacadeProposeOptions {
+    pub input: PathBuf,
+    pub case_dir: PathBuf,
+    pub package: String,
+    pub ruleset: String,
+    pub audience: String,
+    pub command: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FacadeStatusOptions {
+    pub case_dir: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+pub struct FacadeReportOptions {
+    pub case_dir: PathBuf,
+    pub audience: String,
+    pub format: OutputFormat,
+    pub output: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FacadeCompletionReviewOptions {
+    pub case_dir: PathBuf,
+    pub candidate_id: String,
+    pub reviewer: String,
+    pub reason: String,
+    pub outcome: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct FacadeHypothesisReviewOptions {
+    pub case_dir: PathBuf,
+    pub hypothesis_id: String,
+    pub evidence_ids: Vec<String>,
+    pub reviewer: String,
+    pub reason: String,
+    pub outcome: String,
+}

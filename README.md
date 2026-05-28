@@ -32,14 +32,33 @@ does not require a snapshot or advisory space:
 
 ```sh
 advisorygraphen micro review \
-  --input ai-answer.txt \
+  --input micro-review.request.json \
   --output /tmp/micro-review.report.json \
   --format json
 ```
 
-The report flags unsupported strong claims, assumptions, structure error risk,
-falsification checks, missing checks, alternative hypotheses, and whether the
-input should escalate to the full workflow.
+The input is the agent's self-classified claims
+(`advisorygraphen.micro_review.request.v1`). `micro review` does not pattern-match
+prose; classifying a claim as overconfident, assumed, or evidence-backed is the
+agent's job. The command enforces structural honesty deterministically: a claim
+marked evidence-backed must cite a witness, declared strong claims become
+obstructions with falsification checks, unsupported high-blast-radius claims are
+flagged, and a deterministic rule decides whether to escalate to the full
+workflow. See `examples/evaluation/micro-review/` for a sample request.
+
+For hypothesis-backed proposal work, use the facade workflow. It runs the
+standard validation, lift, check, completion, hypothesis, projection, and case
+import steps, then records their artifact paths in a case manifest:
+
+```sh
+advisorygraphen propose \
+  --input examples/evaluation/medium-hypothesis-proposal/advisory.input.json \
+  --case /tmp/advisory-case \
+  --format json
+
+advisorygraphen status --case /tmp/advisory-case --format json
+advisorygraphen report --case /tmp/advisory-case --audience ai_agent --format json
+```
 
 Run the released workflow against the included `technical_advisory_mvp` fixture.
 
@@ -104,10 +123,14 @@ Key commands:
 
 | Command | Purpose |
 | --- | --- |
+| `propose` | Run the hypothesis/proposal facade workflow and create a case manifest. |
+| `status` | Read a facade case manifest and report current blockers, waiting items, and head revision. |
+| `report` | Render a projection from a facade case manifest. |
+| `review` | Accept or reject facade completion/hypothesis review targets using manifest-derived paths. |
 | `validate` | Validate a snapshot, advisory space, report, projection request, or review event. |
 | `lift` | Convert a bounded source snapshot into an advisory space. |
 | `check` | Evaluate advisory invariants and emit obstructions. |
-| `micro review` | Review small text inputs for claims, assumptions, evidence gaps, structure error risk, falsification checks, missing checks, and escalation need. |
+| `micro review` | Validate an agent's self-classified claims: enforce evidence citation, flag declared strong/high-blast-radius claims, and decide escalation. |
 | `completions propose` | Generate reviewable completion candidates from obstructions. |
 | `completions dry-run` | Apply candidates in memory and rerun checks without changing a case store. |
 | `project` | Render a projection for a specific audience. |

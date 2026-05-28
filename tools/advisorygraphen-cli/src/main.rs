@@ -4,13 +4,16 @@ use advisorygraphen_runtime::{
     case_close_check_workflow, case_import_workflow, case_reason_workflow, check_workflow,
     code_repo_snapshot_workflow, completions_apply_accepted_workflow, completions_dry_run_workflow,
     completions_propose_workflow, dogfood_adversarial_fixture_workflow,
-    dogfood_repo_snapshot_workflow, hypothesis_accept_workflow,
-    hypothesis_apply_proposals_workflow, hypothesis_falsify_workflow, hypothesis_propose_workflow,
-    hypothesis_reject_workflow, hypothesis_support_workflow, lift_workflow, micro_review_workflow,
-    observation_record_workflow, project_workflow, review_workflow, validate_workflow,
-    CaseCloseCheckOptions, CaseImportOptions, CaseReasonOptions, CheckOptions,
-    CodeRepoSnapshotOptions, CompletionApplyAcceptedOptions, CompletionDryRunOptions,
-    CompletionProposeOptions, DogfoodAdversarialFixtureOptions, DogfoodRepoSnapshotOptions,
+    dogfood_repo_snapshot_workflow, facade_completion_review_workflow,
+    facade_hypothesis_review_workflow, facade_propose_workflow, facade_report_workflow,
+    facade_status_workflow, hypothesis_accept_workflow, hypothesis_apply_proposals_workflow,
+    hypothesis_falsify_workflow, hypothesis_propose_workflow, hypothesis_reject_workflow,
+    hypothesis_support_workflow, lift_workflow, micro_review_workflow, observation_record_workflow,
+    project_workflow, review_workflow, validate_workflow, CaseCloseCheckOptions, CaseImportOptions,
+    CaseReasonOptions, CheckOptions, CodeRepoSnapshotOptions, CompletionApplyAcceptedOptions,
+    CompletionDryRunOptions, CompletionProposeOptions, DogfoodAdversarialFixtureOptions,
+    DogfoodRepoSnapshotOptions, FacadeCompletionReviewOptions, FacadeHypothesisReviewOptions,
+    FacadeProposeOptions, FacadeReportOptions, FacadeStatusOptions,
     HypothesisApplyProposalsOptions, HypothesisFalsifyOptions, HypothesisProposeOptions,
     LiftOptions, MicroReviewOptions, ObservationRecordOptions, ProjectOptions, ReviewOptions,
     ValidateOptions,
@@ -36,6 +39,13 @@ enum Command {
     Validate(ValidateArgs),
     Lift(LiftArgs),
     Check(CheckArgs),
+    Propose(FacadeProposeArgs),
+    Status(FacadeStatusArgs),
+    Report(FacadeReportArgs),
+    Review {
+        #[command(subcommand)]
+        command: FacadeReviewCommand,
+    },
     Micro {
         #[command(subcommand)]
         command: MicroCommand,
@@ -83,8 +93,100 @@ enum ObservationCommand {
 }
 
 #[derive(Debug, Subcommand)]
+enum FacadeReviewCommand {
+    Completion {
+        #[command(subcommand)]
+        command: FacadeCompletionReviewCommand,
+    },
+    Hypothesis {
+        #[command(subcommand)]
+        command: FacadeHypothesisReviewCommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum FacadeCompletionReviewCommand {
+    Accept(FacadeCompletionReviewArgs),
+    Reject(FacadeCompletionReviewArgs),
+}
+
+#[derive(Debug, Subcommand)]
+enum FacadeHypothesisReviewCommand {
+    Support(FacadeHypothesisReviewArgs),
+    Falsify(FacadeHypothesisReviewArgs),
+    Accept(FacadeHypothesisReviewArgs),
+    Reject(FacadeHypothesisReviewArgs),
+}
+
+#[derive(Debug, Subcommand)]
 enum MicroCommand {
     Review(MicroReviewArgs),
+}
+
+#[derive(Debug, Args)]
+struct FacadeProposeArgs {
+    #[arg(long)]
+    input: PathBuf,
+    #[arg(long = "case")]
+    case_dir: PathBuf,
+    #[arg(long, default_value = "technical_advisory")]
+    package: String,
+    #[arg(long, default_value = "technical_advisory_mvp")]
+    ruleset: String,
+    #[arg(long, default_value = "ai_agent")]
+    audience: String,
+    #[arg(long, default_value = "json")]
+    format: String,
+}
+
+#[derive(Debug, Args)]
+struct FacadeStatusArgs {
+    #[arg(long = "case")]
+    case_dir: PathBuf,
+    #[arg(long, default_value = "json")]
+    format: String,
+}
+
+#[derive(Debug, Args)]
+struct FacadeReportArgs {
+    #[arg(long = "case")]
+    case_dir: PathBuf,
+    #[arg(long)]
+    audience: String,
+    #[arg(long, default_value = "json")]
+    format: String,
+    #[arg(long)]
+    output: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct FacadeCompletionReviewArgs {
+    #[arg(long = "case")]
+    case_dir: PathBuf,
+    #[arg(long = "candidate-id")]
+    candidate_id: String,
+    #[arg(long)]
+    reviewer: String,
+    #[arg(long)]
+    reason: String,
+    #[arg(long, default_value = "json")]
+    format: String,
+}
+
+#[derive(Debug, Args)]
+struct FacadeHypothesisReviewArgs {
+    #[arg(long = "case")]
+    case_dir: PathBuf,
+    #[arg(long = "hypothesis-id")]
+    hypothesis_id: String,
+    #[arg(long = "evidence")]
+    evidence: Vec<String>,
+    #[arg(long)]
+    reviewer: String,
+    #[arg(long)]
+    reason: String,
+    #[arg(long, default_value = "json")]
+    format: String,
 }
 
 #[derive(Debug, Args)]
@@ -417,6 +519,58 @@ fn run() -> Result<(), AdvisoryError> {
             })?;
             print_json(&report)
         }
+        Command::Propose(args) => {
+            require_json_format(&args.format)?;
+            print_json(&facade_propose_workflow(&FacadeProposeOptions {
+                input: args.input,
+                case_dir: args.case_dir,
+                package: args.package,
+                ruleset: args.ruleset,
+                audience: args.audience,
+                command: Some(command_string()),
+            })?)
+        }
+        Command::Status(args) => {
+            require_json_format(&args.format)?;
+            print_json(&facade_status_workflow(&FacadeStatusOptions {
+                case_dir: args.case_dir,
+            })?)
+        }
+        Command::Report(args) => {
+            let format = OutputFormat::parse(&args.format)?;
+            let rendered = facade_report_workflow(&FacadeReportOptions {
+                case_dir: args.case_dir,
+                audience: args.audience,
+                format,
+                output: args.output,
+            })?;
+            println!("{rendered}");
+            Ok(())
+        }
+        Command::Review { command } => match command {
+            FacadeReviewCommand::Completion { command } => match command {
+                FacadeCompletionReviewCommand::Accept(args) => {
+                    run_facade_completion_review(args, "accepted")
+                }
+                FacadeCompletionReviewCommand::Reject(args) => {
+                    run_facade_completion_review(args, "rejected")
+                }
+            },
+            FacadeReviewCommand::Hypothesis { command } => match command {
+                FacadeHypothesisReviewCommand::Support(args) => {
+                    run_facade_hypothesis_review(args, "support")
+                }
+                FacadeHypothesisReviewCommand::Falsify(args) => {
+                    run_facade_hypothesis_review(args, "falsify")
+                }
+                FacadeHypothesisReviewCommand::Accept(args) => {
+                    run_facade_hypothesis_review(args, "accept")
+                }
+                FacadeHypothesisReviewCommand::Reject(args) => {
+                    run_facade_hypothesis_review(args, "reject")
+                }
+            },
+        },
         Command::Micro { command } => match command {
             MicroCommand::Review(args) => {
                 require_json_format(&args.format)?;
@@ -577,6 +731,39 @@ fn run() -> Result<(), AdvisoryError> {
             }
         },
     }
+}
+
+fn run_facade_completion_review(
+    args: FacadeCompletionReviewArgs,
+    outcome: &str,
+) -> Result<(), AdvisoryError> {
+    require_json_format(&args.format)?;
+    print_json(&facade_completion_review_workflow(
+        &FacadeCompletionReviewOptions {
+            case_dir: args.case_dir,
+            candidate_id: args.candidate_id,
+            reviewer: args.reviewer,
+            reason: args.reason,
+            outcome: outcome.to_string(),
+        },
+    )?)
+}
+
+fn run_facade_hypothesis_review(
+    args: FacadeHypothesisReviewArgs,
+    outcome: &str,
+) -> Result<(), AdvisoryError> {
+    require_json_format(&args.format)?;
+    print_json(&facade_hypothesis_review_workflow(
+        &FacadeHypothesisReviewOptions {
+            case_dir: args.case_dir,
+            hypothesis_id: args.hypothesis_id,
+            evidence_ids: args.evidence,
+            reviewer: args.reviewer,
+            reason: args.reason,
+            outcome: outcome.to_string(),
+        },
+    )?)
 }
 
 fn run_hypothesis_event(args: HypothesisFalsifyArgs, action: &str) -> Result<(), AdvisoryError> {

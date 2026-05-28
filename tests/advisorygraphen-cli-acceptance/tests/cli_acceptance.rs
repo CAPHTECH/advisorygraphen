@@ -28,6 +28,16 @@ fn version_command_reports_planned_cli_version() {
 }
 
 #[test]
+fn help_lists_facade_commands() {
+    let help = run_cli(["--help"]);
+    assert_success(&help);
+    assert_output_contains(&help, "propose");
+    assert_output_contains(&help, "status");
+    assert_output_contains(&help, "report");
+    assert_output_contains(&help, "review");
+}
+
+#[test]
 fn validate_accepts_direct_db_access_fixture() {
     let output = run_cli(["validate", "--input", FIXTURE, "--format", "json"]);
     assert_success(&output);
@@ -231,13 +241,26 @@ export async function GET() {
 }
 
 #[test]
-fn micro_review_flags_small_ai_answer_risks_without_full_lift() {
+fn micro_review_enforces_structural_honesty_on_self_classified_claims() {
     let dir = clean_case_dir("micro-review");
-    let input = dir.join("ai-answer.txt");
+    let input = dir.join("micro-review.request.json");
     let output = dir.join("micro-review.json");
     fs::write(
         &input,
-        "The auth fix is done and safe. It probably failed because middleware order changed. Tests passed: cargo test auth_guard.",
+        r#"{
+  "schema": "advisorygraphen.micro_review.request.v1",
+  "claims": [
+    { "id": "claim:001", "text": "The auth guard fix is done and safe.",
+      "classification": "unsupported_strong_claim", "risk_surface": ["auth"] },
+    { "id": "claim:002", "text": "It probably failed because middleware order changed.",
+      "classification": "assumption",
+      "alternative_hypotheses": [{ "alternative": "Token expiry config changed.", "falsifier": "Trace shows a valid token rejected." }] },
+    { "id": "claim:003", "text": "The auth_guard regression test passes.",
+      "classification": "test_backed", "evidence_refs": ["cargo test auth_guard"] },
+    { "id": "claim:004", "text": "Sessions persist in the billing database.",
+      "classification": "source_backed", "evidence_refs": [], "risk_surface": ["billing"] }
+  ]
+}"#,
     )
     .unwrap();
 
@@ -254,18 +277,33 @@ fn micro_review_flags_small_ai_answer_risks_without_full_lift() {
     assert_success(&review);
     assert_file_contains(&output, r#""report_type": "micro_review""#);
     assert_file_contains(&output, "ai_answer_self_review");
+    // Declared strong claim becomes an obstruction with a falsification check.
     assert_file_contains(&output, "unsupported_strong_claim");
-    assert_file_contains(&output, "requires_confirmation_or_downgrade");
+    // Evidence-backed classification without a cited witness is rejected structurally.
+    assert_file_contains(&output, "claim_marked_supported_without_evidence");
+    // High-blast-radius claim that is not substantiated is flagged and escalates.
+    assert_file_contains(&output, "high_blast_radius_claim_without_evidence");
     assert_file_contains(&output, "high_blast_radius_claims");
+    assert_file_contains(&output, r#""recommended": "full_advisory_workflow_recommended""#);
+    // Agent-supplied alternative hypotheses and assumptions are carried through.
     assert_file_contains(&output, "alternative_hypotheses");
-    assert_file_contains(&output, "structure_error_risks");
-    assert_file_contains(&output, "structure_error_risk_summary");
-    assert_file_contains(&output, "relative_error_risk_not_probability");
-    assert_file_contains(&output, "missing_source_witness");
-    assert_file_contains(&output, "unsupported_strong_claim");
-    assert_file_contains(&output, "falsification_checks");
-    assert_file_contains(&output, "Try to falsify the completion/safety claim");
+    assert_file_contains(&output, "requires_confirmation_or_downgrade");
+    // The cited witness for the substantiated claim is preserved.
     assert_file_contains(&output, "cargo test auth_guard");
+}
+
+#[test]
+fn micro_review_rejects_unknown_classification() {
+    let dir = clean_case_dir("micro-review-invalid");
+    let input = dir.join("bad.request.json");
+    fs::write(
+        &input,
+        r#"{ "claims": [ { "text": "x is fine", "classification": "totally_fine" } ] }"#,
+    )
+    .unwrap();
+
+    let review = run_cli(["micro", "review", "--input", path_str(&input), "--format", "json"]);
+    assert_eq!(review.status.code(), Some(1));
 }
 
 #[test]
@@ -834,6 +872,92 @@ fn medium_pr_review_fixture_produces_review_priority_map() {
     assert_file_contains(&ai_agent, "projection_loss_metrics");
     assert_file_contains(&ai_agent, "req-authz-tenant-isolation");
     assert_file_not_contains(&ai_agent, "obstruction:req-docs-changelog-updated-missing-verification");
+}
+
+#[test]
+fn facade_commands_wrap_hypothesis_proposal_workflow() {
+    let dir = clean_case_dir("facade-workflow");
+    let ai_agent = dir.join("ai-agent-current.json");
+
+    let propose = run_cli([
+        "propose",
+        "--input",
+        MEDIUM_HYPOTHESIS_FIXTURE,
+        "--case",
+        path_str(&dir),
+        "--format",
+        "json",
+    ]);
+    assert_success(&propose);
+    assert_output_contains(&propose, r#""report_type": "facade_propose""#);
+    assert_output_contains(&propose, "advisorygraphen.case-manifest.json");
+    assert_output_contains(&propose, r#""primary_count": 0"#);
+    assert_output_contains(&propose, "follow_up_observation_count");
+
+    let manifest = dir.join("advisorygraphen.case-manifest.json");
+    assert_file_contains(&manifest, "advisorygraphen.case.manifest.v1");
+    assert_file_contains(&manifest, "artifacts/advisory.space.json");
+    assert_file_contains(&manifest, "revision:facade-initial");
+    assert_file_contains(
+        &dir.join("artifacts/advisory.check.json"),
+        "proposal_derived_from_unsupported_hypothesis",
+    );
+    assert_file_contains(
+        &dir.join("artifacts/advisory.completions.json"),
+        "candidate:inventory-status-api",
+    );
+    assert_file_contains(
+        &dir.join("artifacts/projections/ai-agent.json"),
+        "recommendation_trace",
+    );
+
+    let status = run_cli(["status", "--case", path_str(&dir), "--format", "json"]);
+    assert_success(&status);
+    assert_output_contains(&status, r#""report_type": "facade_status""#);
+    assert_output_contains(&status, r#""case_head_revision": "revision:facade-initial""#);
+    assert_output_contains(&status, "candidate_review_pending");
+
+    let report = run_cli([
+        "report",
+        "--case",
+        path_str(&dir),
+        "--audience",
+        "ai_agent",
+        "--format",
+        "json",
+        "--output",
+        path_str(&ai_agent),
+    ]);
+    assert_success(&report);
+    assert_file_contains(&ai_agent, "recommendation_trace");
+    assert_file_contains(&ai_agent, "ranked_observation_tasks");
+
+    let reject = run_cli([
+        "review",
+        "completion",
+        "reject",
+        "--case",
+        path_str(&dir),
+        "--candidate-id",
+        "candidate:inventory-status-api",
+        "--reviewer",
+        "reviewer:acceptance",
+        "--reason",
+        "Facade acceptance test rejection.",
+        "--format",
+        "json",
+    ]);
+    assert_success(&reject);
+    assert_output_contains(&reject, r#""report_type": "facade_completion_review""#);
+    assert_output_contains(&reject, r#""case_head_revision": "revision:review-000001""#);
+    assert_file_contains(&manifest, "revision:review-000001");
+
+    let updated_status = run_cli(["status", "--case", path_str(&dir), "--format", "json"]);
+    assert_success(&updated_status);
+    assert_output_contains(
+        &updated_status,
+        r#""case_head_revision": "revision:review-000001""#,
+    );
 }
 
 #[test]

@@ -38,12 +38,41 @@ use hypothesis_review::apply_hypothesis_events;
 pub use options::{
     CaseCloseCheckOptions, CaseImportOptions, CaseReasonOptions, CheckOptions,
     CompletionApplyAcceptedOptions, CompletionDryRunOptions, CompletionProposeOptions,
-    HypothesisApplyProposalsOptions, HypothesisFalsifyOptions, HypothesisProposeOptions,
-    LiftOptions, MicroReviewOptions, ObservationRecordOptions, ProjectOptions, ReviewOptions,
-    ValidateOptions,
+    FacadeCompletionReviewOptions, FacadeHypothesisReviewOptions, FacadeProposeOptions,
+    FacadeReportOptions, FacadeStatusOptions, HypothesisApplyProposalsOptions,
+    HypothesisFalsifyOptions, HypothesisProposeOptions, LiftOptions, MicroReviewOptions,
+    ObservationRecordOptions, ProjectOptions, ReviewOptions, ValidateOptions,
 };
 use projection_report::{attach_completion_report, read_projection_report};
 use review::{higher_graphen_completion_review, review_report_path, review_space_id};
+use serde::{Deserialize, Serialize};
+
+const CASE_MANIFEST_FILE: &str = "advisorygraphen.case-manifest.json";
+const DEFAULT_FACADE_REVISION: &str = "revision:facade-initial";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CaseArtifacts {
+    input: String,
+    space: String,
+    check_report: String,
+    completions_report: String,
+    hypothesis_report: String,
+    ai_agent_projection: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CaseManifest {
+    schema: String,
+    space_id: String,
+    package: String,
+    ruleset: String,
+    store_path: String,
+    artifacts: CaseArtifacts,
+    head_revision: String,
+    created_at: String,
+    updated_at: String,
+}
+
 pub fn validate_workflow(options: &ValidateOptions) -> AdvisoryResult<Value> {
     let value = read_json(&options.input)?;
     let schema = options.schema.as_deref().map(canonical_schema_name);
@@ -71,8 +100,8 @@ pub fn check_workflow(options: &CheckOptions) -> AdvisoryResult<ReportEnvelope> 
 }
 
 pub fn micro_review_workflow(options: &MicroReviewOptions) -> AdvisoryResult<ReportEnvelope> {
-    let input_text = fs::read_to_string(&options.input)?;
-    let result = micro_review::analyze(&input_text);
+    let request = read_json(&options.input)?;
+    let result = micro_review::analyze(&request).map_err(AdvisoryError::Validation)?;
     let report = ReportEnvelope::new(
         "micro_review",
         options.command.as_deref(),
@@ -1861,6 +1890,295 @@ pub fn project_workflow(options: &ProjectOptions) -> AdvisoryResult<String> {
     write_string_if_requested(&options.output, &rendered)?;
     Ok(rendered)
 }
+
+pub fn facade_propose_workflow(options: &FacadeProposeOptions) -> AdvisoryResult<ReportEnvelope> {
+    ensure_new_case_dir(&options.case_dir)?;
+
+    let input_rel = PathBuf::from("input/advisory.input.json");
+    let space_rel = PathBuf::from("artifacts/advisory.space.json");
+    let check_rel = PathBuf::from("artifacts/advisory.check.json");
+    let completions_rel = PathBuf::from("artifacts/advisory.completions.json");
+    let hypothesis_rel = PathBuf::from("artifacts/advisory.hypothesis.json");
+    let ai_agent_rel = PathBuf::from("artifacts/projections/ai-agent.json");
+    let store_rel = PathBuf::from("store");
+
+    let input_path = options.case_dir.join(&input_rel);
+    if let Some(parent) = input_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::copy(&options.input, &input_path)?;
+
+    let validation = validate_workflow(&ValidateOptions {
+        input: input_path.clone(),
+        schema: None,
+    })?;
+    let space_path = options.case_dir.join(&space_rel);
+    let space = lift_workflow(&LiftOptions {
+        input: input_path.clone(),
+        package: options.package.clone(),
+        output: Some(space_path.clone()),
+        command: options.command.clone(),
+    })?;
+    let check_path = options.case_dir.join(&check_rel);
+    let check = check_workflow(&CheckOptions {
+        space: space_path.clone(),
+        ruleset: options.ruleset.clone(),
+        output: Some(check_path.clone()),
+        fail_on: None,
+        command: options.command.clone(),
+    })?;
+    let completions_path = options.case_dir.join(&completions_rel);
+    let completions = completions_propose_workflow(&CompletionProposeOptions {
+        space: space_path.clone(),
+        from_report: check_path.clone(),
+        output: Some(completions_path.clone()),
+        command: options.command.clone(),
+    })?;
+    let hypothesis_path = options.case_dir.join(&hypothesis_rel);
+    let hypothesis = hypothesis_propose_workflow(&HypothesisProposeOptions {
+        space: space_path.clone(),
+        from_report: check_path.clone(),
+        output: Some(hypothesis_path.clone()),
+        command: options.command.clone(),
+    })?;
+    let ai_agent_path = options.case_dir.join(&ai_agent_rel);
+    let ai_agent_rendered = project_workflow(&ProjectOptions {
+        space: space_path.clone(),
+        report: check_path.clone(),
+        completions_report: Some(completions_path.clone()),
+        audience: options.audience.clone(),
+        format: advisorygraphen_projection::OutputFormat::Json,
+        output: Some(ai_agent_path.clone()),
+    })?;
+    let ai_agent_projection: Value = serde_json::from_str(&ai_agent_rendered)?;
+
+    let store_path = options.case_dir.join(&store_rel);
+    let import = case_import_workflow(&CaseImportOptions {
+        store: store_path.clone(),
+        space: space_path.clone(),
+        revision_id: DEFAULT_FACADE_REVISION.to_string(),
+    })?;
+    let reasoned = case_reason_workflow(&CaseReasonOptions {
+        store: store_path,
+        space_id: space.space_id.clone(),
+    })?;
+
+    let now = Utc::now().to_rfc3339();
+    let manifest = CaseManifest {
+        schema: "advisorygraphen.case.manifest.v1".to_string(),
+        space_id: space.space_id.clone(),
+        package: options.package.clone(),
+        ruleset: options.ruleset.clone(),
+        store_path: path_to_manifest_string(&store_rel),
+        artifacts: CaseArtifacts {
+            input: path_to_manifest_string(&input_rel),
+            space: path_to_manifest_string(&space_rel),
+            check_report: path_to_manifest_string(&check_rel),
+            completions_report: path_to_manifest_string(&completions_rel),
+            hypothesis_report: path_to_manifest_string(&hypothesis_rel),
+            ai_agent_projection: path_to_manifest_string(&ai_agent_rel),
+        },
+        head_revision: DEFAULT_FACADE_REVISION.to_string(),
+        created_at: now.clone(),
+        updated_at: now,
+    };
+    write_case_manifest(&options.case_dir, &manifest)?;
+
+    Ok(ReportEnvelope::new(
+        "facade_propose",
+        options.command.as_deref(),
+        json!({
+            "case_dir": options.case_dir,
+            "input": options.input,
+            "package": options.package,
+            "ruleset": options.ruleset,
+            "audience": options.audience
+        }),
+        json!({
+            "case_manifest": CASE_MANIFEST_FILE,
+            "space_id": space.space_id,
+            "head_revision": DEFAULT_FACADE_REVISION,
+            "artifacts": manifest.artifacts,
+            "validation": validation,
+            "check_obstruction_count": check.result.get("obstructions").and_then(Value::as_array).map(Vec::len).unwrap_or(0),
+            "completion_candidate_count": completions.result.get("completion_candidates").and_then(Value::as_array).map(Vec::len).unwrap_or(0),
+            "hypothesis_lifecycle_proposal_count": hypothesis.result.get("lifecycle_proposals").and_then(Value::as_array).map(Vec::len).unwrap_or(0),
+            "recommendation_summary": ai_agent_projection.get("recommendation_trace"),
+            "close_status": reasoned.pointer("/result/close_status"),
+            "waiting_items": reasoned.pointer("/result/waiting_items"),
+            "next_commands": [
+                format!("advisorygraphen status --case {}", options.case_dir.display()),
+                format!("advisorygraphen report --case {} --audience ai_agent", options.case_dir.display())
+            ],
+            "case_import": import
+        }),
+    ))
+}
+
+pub fn facade_status_workflow(options: &FacadeStatusOptions) -> AdvisoryResult<Value> {
+    let manifest = read_case_manifest(&options.case_dir)?;
+    let reasoned = case_reason_workflow(&CaseReasonOptions {
+        store: options.case_dir.join(&manifest.store_path),
+        space_id: manifest.space_id.clone(),
+    })?;
+    Ok(json!({
+        "schema": "advisorygraphen.report.v1",
+        "report_type": "facade_status",
+        "report_version": 1,
+        "tool": advisorygraphen_core::tool_metadata(None),
+        "input": {
+            "case_dir": options.case_dir,
+            "space_id": manifest.space_id,
+            "manifest": CASE_MANIFEST_FILE
+        },
+        "result": {
+            "case_head_revision": reasoned.pointer("/result/case_head_revision"),
+            "close_status": reasoned.pointer("/result/close_status"),
+            "blockers": reasoned.pointer("/result/blockers"),
+            "frontier_items": reasoned.pointer("/result/frontier_items"),
+            "waiting_items": reasoned.pointer("/result/waiting_items"),
+            "next_commands": [
+                "advisorygraphen report --case <case> --audience ai_agent",
+                "advisorygraphen review completion accept|reject --case <case> --candidate-id <id> --reviewer <id> --reason <reason>"
+            ]
+        },
+        "projection": {},
+        "warnings": []
+    }))
+}
+
+pub fn facade_report_workflow(options: &FacadeReportOptions) -> AdvisoryResult<String> {
+    let manifest = read_case_manifest(&options.case_dir)?;
+    let rendered = if options.audience == "ai_agent" {
+        let reasoned = case_reason_workflow(&CaseReasonOptions {
+            store: options.case_dir.join(&manifest.store_path),
+            space_id: manifest.space_id.clone(),
+        })?;
+        let projection = reasoned
+            .get("projection")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        match options.format {
+            advisorygraphen_projection::OutputFormat::Json => {
+                serde_json::to_string_pretty(&projection)?
+            }
+            advisorygraphen_projection::OutputFormat::Markdown => {
+                return Err(AdvisoryError::Validation(
+                    "ai_agent facade report supports json format only".to_string(),
+                ))
+            }
+        }
+    } else {
+        project_workflow(&ProjectOptions {
+            space: options.case_dir.join(&manifest.artifacts.space),
+            report: options.case_dir.join(&manifest.artifacts.check_report),
+            completions_report: Some(
+                options
+                    .case_dir
+                    .join(&manifest.artifacts.completions_report),
+            ),
+            audience: options.audience.clone(),
+            format: options.format,
+            output: None,
+        })?
+    };
+    write_string_if_requested(&options.output, &rendered)?;
+    Ok(rendered)
+}
+
+pub fn facade_completion_review_workflow(
+    options: &FacadeCompletionReviewOptions,
+) -> AdvisoryResult<Value> {
+    let mut manifest = read_case_manifest(&options.case_dir)?;
+    let store = options.case_dir.join(&manifest.store_path);
+    let head = read_imported_space_head(&store, &manifest.space_id)?;
+    let event = review_workflow(&ReviewOptions {
+        store: store.clone(),
+        candidate_id: options.candidate_id.clone(),
+        from_report: Some(
+            options
+                .case_dir
+                .join(&manifest.artifacts.completions_report),
+        ),
+        reviewer: options.reviewer.clone(),
+        reason: options.reason.clone(),
+        outcome: options.outcome.clone(),
+        base_revision: Some(head),
+    })?;
+    sync_manifest_head(&options.case_dir, &mut manifest)?;
+    Ok(json!({
+        "schema": "advisorygraphen.report.v1",
+        "report_type": "facade_completion_review",
+        "report_version": 1,
+        "tool": advisorygraphen_core::tool_metadata(None),
+        "input": {
+            "case_dir": options.case_dir,
+            "candidate_id": options.candidate_id,
+            "outcome": options.outcome
+        },
+        "result": {
+            "review_event": event,
+            "case_head_revision": manifest.head_revision,
+            "next_commands": [
+                "advisorygraphen status --case <case>",
+                "advisorygraphen report --case <case> --audience ai_agent"
+            ]
+        },
+        "projection": {},
+        "warnings": []
+    }))
+}
+
+pub fn facade_hypothesis_review_workflow(
+    options: &FacadeHypothesisReviewOptions,
+) -> AdvisoryResult<Value> {
+    let mut manifest = read_case_manifest(&options.case_dir)?;
+    let store = options.case_dir.join(&manifest.store_path);
+    let head = read_imported_space_head(&store, &manifest.space_id)?;
+    let review_options = HypothesisFalsifyOptions {
+        store,
+        from_report: options.case_dir.join(&manifest.artifacts.check_report),
+        hypothesis_id: options.hypothesis_id.clone(),
+        evidence_ids: options.evidence_ids.clone(),
+        reviewer: options.reviewer.clone(),
+        reason: options.reason.clone(),
+        base_revision: Some(head),
+    };
+    let event = match options.outcome.as_str() {
+        "support" => hypothesis_support_workflow(&review_options)?,
+        "falsify" => hypothesis_falsify_workflow(&review_options)?,
+        "accept" => hypothesis_accept_workflow(&review_options)?,
+        "reject" => hypothesis_reject_workflow(&review_options)?,
+        other => {
+            return Err(AdvisoryError::Validation(format!(
+                "unsupported hypothesis review outcome: {other}"
+            )))
+        }
+    };
+    sync_manifest_head(&options.case_dir, &mut manifest)?;
+    Ok(json!({
+        "schema": "advisorygraphen.report.v1",
+        "report_type": "facade_hypothesis_review",
+        "report_version": 1,
+        "tool": advisorygraphen_core::tool_metadata(None),
+        "input": {
+            "case_dir": options.case_dir,
+            "hypothesis_id": options.hypothesis_id,
+            "outcome": options.outcome
+        },
+        "result": {
+            "review_event": event,
+            "case_head_revision": manifest.head_revision,
+            "next_commands": [
+                "advisorygraphen status --case <case>",
+                "advisorygraphen report --case <case> --audience ai_agent"
+            ]
+        },
+        "projection": {},
+        "warnings": []
+    }))
+}
+
 pub fn case_import_workflow(options: &CaseImportOptions) -> AdvisoryResult<Value> {
     let space = read_space(&options.space)?;
     let dir = space_dir(&options.store, &space.space_id);
@@ -1990,6 +2308,53 @@ pub fn case_close_check_workflow(options: &CaseCloseCheckOptions) -> AdvisoryRes
         "projection": build_projection(&space, &serde_json::to_value(&check)?, "audit_trace")?,
         "warnings": []
     }))
+}
+
+fn ensure_new_case_dir(case_dir: &Path) -> AdvisoryResult<()> {
+    if case_dir.exists() {
+        let mut entries = fs::read_dir(case_dir)?;
+        if entries.next().is_some() {
+            return Err(AdvisoryError::Validation(format!(
+                "case directory must be empty or nonexistent: {}",
+                case_dir.display()
+            )));
+        }
+    }
+    fs::create_dir_all(case_dir)?;
+    fs::create_dir_all(case_dir.join("input"))?;
+    fs::create_dir_all(case_dir.join("artifacts/projections"))?;
+    Ok(())
+}
+
+fn read_case_manifest(case_dir: &Path) -> AdvisoryResult<CaseManifest> {
+    let path = case_dir.join(CASE_MANIFEST_FILE);
+    let manifest: CaseManifest = serde_json::from_slice(&fs::read(&path)?)?;
+    if manifest.schema != "advisorygraphen.case.manifest.v1" {
+        return Err(AdvisoryError::Validation(format!(
+            "unsupported case manifest schema: {}",
+            manifest.schema
+        )));
+    }
+    Ok(manifest)
+}
+
+fn write_case_manifest(case_dir: &Path, manifest: &CaseManifest) -> AdvisoryResult<()> {
+    fs::write(
+        case_dir.join(CASE_MANIFEST_FILE),
+        serde_json::to_vec_pretty(manifest)?,
+    )?;
+    Ok(())
+}
+
+fn sync_manifest_head(case_dir: &Path, manifest: &mut CaseManifest) -> AdvisoryResult<()> {
+    manifest.head_revision =
+        read_space_head_revision(&case_dir.join(&manifest.store_path), &manifest.space_id)?;
+    manifest.updated_at = Utc::now().to_rfc3339();
+    write_case_manifest(case_dir, manifest)
+}
+
+fn path_to_manifest_string(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
 }
 
 pub fn read_json(path: &Path) -> AdvisoryResult<Value> {

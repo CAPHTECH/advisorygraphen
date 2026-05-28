@@ -1,0 +1,36 @@
+{
+  "schema": "advisorygraphen.micro_review.request.v1",
+  "answer_id": "answer:auth-fix-self-review",
+  "claims": [
+    {
+      "id": "claim:001",
+      "text": "The auth guard fix is done and the route is now safe.",
+      "classification": "unsupported_strong_claim",
+      "risk_surface": ["auth"]
+    },
+    {
+      "id": "claim:002",
+      "text": "It probably failed because the middleware order changed in the last deploy.",
+      "classification": "assumption",
+      "alternative_hypotheses": [
+        {
+          "alternative": "The failure may come from a token-expiry config change rather than middleware ordering.",
+          "falsifier": "A request trace shows the guard rejecting a valid, unexpired token before middleware reordering."
+        }
+      ]
+    },
+    {
+      "id": "claim:003",
+      "text": "The auth_guard regression test now passes.",
+      "classification": "test_backed",
+      "evidence_refs": ["cargo test auth_guard", "crates/auth/tests/guard.rs:88"]
+    },
+    {
+      "id": "claim:004",
+      "text": "Sessions are persisted in the billing database via the shared pool.",
+      "classification": "source_backed",
+      "evidence_refs": [],
+      "risk_surface": ["database", "billing"]
+    }
+  ]
+}

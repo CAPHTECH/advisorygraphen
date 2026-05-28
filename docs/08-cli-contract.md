@@ -33,6 +33,74 @@ advisorygraphen validate \
   --format json
 ```
 
+### `propose`
+
+Run the task-oriented hypothesis/proposal facade. This command accepts a
+bounded source snapshot JSON, creates a case directory, runs the standard
+workflow, writes a case manifest, imports the generated space into the local
+case store, and returns a `facade_propose` report.
+
+```sh
+advisorygraphen propose \
+  --input advisory.input.json \
+  --case target/tmp/advisory-case \
+  --package technical_advisory \
+  --ruleset technical_advisory_mvp \
+  --audience ai_agent \
+  --format json
+```
+
+The case directory must be empty or nonexistent. The command writes
+`advisorygraphen.case-manifest.json` with artifact paths for input, space,
+check report, completion report, hypothesis report, `ai_agent` projection, and
+case store. Arbitrary Markdown/text ingestion is intentionally out of scope;
+small text uses `micro review`.
+
+### `status`
+
+Read a facade case manifest, replay the case store, and return current blockers,
+waiting items, frontier items, close status, and head revision.
+
+```sh
+advisorygraphen status --case target/tmp/advisory-case --format json
+```
+
+### `report`
+
+Render an audience projection from a facade case manifest. For `ai_agent`, the
+projection is built from current `case reason` state so recorded reviews are
+visible.
+
+```sh
+advisorygraphen report \
+  --case target/tmp/advisory-case \
+  --audience ai_agent \
+  --format json \
+  --output target/tmp/advisory-case/ai-agent.json
+```
+
+### `review`
+
+Review facade completion or hypothesis targets using manifest-derived artifact
+paths and the current case head as the base revision.
+
+```sh
+advisorygraphen review completion reject \
+  --case target/tmp/advisory-case \
+  --candidate-id candidate:inventory-status-api \
+  --reviewer reviewer:tech-lead \
+  --reason "Need a smaller interface proposal first" \
+  --format json
+
+advisorygraphen review hypothesis support \
+  --case target/tmp/advisory-case \
+  --hypothesis-id hypothesis:example \
+  --evidence cell:reviewed-observation \
+  --reviewer reviewer:tech-lead \
+  --reason "Reviewed bounded observation supports the hypothesis" \
+  --format json
+```
+
 ### `lift`
 
 Lift bounded source snapshot into advisory space.
@@ -68,33 +136,43 @@ Without `--fail-on`, high-severity findings still exit `0`.
 ### `micro review`
 
 Review a small AI answer, note, issue, or PR comment without first lifting it
-into a full advisory space. This mode is intentionally cheap: it surfaces
-claims, evidence status, assumptions, missing checks, alternative hypotheses,
-structure error risk, falsification checks, and whether the input should
-escalate to the full AdvisoryGraphen workflow.
+into a full advisory space. `micro review` does **not** classify prose itself.
+Deciding whether a sentence is overconfident, an assumption, or evidence-backed
+is a semantic judgement that belongs to the calling agent; pattern-matching
+keywords is brittle and was removed. The input is the agent's self-classified
+claims, and the command enforces *structural* honesty deterministically — the
+same discipline as the full workflow's `supported_hypothesis_missing_support`
+invariant, at small scope.
 
 ```sh
 advisorygraphen micro review \
-  --input ai-answer.txt \
+  --input micro-review.request.json \
   --format json \
   --output micro-review.report.json
 ```
 
-The report type is `micro_review`. It is useful when the target is small enough
-that an AI can create a plausible structure directly, but the user still needs a
-bounded review of unsupported confidence:
+The input is a `advisorygraphen.micro_review.request.v1` document. Each claim
+carries a `classification` (`test_backed`, `source_backed`, `assumption`,
+`unsupported_strong_claim`, or `unsupported`) and optional `evidence_refs`,
+`risk_surface`, `alternative_hypotheses`, and `missing_checks`. An unknown
+classification is a validation error (exit `1`).
 
-- `claims`: claim units with `evidence_status`.
-- `assumptions`: claims marked as likely, assumed, or inferred.
-- `missing_checks`: concrete observations needed before accepting strong or
-  high-blast-radius claims.
-- `alternative_hypotheses`: competing explanations for cause claims.
-- `structure_error_risks`: per-claim relative error risk, risk factors, and
-  falsification checks. `risk_score` is explicitly uncalibrated and must not be
-  read as an error probability.
-- `structure_error_risk_summary`: low/medium/high counts and the highest-risk
-  structure IDs for review prioritization.
-- `mode`: `micro_review` or `full_advisory_workflow_recommended`.
+The report type is `micro_review`. The command enforces:
+
+- `obstructions`: structural findings the agent cannot self-certify away —
+  `claim_marked_supported_without_evidence` (a claim classified evidence-backed
+  but citing no witness), `unsupported_strong_claim` (a declared strong claim
+  with no evidence), and `high_blast_radius_claim_without_evidence`.
+- `claims`: each claim echoed with its `structural_status`.
+- `assumptions`: claims classified as assumptions, pending confirmation.
+- `missing_checks`: tool-required checks (cite a witness, add a falsifier) plus
+  agent-declared checks.
+- `alternative_hypotheses`: competing explanations supplied by the agent.
+- `scale_signals`: deterministic counts by structural status.
+- `mode`: `micro_review` or `full_advisory_workflow_recommended`. Escalation is a
+  deterministic rule over the agent's classifications (many claims, two or more
+  unsupported strong claims, an unsupported high-blast-radius claim, or more than
+  five claims without cited evidence).
 
 ### `completions propose`
 
