@@ -1,5 +1,44 @@
-use advisorygraphen_core::{validate_document, REVIEW_EVENT_SCHEMA, SNAPSHOT_SCHEMA};
+use advisorygraphen_core::{
+    validate_document, MICRO_REVIEW_REQUEST_SCHEMA, REVIEW_EVENT_SCHEMA, SNAPSHOT_SCHEMA,
+};
 use serde_json::{json, Value};
+
+#[test]
+fn accepts_valid_micro_review_request() {
+    let request = json!({
+        "schema": MICRO_REVIEW_REQUEST_SCHEMA,
+        "claims": [
+            { "text": "The guard test passes.", "classification": "test_backed", "evidence_refs": ["cargo test"] },
+            { "text": "It probably regressed.", "classification": "assumption" }
+        ]
+    });
+
+    let report = validate_document(&request, Some(MICRO_REVIEW_REQUEST_SCHEMA)).unwrap();
+
+    assert!(report.valid);
+    assert_eq!(report.document_type, "micro_review_request");
+}
+
+#[test]
+fn rejects_micro_review_unknown_classification() {
+    let request = json!({
+        "schema": MICRO_REVIEW_REQUEST_SCHEMA,
+        "claims": [ { "text": "x", "classification": "totally_fine" } ]
+    });
+
+    let error = validate_document(&request, Some(MICRO_REVIEW_REQUEST_SCHEMA)).unwrap_err();
+
+    assert!(error.to_string().contains("unknown classification"));
+}
+
+#[test]
+fn rejects_micro_review_empty_claims() {
+    let request = json!({ "schema": MICRO_REVIEW_REQUEST_SCHEMA, "claims": [] });
+
+    let error = validate_document(&request, Some(MICRO_REVIEW_REQUEST_SCHEMA)).unwrap_err();
+
+    assert!(error.to_string().contains("`claims` must not be empty"));
+}
 
 #[test]
 fn rejects_duplicate_snapshot_record_ids() {

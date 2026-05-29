@@ -101,7 +101,11 @@ pub fn check_workflow(options: &CheckOptions) -> AdvisoryResult<ReportEnvelope> 
 
 pub fn micro_review_workflow(options: &MicroReviewOptions) -> AdvisoryResult<ReportEnvelope> {
     let request = read_json(&options.input)?;
-    let result = micro_review::analyze(&request).map_err(AdvisoryError::Validation)?;
+    advisorygraphen_core::validate_document(
+        &request,
+        Some(advisorygraphen_core::MICRO_REVIEW_REQUEST_SCHEMA),
+    )?;
+    let result = micro_review::analyze(&request);
     let report = ReportEnvelope::new(
         "micro_review",
         options.command.as_deref(),
@@ -2631,6 +2635,7 @@ fn canonical_schema_name(schema: &str) -> String {
         "report" => advisorygraphen_core::REPORT_SCHEMA,
         "projection_request" => advisorygraphen_core::PROJECTION_REQUEST_SCHEMA,
         "review_event" => REVIEW_EVENT_SCHEMA,
+        "micro_review_request" => advisorygraphen_core::MICRO_REVIEW_REQUEST_SCHEMA,
         other => other,
     }
     .to_string()

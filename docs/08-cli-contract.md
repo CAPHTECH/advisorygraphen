@@ -24,7 +24,9 @@ advisorygraphen --version
 
 ### `validate`
 
-Validate input snapshot, advisory space, report, review event, or projection request.
+Validate input snapshot, advisory space, report, review event, projection
+request, or micro review request. The schema is auto-detected from the `schema`
+field; `--schema` may pin an expected schema (e.g. `micro_review_request`).
 
 ```sh
 advisorygraphen validate \
@@ -571,7 +573,7 @@ Every report must include:
 {
   "tool": {
     "name": "advisorygraphen",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "command": "advisorygraphen check --space ...",
     "git_revision": "optional"
   }

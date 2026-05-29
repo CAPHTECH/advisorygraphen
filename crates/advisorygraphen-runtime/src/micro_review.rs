@@ -1,28 +1,19 @@
 use serde_json::{json, Value};
 
-/// Request schema for `micro review`.
-///
 /// `micro review` does not classify natural-language claims itself. Deciding
 /// whether a sentence is overconfident, an assumption, or evidence-backed is a
-/// semantic judgement that belongs to the calling agent. This command takes the
+/// semantic judgement that belongs to the calling agent. This module takes the
 /// agent's self-classified claims and enforces *structural* honesty
 /// deterministically: a claim cannot be marked evidence-backed without citing a
 /// concrete witness, declared strong claims must carry a falsification path, and
 /// unsupported or high-blast-radius claims decide whether to escalate to the
 /// full workflow. This mirrors the full workflow's
 /// `supported_hypothesis_missing_support` invariant at small scope.
-pub const REQUEST_SCHEMA: &str = "advisorygraphen.micro_review.request.v1";
-
-/// Classifications the agent may assign to a claim. Any other value is a hard
-/// validation error rather than a silently tolerated category.
-const CLASSIFICATIONS: &[&str] = &[
-    "test_backed",
-    "source_backed",
-    "assumption",
-    "unsupported_strong_claim",
-    "unsupported",
-];
-
+///
+/// The request shape (`advisorygraphen.micro_review.request.v1`) is validated by
+/// [`advisorygraphen_core::validate_document`] before `analyze` runs, so this
+/// function trusts that every claim has non-empty `text` and a known
+/// `classification`.
 fn is_evidence_backed(classification: &str) -> bool {
     matches!(classification, "test_backed" | "source_backed")
 }
@@ -36,21 +27,12 @@ struct Tally {
     high_blast_radius_unsupported: usize,
 }
 
-pub fn analyze(request: &Value) -> Result<Value, String> {
-    if let Some(schema) = request.get("schema").and_then(Value::as_str) {
-        if schema != REQUEST_SCHEMA {
-            return Err(format!(
-                "micro review request schema must be {REQUEST_SCHEMA}, found {schema}"
-            ));
-        }
-    }
+pub fn analyze(request: &Value) -> Value {
     let claim_values = request
         .get("claims")
         .and_then(Value::as_array)
-        .ok_or_else(|| "micro review request must contain a `claims` array".to_string())?;
-    if claim_values.is_empty() {
-        return Err("micro review request `claims` must not be empty".to_string());
-    }
+        .cloned()
+        .unwrap_or_default();
 
     let mut claims = Vec::new();
     let mut obstructions = Vec::new();
@@ -76,19 +58,12 @@ pub fn analyze(request: &Value) -> Result<Value, String> {
             .get("text")
             .and_then(Value::as_str)
             .map(str::trim)
-            .filter(|text| !text.is_empty())
-            .ok_or_else(|| format!("{claim_id} must contain non-empty `text`"))?
+            .unwrap_or_default()
             .to_string();
         let classification = claim
             .get("classification")
             .and_then(Value::as_str)
-            .ok_or_else(|| format!("{claim_id} must contain a `classification`"))?;
-        if !CLASSIFICATIONS.contains(&classification) {
-            return Err(format!(
-                "{claim_id} has unknown classification `{classification}`; expected one of {}",
-                CLASSIFICATIONS.join(", ")
-            ));
-        }
+            .unwrap_or_default();
         let evidence_refs = string_array(claim, "evidence_refs");
         let risk_surface = string_array(claim, "risk_surface");
 
@@ -208,7 +183,7 @@ pub fn analyze(request: &Value) -> Result<Value, String> {
         })
     });
 
-    Ok(json!({
+    json!({
         "mode": {
             "recommended": recommended_mode,
             "escalate_to_full_workflow": !escalation_reasons.is_empty(),
@@ -233,7 +208,7 @@ pub fn analyze(request: &Value) -> Result<Value, String> {
         "missing_checks": missing_checks,
         "alternative_hypotheses": alternative_hypotheses,
         "recommended_next_observation": recommended_next_observation
-    }))
+    })
 }
 
 fn string_array(claim: &Value, field: &str) -> Vec<String> {

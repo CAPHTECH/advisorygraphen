@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1 - 2026-05-29
+
+- `validate` now accepts the `advisorygraphen.micro_review.request.v1` schema
+  (auto-detected, or via `--schema micro_review_request`).
+- Consolidate micro review request validation into a single
+  `advisorygraphen-core` validator shared by `validate` and `micro review`,
+  removing the duplicated ad-hoc checks. The `schema` field is now required on a
+  micro review request.
+
 ## 0.2.0 - 2026-05-29
 
 - **Breaking:** `micro review` no longer pattern-matches prose. It now takes an

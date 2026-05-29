@@ -20,11 +20,11 @@ fn version_command_reports_planned_cli_version() {
     let dashed = run_cli(["--version"]);
     assert_success(&dashed);
     assert_output_contains(&dashed, BINARY);
-    assert_output_contains(&dashed, "0.2.0");
+    assert_output_contains(&dashed, "0.2.1");
 
     let subcommand = run_cli(["version"]);
     assert_success(&subcommand);
-    assert_output_contains(&subcommand, "0.2.0");
+    assert_output_contains(&subcommand, "0.2.1");
 }
 
 #[test]
@@ -298,7 +298,7 @@ fn micro_review_rejects_unknown_classification() {
     let input = dir.join("bad.request.json");
     fs::write(
         &input,
-        r#"{ "claims": [ { "text": "x is fine", "classification": "totally_fine" } ] }"#,
+        r#"{ "schema": "advisorygraphen.micro_review.request.v1", "claims": [ { "text": "x is fine", "classification": "totally_fine" } ] }"#,
     )
     .unwrap();
 

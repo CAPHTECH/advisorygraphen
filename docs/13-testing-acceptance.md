@@ -182,9 +182,9 @@ cargo publish --dry-run --workspace
 cargo run -q -p advisorygraphen-cli -- validate --input examples/technical-advisory/direct-db-access/advisory.input.json --format json
 ```
 
-## Acceptance definition for v0.2.0
+## Acceptance definition for v0.2.1
 
-v0.2.0 can be tagged when:
+v0.2.1 can be tagged when:
 
 1. workspace tests, clippy, and CLI acceptance tests pass;
 2. crates.io publish dry-run passes for the workspace;

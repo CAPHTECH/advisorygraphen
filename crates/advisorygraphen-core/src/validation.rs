@@ -1,7 +1,8 @@
 use crate::{
     json_id, optional_string_array, string_field, AdvisoryError, AdvisoryResult,
-    AdvisorySpaceEnvelope, ValidationReport, HYPOTHESIS_EVENT_SCHEMA, PROJECTION_REQUEST_SCHEMA,
-    REPORT_SCHEMA, REVIEW_EVENT_SCHEMA, SNAPSHOT_SCHEMA, SPACE_SCHEMA,
+    AdvisorySpaceEnvelope, ValidationReport, HYPOTHESIS_EVENT_SCHEMA, MICRO_REVIEW_CLASSIFICATIONS,
+    MICRO_REVIEW_REQUEST_SCHEMA, PROJECTION_REQUEST_SCHEMA, REPORT_SCHEMA, REVIEW_EVENT_SCHEMA,
+    SNAPSHOT_SCHEMA, SPACE_SCHEMA,
 };
 use indexmap::IndexSet;
 use serde_json::Value;
@@ -69,6 +70,10 @@ fn dispatch_schema_validation<'a>(
         HYPOTHESIS_EVENT_SCHEMA => {
             validate_hypothesis_event(value, errors);
             "hypothesis_event"
+        }
+        MICRO_REVIEW_REQUEST_SCHEMA => {
+            validate_micro_review_request(value, errors);
+            "micro_review_request"
         }
         other => {
             return Err(AdvisoryError::SchemaMismatch {
@@ -206,6 +211,42 @@ fn validate_review_event(value: &Value, errors: &mut Vec<String>) {
         .is_none_or(Vec::is_empty)
     {
         errors.push("review event must target at least one id".to_string());
+    }
+}
+
+fn validate_micro_review_request(value: &Value, errors: &mut Vec<String>) {
+    let Some(claims) = value.get("claims").and_then(Value::as_array) else {
+        errors.push("micro review request must contain a `claims` array".to_string());
+        return;
+    };
+    if claims.is_empty() {
+        errors.push("micro review request `claims` must not be empty".to_string());
+        return;
+    }
+    for (index, claim) in claims.iter().enumerate() {
+        let id = claim
+            .get("id")
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("claim:{:03}", index + 1));
+        if claim
+            .get("text")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .is_none_or(str::is_empty)
+        {
+            errors.push(format!("{id} must contain non-empty `text`"));
+        }
+        match claim.get("classification").and_then(Value::as_str) {
+            None => errors.push(format!("{id} must contain a `classification`")),
+            Some(classification) if !MICRO_REVIEW_CLASSIFICATIONS.contains(&classification) => {
+                errors.push(format!(
+                    "{id} has unknown classification `{classification}`; expected one of {}",
+                    MICRO_REVIEW_CLASSIFICATIONS.join(", ")
+                ));
+            }
+            Some(_) => {}
+        }
     }
 }
 

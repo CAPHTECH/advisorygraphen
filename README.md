@@ -17,7 +17,7 @@ cargo install advisorygraphen-cli
 advisorygraphen version
 ```
 
-Current release: `0.2.0`.
+Current release: `0.2.1`.
 
 For local development from this repository:
 
