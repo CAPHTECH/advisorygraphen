@@ -63,7 +63,22 @@ waiting items, frontier items, close status, and head revision.
 
 ```sh
 advisorygraphen status --case target/tmp/advisory-case --format json
+advisorygraphen status --case target/tmp/advisory-case --brief --format json
 ```
+
+The full `result` includes a compact decision surface for agents and humans:
+
+- `summary`: `status_label`, `closeable`, blocker/waiting/frontier counts, and
+  current case head.
+- `top_blockers`: up to three highest-severity blockers with stable IDs,
+  messages, blocked IDs, and recommended completion types.
+- `next_best_action`: the next command class to run, such as
+  `review_pending_candidate`, `advance_frontier`, or `report_or_close`.
+
+The full `close_status`, `blockers`, `frontier_items`, and `waiting_items`
+remain present for detailed inspection and backward compatibility. With
+`--brief`, `result` contains only `summary`, `top_blockers`,
+`next_best_action`, `case_head_revision`, and `next_commands`.
 
 ### `report`
 
@@ -556,7 +571,7 @@ Every report must include:
 {
   "tool": {
     "name": "advisorygraphen",
-    "version": "0.1.3",
+    "version": "0.2.0",
     "command": "advisorygraphen check --space ...",
     "git_revision": "optional"
   }

@@ -2021,6 +2021,32 @@ pub fn facade_status_workflow(options: &FacadeStatusOptions) -> AdvisoryResult<V
         store: options.case_dir.join(&manifest.store_path),
         space_id: manifest.space_id.clone(),
     })?;
+    let decision_surface = facade_status_decision_surface(&reasoned);
+    let next_commands = json!([
+        "advisorygraphen report --case <case> --audience ai_agent",
+        "advisorygraphen review completion accept|reject --case <case> --candidate-id <id> --reviewer <id> --reason <reason>"
+    ]);
+    let result = if options.brief {
+        json!({
+            "case_head_revision": reasoned.pointer("/result/case_head_revision"),
+            "summary": decision_surface.get("summary"),
+            "top_blockers": decision_surface.get("top_blockers"),
+            "next_best_action": decision_surface.get("next_best_action"),
+            "next_commands": next_commands
+        })
+    } else {
+        json!({
+            "case_head_revision": reasoned.pointer("/result/case_head_revision"),
+            "summary": decision_surface.get("summary"),
+            "top_blockers": decision_surface.get("top_blockers"),
+            "next_best_action": decision_surface.get("next_best_action"),
+            "close_status": reasoned.pointer("/result/close_status"),
+            "blockers": reasoned.pointer("/result/blockers"),
+            "frontier_items": reasoned.pointer("/result/frontier_items"),
+            "waiting_items": reasoned.pointer("/result/waiting_items"),
+            "next_commands": next_commands
+        })
+    };
     Ok(json!({
         "schema": "advisorygraphen.report.v1",
         "report_type": "facade_status",
@@ -2029,22 +2055,190 @@ pub fn facade_status_workflow(options: &FacadeStatusOptions) -> AdvisoryResult<V
         "input": {
             "case_dir": options.case_dir,
             "space_id": manifest.space_id,
-            "manifest": CASE_MANIFEST_FILE
+            "manifest": CASE_MANIFEST_FILE,
+            "brief": options.brief
         },
-        "result": {
-            "case_head_revision": reasoned.pointer("/result/case_head_revision"),
-            "close_status": reasoned.pointer("/result/close_status"),
-            "blockers": reasoned.pointer("/result/blockers"),
-            "frontier_items": reasoned.pointer("/result/frontier_items"),
-            "waiting_items": reasoned.pointer("/result/waiting_items"),
-            "next_commands": [
-                "advisorygraphen report --case <case> --audience ai_agent",
-                "advisorygraphen review completion accept|reject --case <case> --candidate-id <id> --reviewer <id> --reason <reason>"
-            ]
-        },
+        "result": result,
         "projection": {},
         "warnings": []
     }))
+}
+
+fn facade_status_decision_surface(reasoned: &Value) -> Value {
+    let close_status = reasoned
+        .pointer("/result/close_status")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let closeable = close_status
+        .get("closeable")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let blockers = reasoned
+        .pointer("/result/blockers")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let frontier_items = reasoned
+        .pointer("/result/frontier_items")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let waiting_items = reasoned
+        .pointer("/result/waiting_items")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut ranked_blockers = blockers
+        .iter()
+        .enumerate()
+        .collect::<Vec<(usize, &Value)>>();
+    ranked_blockers.sort_by(|(left_index, left), (right_index, right)| {
+        blocker_severity_rank(right)
+            .cmp(&blocker_severity_rank(left))
+            .then_with(|| left_index.cmp(right_index))
+    });
+    let top_blockers = ranked_blockers
+        .into_iter()
+        .take(3)
+        .map(|(_, blocker)| summarize_blocker(blocker))
+        .collect::<Vec<_>>();
+    let status_label = if closeable {
+        "closeable"
+    } else if !waiting_items.is_empty() {
+        "blocked_waiting_on_review"
+    } else if !frontier_items.is_empty() {
+        "blocked_agent_actionable"
+    } else if !blockers.is_empty() {
+        "blocked_needs_source_or_review"
+    } else {
+        "unknown"
+    };
+    json!({
+        "summary": {
+            "status_label": status_label,
+            "case_head_revision": reasoned.pointer("/result/case_head_revision"),
+            "closeable": closeable,
+            "blocking_threshold": close_status.get("blocking_threshold"),
+            "blocker_count": blockers.len(),
+            "waiting_count": waiting_items.len(),
+            "frontier_count": frontier_items.len(),
+            "top_blocker_count": top_blockers.len()
+        },
+        "top_blockers": top_blockers,
+        "next_best_action": next_best_facade_action(
+            closeable,
+            waiting_items.first(),
+            frontier_items.first(),
+            blockers.first()
+        )
+    })
+}
+
+fn blocker_severity_rank(blocker: &Value) -> u8 {
+    match blocker.get("severity").and_then(Value::as_str) {
+        Some("critical") => 5,
+        Some("high") => 4,
+        Some("medium") => 3,
+        Some("low") => 2,
+        Some("info") => 1,
+        _ => 0,
+    }
+}
+
+fn summarize_blocker(blocker: &Value) -> Value {
+    json!({
+        "id": blocker.get("id"),
+        "severity": blocker.get("severity"),
+        "type": blocker.get("obstruction_type"),
+        "message": blocker.get("message"),
+        "blocked_ids": blocker.get("blocked_ids").cloned().unwrap_or_else(|| json!([])),
+        "recommended_completion_types": blocker
+            .get("recommended_completion_types")
+            .cloned()
+            .unwrap_or_else(|| json!([])),
+        "review_status": blocker.get("review_status")
+    })
+}
+
+fn next_best_facade_action(
+    closeable: bool,
+    first_waiting: Option<&Value>,
+    first_frontier: Option<&Value>,
+    first_blocker: Option<&Value>,
+) -> Value {
+    if closeable {
+        return json!({
+            "action_type": "report_or_close",
+            "reason": "No blocking obstructions remain at the configured threshold.",
+            "command": "advisorygraphen report --case <case> --audience ai_agent",
+            "target_ids": []
+        });
+    }
+
+    if let Some(waiting) = first_waiting {
+        let candidate_ids = waiting
+            .get("candidate_ids")
+            .cloned()
+            .unwrap_or_else(|| json!([]));
+        let target_ids = if candidate_ids.as_array().is_some_and(|ids| !ids.is_empty()) {
+            candidate_ids.clone()
+        } else {
+            waiting
+                .get("obstruction_id")
+                .map(|id| json!([id]))
+                .unwrap_or_else(|| json!([]))
+        };
+        return json!({
+            "action_type": "review_pending_candidate",
+            "reason": waiting
+                .get("waiting_on")
+                .and_then(Value::as_str)
+                .unwrap_or("A blocker has candidate structure waiting on explicit review."),
+            "command": "advisorygraphen review completion accept|reject --case <case> --candidate-id <candidate-id> --reviewer <id> --reason <reason>",
+            "target_ids": target_ids,
+            "candidate_ids": candidate_ids,
+            "obstruction_id": waiting.get("obstruction_id")
+        });
+    }
+
+    if let Some(frontier) = first_frontier {
+        return json!({
+            "action_type": "advance_frontier",
+            "reason": frontier
+                .get("next_operation")
+                .and_then(Value::as_str)
+                .unwrap_or("Agent-actionable frontier work is available."),
+            "command": "advisorygraphen report --case <case> --audience ai_agent",
+            "target_ids": frontier
+                .get("candidate_ids")
+                .cloned()
+                .unwrap_or_else(|| json!([])),
+            "obstruction_id": frontier.get("obstruction_id")
+        });
+    }
+
+    if let Some(blocker) = first_blocker {
+        return json!({
+            "action_type": "inspect_blocker",
+            "reason": blocker
+                .get("message")
+                .and_then(Value::as_str)
+                .unwrap_or("A blocker remains but no candidate or frontier action is available."),
+            "command": "advisorygraphen report --case <case> --audience ai_agent",
+            "target_ids": blocker
+                .get("blocked_ids")
+                .cloned()
+                .unwrap_or_else(|| json!([])),
+            "obstruction_id": blocker.get("id")
+        });
+    }
+
+    json!({
+        "action_type": "inspect_report",
+        "reason": "Status did not expose a closeable state, blocker, waiting item, or frontier item.",
+        "command": "advisorygraphen report --case <case> --audience ai_agent",
+        "target_ids": []
+    })
 }
 
 pub fn facade_report_workflow(options: &FacadeReportOptions) -> AdvisoryResult<String> {

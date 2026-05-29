@@ -85,11 +85,14 @@ Expected findings:
    `advisorygraphen.case-manifest.json`.
 2. The manifest records input, space, check report, completion report,
    hypothesis report, `ai_agent` projection, store path, and head revision.
-3. `status --case ...` reports the current case head, blockers, frontier
-   items, waiting items, and close status.
-4. `report --case ... --audience ai_agent` renders the current agent
+3. `status --case ...` reports the compact decision surface
+   (`summary`, `top_blockers`, `next_best_action`) plus the current case head,
+   blockers, frontier items, waiting items, and close status.
+4. `status --case ... --brief` reports only the compact decision surface and
+   next commands.
+5. `report --case ... --audience ai_agent` renders the current agent
    projection from case state.
-5. `review completion reject --case ...` records a review event using
+6. `review completion reject --case ...` records a review event using
    manifest-derived paths and updates the manifest head revision.
 
 ## CLI acceptance test
@@ -179,9 +182,9 @@ cargo publish --dry-run --workspace
 cargo run -q -p advisorygraphen-cli -- validate --input examples/technical-advisory/direct-db-access/advisory.input.json --format json
 ```
 
-## Acceptance definition for v0.1.3
+## Acceptance definition for v0.2.0
 
-v0.1.3 can be tagged when:
+v0.2.0 can be tagged when:
 
 1. workspace tests, clippy, and CLI acceptance tests pass;
 2. crates.io publish dry-run passes for the workspace;

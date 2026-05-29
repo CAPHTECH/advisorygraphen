@@ -20,11 +20,11 @@ fn version_command_reports_planned_cli_version() {
     let dashed = run_cli(["--version"]);
     assert_success(&dashed);
     assert_output_contains(&dashed, BINARY);
-    assert_output_contains(&dashed, "0.1.3");
+    assert_output_contains(&dashed, "0.2.0");
 
     let subcommand = run_cli(["version"]);
     assert_success(&subcommand);
-    assert_output_contains(&subcommand, "0.1.3");
+    assert_output_contains(&subcommand, "0.2.0");
 }
 
 #[test]
@@ -915,7 +915,28 @@ fn facade_commands_wrap_hypothesis_proposal_workflow() {
     assert_success(&status);
     assert_output_contains(&status, r#""report_type": "facade_status""#);
     assert_output_contains(&status, r#""case_head_revision": "revision:facade-initial""#);
+    assert_output_contains(&status, r#""summary""#);
+    assert_output_contains(&status, r#""status_label": "blocked_waiting_on_review""#);
+    assert_output_contains(&status, r#""top_blockers""#);
+    assert_output_contains(&status, r#""next_best_action""#);
+    assert_output_contains(&status, r#""action_type": "review_pending_candidate""#);
     assert_output_contains(&status, "candidate_review_pending");
+
+    let brief_status = run_cli([
+        "status",
+        "--case",
+        path_str(&dir),
+        "--brief",
+        "--format",
+        "json",
+    ]);
+    assert_success(&brief_status);
+    assert_output_contains(&brief_status, r#""brief": true"#);
+    assert_output_contains(&brief_status, r#""summary""#);
+    assert_output_contains(&brief_status, r#""top_blockers""#);
+    assert_output_contains(&brief_status, r#""next_best_action""#);
+    assert_output_not_contains(&brief_status, r#""waiting_items""#);
+    assert_output_not_contains(&brief_status, r#""blockers""#);
 
     let report = run_cli([
         "report",

@@ -143,6 +143,8 @@ struct FacadeProposeArgs {
 struct FacadeStatusArgs {
     #[arg(long = "case")]
     case_dir: PathBuf,
+    #[arg(long)]
+    brief: bool,
     #[arg(long, default_value = "json")]
     format: String,
 }
@@ -534,6 +536,7 @@ fn run() -> Result<(), AdvisoryError> {
             require_json_format(&args.format)?;
             print_json(&facade_status_workflow(&FacadeStatusOptions {
                 case_dir: args.case_dir,
+                brief: args.brief,
             })?)
         }
         Command::Report(args) => {

@@ -17,7 +17,7 @@ cargo install advisorygraphen-cli
 advisorygraphen version
 ```
 
-Current release: `0.1.3`.
+Current release: `0.2.0`.
 
 For local development from this repository:
 
@@ -56,9 +56,15 @@ advisorygraphen propose \
   --case /tmp/advisory-case \
   --format json
 
-advisorygraphen status --case /tmp/advisory-case --format json
+advisorygraphen status --case /tmp/advisory-case --brief --format json
 advisorygraphen report --case /tmp/advisory-case --audience ai_agent --format json
 ```
+
+`status --brief` returns only the decision surface: `summary`, `top_blockers`,
+and `next_best_action`. Use it to decide whether to review a candidate, inspect
+an observation task, generate a report, or close the case before reading the
+full blocker details. Omit `--brief` when you need the complete blockers,
+frontier items, waiting items, and close status.
 
 Run the released workflow against the included `technical_advisory_mvp` fixture.
 
@@ -124,7 +130,7 @@ Key commands:
 | Command | Purpose |
 | --- | --- |
 | `propose` | Run the hypothesis/proposal facade workflow and create a case manifest. |
-| `status` | Read a facade case manifest and report current blockers, waiting items, and head revision. |
+| `status` | Read a facade case manifest and report the decision surface, current blockers, waiting items, and head revision; use `--brief` for only the decision surface. |
 | `report` | Render a projection from a facade case manifest. |
 | `review` | Accept or reject facade completion/hypothesis review targets using manifest-derived paths. |
 | `validate` | Validate a snapshot, advisory space, report, projection request, or review event. |

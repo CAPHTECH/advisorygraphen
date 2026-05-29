@@ -155,6 +155,7 @@ pub struct FacadeProposeOptions {
 #[derive(Debug, Clone)]
 pub struct FacadeStatusOptions {
     pub case_dir: PathBuf,
+    pub brief: bool,
 }
 
 #[derive(Debug, Clone)]

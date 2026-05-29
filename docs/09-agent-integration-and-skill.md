@@ -48,13 +48,16 @@ CLI command: `advisorygraphen`
 2. Run `advisorygraphen propose --input <snapshot> --case <case-dir>`.
 3. Inspect the returned manifest path, recommendation trace, blockers, and
    waiting items.
-4. Run `advisorygraphen status --case <case-dir>` before resuming later work.
-5. Run `advisorygraphen report --case <case-dir> --audience ai_agent` before
+4. Run `advisorygraphen status --case <case-dir> --brief` before resuming
+   later work.
+5. Read `status.result.summary`, `status.result.top_blockers`, and
+   `status.result.next_best_action` before expanding the full blocker details.
+6. Run `advisorygraphen report --case <case-dir> --audience ai_agent` before
    choosing review or observation commands.
-6. Use `advisorygraphen review ... --case <case-dir>` for explicit
+7. Use `advisorygraphen review ... --case <case-dir>` for explicit
    completion or hypothesis review decisions.
-7. Generate requested human projection or audit_trace.
-8. Keep candidates unreviewed unless the user explicitly reviews them.
+8. Generate requested human projection or audit_trace.
+9. Keep candidates unreviewed unless the user explicitly reviews them.
 
 The low-level `validate`, `lift`, `check`, `completions propose`, `project`,
 `case`, `hypothesis`, and `observation` commands remain the stable primitive

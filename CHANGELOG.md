@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.0 - 2026-05-29
+
+- **Breaking:** `micro review` no longer pattern-matches prose. It now takes an
+  `advisorygraphen.micro_review.request.v1` document of agent self-classified
+  claims and enforces structural honesty deterministically: a claim marked
+  evidence-backed without a cited witness becomes a
+  `claim_marked_supported_without_evidence` obstruction, declared strong claims
+  and unsupported high-blast-radius claims are flagged, and escalation is a
+  deterministic rule over the classifications. The previous keyword/regex
+  classification and heuristic risk scoring were removed.
+- Add the `micro-review.request.v1` schema, an example request, and updated
+  skills/docs/tests for the agent-classified contract.
+- Add the task-oriented facade commands `propose`, `status`, `report`, and
+  `review` with a case manifest, plus `status --brief` exposing a compact
+  decision surface (`summary`, `top_blockers`, `next_best_action`).
+
 ## 0.1.3 - 2026-05-27
 
 - Add micro review structure-risk triage for small AI answers, summaries, and compact PR notes.

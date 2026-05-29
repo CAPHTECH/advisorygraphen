@@ -91,8 +91,11 @@ Read the relevant reference before starting each phase:
    This validates, lifts, checks, proposes completions, proposes hypothesis
    lifecycle transitions, generates `ai_agent`, imports the case, and writes
    `advisorygraphen.case-manifest.json`.
-6. Run `advisorygraphen status --case <case-dir> --format json` before
-   resuming an existing case.
+6. Run `advisorygraphen status --case <case-dir> --brief --format json` before
+   resuming an existing case. Inspect `result.summary`,
+   `result.top_blockers`, and `result.next_best_action` first; expand full
+   `blockers`, `frontier_items`, and `waiting_items` only after choosing the
+   next operation class.
 7. Run `advisorygraphen report --case <case-dir> --audience ai_agent --format json`
    before choosing review, observation, or reporting steps.
 8. Inspect `obstructions`, `hypotheses`, `falsifiers`, and
